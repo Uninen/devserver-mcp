@@ -29,6 +29,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 ## Documentation
 - See `docs/design.md` for technical design specs
 - See `docs/design_addendum.md` for technical design implementation notes
+- See latest FastMCP documentation at: https://gofastmcp.com/llms-full.txt
 - Check existing code patterns before implementing new features
 
 ### Test App Structure

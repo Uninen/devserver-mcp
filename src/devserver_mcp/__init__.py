@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+import nest_asyncio
 import yaml
 from fastmcp import FastMCP
 from pydantic import BaseModel
@@ -19,6 +20,9 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+
+# Apply nest_asyncio early to handle nested event loops
+nest_asyncio.apply()
 
 # Color palette for different servers
 SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cyan", "bright_magenta", "bright_yellow"]
@@ -378,7 +382,7 @@ class DevServerMCP:
         signal.signal(signal.SIGTERM, signal_handler)
 
         # Start MCP server
-        mcp_task = asyncio.create_task(self.mcp.run())  # type: ignore
+        mcp_task = asyncio.create_task(self.mcp.run_async())
 
         # Start TUI update loop
         with Live(self._create_layout(), console=self.console, screen=True, refresh_per_second=2) as live:
@@ -435,6 +439,7 @@ def main(config):
     try:
         server = DevServerMCP(config)
         asyncio.run(server.run())
+
     except FileNotFoundError:
         click.echo(f"Error: Configuration file '{config}' not found", err=True)
         sys.exit(1)
