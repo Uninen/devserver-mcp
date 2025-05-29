@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 import signal
 import socket
@@ -128,13 +129,15 @@ class ManagedProcess:
 class DevServerMCP:
     """Main MCP Server implementation"""
 
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, transport: str = "streamable-http", port: int = 3001):
         self.console = Console()
         self.config = self._load_config(config_path)
         self.processes: dict[str, ManagedProcess] = {}
         self.output_lines: deque = deque(maxlen=1000)
         self.mcp = FastMCP("devserver")
         self._shutdown_event = asyncio.Event()
+        self.transport = transport
+        self.port = port
         self._setup_tools()
         self._assign_colors()
 
@@ -360,11 +363,29 @@ class DevServerMCP:
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
-        # Start MCP server in background
-        mcp_task = asyncio.create_task(self.mcp.run_async())
+        # For stdio transport, run without TUI since the MCP protocol uses stdio
+        if self.transport == "stdio":
+            await self._add_output_line("MCP server started with STDIO transport", "green")
+            await self.mcp.run_async()
+            return
 
+        # For HTTP transport, run MCP server in background and show TUI
+        mcp_task = None
         try:
+            # Start MCP server in background
+            mcp_task = asyncio.create_task(
+                self.mcp.run_async(transport="streamable-http", port=self.port, host="127.0.0.1")
+            )
+
+            # Give the server a moment to start
+            await asyncio.sleep(0.5)
+
+            transport_msg = f"MCP HTTP server started on http://127.0.0.1:{self.port}/mcp"
+
             with Live(self._create_layout(), console=self.console, screen=True, refresh_per_second=2) as live:
+                # Add initial message about transport
+                await self._add_output_line(transport_msg, "green")
+
                 while not self._shutdown_event.is_set():
                     live.update(self._create_layout())
                     try:
@@ -374,8 +395,10 @@ class DevServerMCP:
                         continue
         finally:
             # Cancel MCP task immediately
-            if not mcp_task.done():
+            if mcp_task and not mcp_task.done():
                 mcp_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await mcp_task
 
             # Stop all processes immediately
             self.shutdown()
@@ -391,7 +414,15 @@ class DevServerMCP:
 @click.option(
     "--config", "-c", default="devserver.yml", help="Path to configuration file", type=click.Path(exists=False)
 )
-def main(config):
+@click.option(
+    "--transport",
+    "-t",
+    default="streamable-http",
+    type=click.Choice(["stdio", "streamable-http"]),
+    help="Transport method for MCP server",
+)
+@click.option("--port", "-p", default=3001, type=int, help="Port for HTTP transport (ignored for stdio)")
+def main(config, transport, port):
     """DevServer MCP - Development Server Manager"""
     if not os.path.isabs(config) and not os.path.exists(config):
         cwd_config = Path.cwd() / config
@@ -409,7 +440,7 @@ def main(config):
                 current = current.parent
 
     try:
-        server = DevServerMCP(config)
+        server = DevServerMCP(config, transport, port)
         asyncio.run(server.run())
     except KeyboardInterrupt:
         pass
