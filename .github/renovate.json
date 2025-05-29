@@ -1,0 +1,46 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", "helpers:pinGitHubActionDigestsToSemver"],
+	"enabledManagers": [
+		"github-actions",
+		"pep621"
+	],
+	"timezone": "Europe/Helsinki",
+	"dependencyDashboard": true,
+	"lockFileMaintenance": {
+		"enabled": true,
+		"automerge": true,
+		"schedule": ["after 4am and before 8am on Tuesday"]
+	},
+	"packageRules": [
+		{
+			"description": "Default automerge settings for all updates",
+			"matchManagers": ["github-actions"],
+			"automerge": true,
+			"automergeSchedule": ["after 4am and before 8am on Monday and Thursday"]
+		},
+		{
+			"description": "Group ci dependencies",
+			"matchManagers": ["github-actions"],
+			"groupName": "tooling-dependencies",
+			"groupSlug": "tooling",
+			"labels": ["deps"],
+			"commitMessagePrefix": "chore(ci deps)",
+			"automerge": true,
+			"minimumReleaseAge": "3 days",
+			"automergeSchedule": ["after 4am and before 8am on Monday and Thursday"]
+		},
+		{
+			"description": "Group backend dependencies",
+			"matchManagers": ["pep621"],
+			"groupName": "backend-dependencies",
+			"groupSlug": "backend",
+			"labels": ["deps"],
+			"commitMessagePrefix": "chore(backend deps)",
+			"automerge": true,
+			"minimumReleaseAge": "3 days",
+			"rangeStrategy": "bump",
+			"automergeSchedule": ["after 4am and before 8am on Monday and Thursday"]
+		}
+	]
+}
