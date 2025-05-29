@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Added comprehensive tests for DevServerManager and improved testability of DevServerMCP. (GitHub Copilot)
 * 30-05-2025 -- Added console script entry point and __main__.py module for proper PyPI package installation - users can now run 'devserver-mcp' command or 'python -m devserver_mcp' after installing from PyPI. (claude-3-5-sonnet-20241022)
 * 29-05-2025 -- Refactored shutdown process to handle Ctrl-C cleanly with custom event loop exception handler, proper MCP task cancellation, and ensured zero terminal output after shutdown. (claude-opus-4-20250514)
 * 29-05-2025 -- Fixed app startup while maintaining zero terminal output by only silencing in non-terminal environments, allowing TUI to run normally in terminals but completely silent in tests/subprocess. (claude-sonnet-4-20250514)
