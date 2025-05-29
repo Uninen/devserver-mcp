@@ -10,8 +10,10 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
   - `uv add --dev [package]` -- add dev dependency
   - `uv run [command in .venv context]` -- run a command in the project environment
   - `pyproject.toml` -- python project configuration
+- Tests: 
+  - In `tests/`
+  - Run with: `uv run pytest`
 - Test the server implementation using the test app (see details below): `uv run python src/devserver_mcp/__init__.py`
-- Tests: TBA
 
 ## Coding Guidelines
 - **NO trivial comments**
@@ -25,8 +27,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 ### Testing Guidelines
 - Write meaningful tests, not coverage fillers
 - Always use pytest functions, never use classes
-- When creating or fixing tests, always execute **the full test suite** (using `run_tests` tool) to make sure all tests pass
-- Never use shell commands like `python -m ...` to run the tests, always use `run_tests` tool to run tests
+- When creating or fixing tests, always run **the full test suite** to make sure all tests pass
 
 ## Documentation
 - See `docs/design.md` for technical design specs

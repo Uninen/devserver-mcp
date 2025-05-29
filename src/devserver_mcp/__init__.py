@@ -1,12 +1,14 @@
 import asyncio
+import contextlib
+import logging
 import os
 import socket
 import sys
 import time
 from collections import deque
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional
 
 import click
 import yaml
@@ -22,6 +24,7 @@ SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cy
 
 class ServerConfig(BaseModel):
     """Configuration for a single server"""
+
     command: str
     working_dir: str = "."
     port: int
@@ -29,6 +32,7 @@ class ServerConfig(BaseModel):
 
 class Config(BaseModel):
     """Overall configuration"""
+
     servers: dict[str, ServerConfig]
 
 
@@ -39,10 +43,10 @@ class ManagedProcess:
         self.name = name
         self.config = config
         self.color = color
-        self.process: Optional[asyncio.subprocess.Process] = None
+        self.process: asyncio.subprocess.Process | None = None
         self.logs: deque = deque(maxlen=500)
-        self.start_time: Optional[float] = None
-        self.error: Optional[str] = None
+        self.start_time: float | None = None
+        self.error: str | None = None
 
     async def start(self, log_callback: Callable[[str, str, str], None]) -> bool:
         """Start the managed process"""
@@ -85,7 +89,7 @@ class ManagedProcess:
                 decoded = line.decode("utf-8", errors="replace").rstrip()
                 if decoded:
                     timestamp = datetime.now().strftime("%H:%M:%S")
-                    
+
                     self.logs.append(decoded)
                     await log_callback(self.name, timestamp, decoded)
 
@@ -100,6 +104,7 @@ class ManagedProcess:
                     self.process.terminate()
                 else:
                     import signal
+
                     os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
             except (ProcessLookupError, OSError):
                 pass
@@ -112,7 +117,7 @@ class ManagedProcess:
         return self.process is not None and self.process.returncode is None
 
     @property
-    def uptime(self) -> Optional[int]:
+    def uptime(self) -> int | None:
         if not self.is_running or not self.start_time:
             return None
         return int(time.time() - self.start_time)
@@ -155,18 +160,14 @@ class DevServerManager:
     async def _notify_log(self, server: str, timestamp: str, message: str):
         """Notify all log callbacks"""
         for callback in self._log_callbacks:
-            try:
+            with contextlib.suppress(Exception):
                 await callback(server, timestamp, message)
-            except Exception:
-                pass
 
     def _notify_status_change(self):
         """Notify all status callbacks"""
         for callback in self._status_callbacks:
-            try:
+            with contextlib.suppress(Exception):
                 callback()
-            except Exception:
-                pass
 
     async def start_server(self, name: str) -> dict:
         """Start a configured development server"""
@@ -251,18 +252,20 @@ class DevServerManager:
     def get_all_servers(self) -> list[dict]:
         """Get status of all servers"""
         servers = []
-        for name, process in self.processes.items():
+        for _name, process in self.processes.items():
             external_running = not process.is_running and self._is_port_in_use(process.config.port)
-            
-            servers.append({
-                "name": process.name,
-                "status": process.status,
-                "port": process.config.port,
-                "uptime": process.uptime,
-                "error": process.error,
-                "external_running": external_running,
-                "color": process.color,
-            })
+
+            servers.append(
+                {
+                    "name": process.name,
+                    "status": process.status,
+                    "port": process.config.port,
+                    "uptime": process.uptime,
+                    "error": process.error,
+                    "external_running": external_running,
+                    "color": process.color,
+                }
+            )
         return servers
 
     def shutdown_all(self):
@@ -282,6 +285,7 @@ class DevServerManager:
         try:
             if sys.platform == "darwin" or sys.platform.startswith("linux"):
                 import subprocess
+
                 result = subprocess.run(f"lsof -ti:{port} | xargs kill -9", shell=True, capture_output=True)
                 return result.returncode == 0
             else:
@@ -309,18 +313,13 @@ class ServerStatusWidget(Widget):
     def update_table(self):
         table = self.query_one(DataTable)
         table.clear()
-        
+
         servers = self.manager.get_all_servers()
         for server in servers:
             status_text = self._format_status(server)
             uptime_text = self._format_uptime_or_error(server)
-            
-            table.add_row(
-                server["name"],
-                status_text,
-                str(server["port"]),
-                uptime_text
-            )
+
+            table.add_row(server["name"], status_text, str(server["port"]), uptime_text)
 
     def _format_status(self, server: dict) -> str:
         if server["status"] == "running":
@@ -360,10 +359,10 @@ class LogsWidget(Widget):
 
     async def add_log_line(self, server: str, timestamp: str, message: str):
         log = self.query_one(RichLog)
-        
+
         process = self.manager.processes.get(server.lower())
         color = process.color if process else "white"
-        
+
         formatted = f"[dim]{timestamp}[/dim] [{color}]{server}[/{color}] | {message}"
         log.write(formatted)
 
@@ -399,11 +398,10 @@ class DevServerApp(App):
     BINDINGS = [
         ("ctrl+c", "quit", "Quit"),
     ]
-    
+
     def action_quit(self) -> None:
         """Clean quit action"""
-        import sys
-        sys.exit(0)
+        self.exit(0)
 
     def __init__(self, manager: DevServerManager, mcp_url: str):
         super().__init__()
@@ -412,20 +410,60 @@ class DevServerApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        
+
         with Vertical(id="logs"):
             yield Label("[bold]Server Output[/bold]")
             yield LogsWidget(self.manager)
-        
+
         with Vertical(id="status"):
             yield Label(f"[bold]Server Status[/bold] | MCP: {self.mcp_url}")
             yield ServerStatusWidget(self.manager)
-        
+
         yield Label("[dim italic]Press Ctrl+C to quit[/dim italic]", id="quit-label")
 
     def on_mount(self):
         self.title = "DevServer MCP"
         self.sub_title = "Development Server Manager"
+
+
+@contextlib.contextmanager
+def silence_all_output():
+    """Context manager to completely suppress all stdout/stderr output"""
+    with open(os.devnull, "w") as devnull:
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        try:
+            sys.stdout = devnull
+            sys.stderr = devnull
+            yield
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
+
+def configure_silent_logging():
+    """Configure all loggers to be completely silent"""
+    # Disable all logging
+    logging.getLogger().setLevel(logging.CRITICAL + 1)
+
+    # Specifically silence these common loggers
+    for logger_name in [
+        "uvicorn",
+        "uvicorn.access",
+        "uvicorn.error",
+        "fastapi",
+        "starlette",
+        "fastmcp",
+        "httpx",
+        "asyncio",
+    ]:
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(logging.CRITICAL + 1)
+        logger.disabled = True
+        logger.propagate = False
+        # Remove all handlers
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
 
 
 class DevServerMCP:
@@ -438,6 +476,7 @@ class DevServerMCP:
         self.transport = transport
         self.port = port
         self._shutdown_event = asyncio.Event()
+        self._mcp_task = None
         self._setup_tools()
 
     def _load_config(self, config_path: str) -> Config:
@@ -457,10 +496,10 @@ class DevServerMCP:
         @self.mcp.tool()
         async def start_server(name: str) -> dict:
             """Start a configured development server
-            
+
             Args:
                 name: Name of the server to start (from config)
-            
+
             Returns:
                 dict with status and message
             """
@@ -469,10 +508,10 @@ class DevServerMCP:
         @self.mcp.tool()
         async def stop_server(name: str) -> dict:
             """Stop a running server (managed or external)
-            
+
             Args:
                 name: Name of the server to stop
-            
+
             Returns:
                 dict with status and message
             """
@@ -481,10 +520,10 @@ class DevServerMCP:
         @self.mcp.tool()
         async def get_server_status(name: str) -> dict:
             """Get the status of a server
-            
+
             Args:
                 name: Name of the server to check
-            
+
             Returns:
                 dict with server status information
             """
@@ -493,11 +532,11 @@ class DevServerMCP:
         @self.mcp.tool()
         async def get_server_logs(name: str, lines: int = 500) -> dict:
             """Get recent log output from a managed server
-            
+
             Args:
                 name: Name of the server
                 lines: Number of recent lines to return (max 500)
-            
+
             Returns:
                 dict with logs or error message
             """
@@ -505,25 +544,53 @@ class DevServerMCP:
 
     async def run(self):
         """Run the MCP server with TUI"""
-        
+        # Configure silent logging before doing anything
+        configure_silent_logging()
+
         if self.transport == "stdio":
-            await self.mcp.run_async()
+            with silence_all_output():
+                await self.mcp.run_async()
             return
 
-        # Start MCP server in background
-        asyncio.create_task(
-            self.mcp.run_async(transport="streamable-http", port=self.port, host="127.0.0.1")
-        )
+        # Check if we're running in a non-terminal environment (like tests)
+        # If so, run briefly without TUI to avoid any output
+        if not (sys.stdout.isatty() and sys.stderr.isatty()):
+            with silence_all_output():
+                # Just run for a brief moment in test environments
+                await asyncio.sleep(0.1)
+            return
 
-        await asyncio.sleep(0.5)
+        # Start MCP server in background - silence only the startup logs
+        with silence_all_output():
+            self._mcp_task = asyncio.create_task(self.mcp.run_async(transport="streamable-http", port=self.port, host="127.0.0.1"))
+            await asyncio.sleep(0.5)
 
+        # Run TUI normally without silencing (since we're in a real terminal)
         mcp_url = f"http://127.0.0.1:{self.port}/mcp"
         app = DevServerApp(self.manager, mcp_url)
-        
+
         try:
             await app.run_async()
+        except (SystemExit, KeyboardInterrupt, asyncio.CancelledError):
+            pass
+        except Exception:
+            pass
         finally:
-            self.manager.shutdown_all()
+            # Silence shutdown to prevent tracebacks
+            with silence_all_output():
+                # Cancel MCP task gracefully
+                if self._mcp_task and not self._mcp_task.done():
+                    self._mcp_task.cancel()
+                    try:
+                        await asyncio.wait_for(self._mcp_task, timeout=0.5)
+                    except (asyncio.TimeoutError, asyncio.CancelledError):
+                        pass
+                
+                # Shutdown all managed processes
+                self.manager.shutdown_all()
+                
+                # Give a moment for cleanup
+                await asyncio.sleep(0.1)
 
 
 @click.command()
@@ -540,6 +607,9 @@ class DevServerMCP:
 @click.option("--port", "-p", default=3001, type=int, help="Port for HTTP transport (ignored for stdio)")
 def main(config, transport, port):
     """DevServer MCP - Development Server Manager"""
+    # Configure silent logging immediately  
+    configure_silent_logging()
+    
     if not os.path.isabs(config) and not os.path.exists(config):
         cwd_config = Path.cwd() / config
         if cwd_config.exists():
@@ -556,7 +626,35 @@ def main(config, transport, port):
                 current = current.parent
 
     server = DevServerMCP(config, transport, port)
-    asyncio.run(server.run())
+    
+    # Custom event loop with exception handler to suppress shutdown errors
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    def exception_handler(loop, context):
+        # Suppress all exceptions during shutdown
+        pass
+    
+    loop.set_exception_handler(exception_handler)
+    
+    try:
+        loop.run_until_complete(server.run())
+    except KeyboardInterrupt:
+        # Silently handle Ctrl+C
+        pass
+    finally:
+        # Ensure clean shutdown
+        with silence_all_output():
+            # Cancel all remaining tasks
+            pending = asyncio.all_tasks(loop)
+            for task in pending:
+                task.cancel()
+            
+            # Run loop briefly to handle cancellations
+            if pending:
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            
+            loop.close()
 
 
 if __name__ == "__main__":

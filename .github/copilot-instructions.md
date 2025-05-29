@@ -10,8 +10,10 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
   - `uv add --dev [package]` -- add dev dependency
   - `uv run [command in .venv context]` -- run a command in the project environment
   - `pyproject.toml` -- python project configuration
+- Tests: 
+  - In `tests/`
+  - Run with: `run_tests` tool
 - Test the server implementation using the test app (see details below): `uv run python src/devserver_mcp/__init__.py`
-- Tests: TBA
 
 ## Coding Guidelines
 - **NO trivial comments**
