@@ -45,7 +45,7 @@ devserver.yml       # Test configuration
 ```
 
 ## Change Logging
-- After completing any change or action, add a one-line note to the top of `CHANGES_AI.md` (to the list under the first heading)
+- After completing any change or action, add a one-line note to the top of `CHANGES_AI.md` (to the top of list under the first heading)
 - Format: `* DD-MM-YYYY -- Short one line explanation of the completed changes. ([your-model-name])`
 - Example: `* 23-05-2025 -- Added user profile API endpoint with authentication. (gpt-4.1)`
 
