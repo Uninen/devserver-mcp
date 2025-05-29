@@ -1,5 +1,9 @@
 # AI Generated Changes
 
+* 29-05-2025 -- Added pytest tests to demonstrate excessive terminal output issue during app startup and shutdown. (claude-sonnet-4-20250514)
+* 29-05-2025 -- Simplified shutdown to just exit cleanly without complex MCP task cancellation - let OS handle cleanup for silent exit. (claude-sonnet-4-20250514)
+* 29-05-2025 -- Fixed Textual layout to use bottom status bar instead of side panels, removed 'q' quit binding, and fixed CancelledError on exit with proper timeout handling. (claude-sonnet-4-20250514)
+* 29-05-2025 -- Reimplemented TUI using Textual instead of Rich for better terminal handling and cleaner output. Refactored code structure with proper separation of concerns between business logic (DevServerManager), UI (Textual widgets), and MCP integration. (claude-sonnet-4-20250514)
 * 29-05-2025 -- Fixed lint error and verified HTTP transport working properly - MCP server now successfully starts on http://127.0.0.1:3001/mcp. (claude-3-5-sonnet)
 * 29-05-2025 -- Implemented HTTP transport for shared MCP server instance between TUI and VS Code integration. (claude-3-5-sonnet)
 * 29-05-2025 -- Refactored process management for immediate clean exit on Control-C (sonnet-4)

@@ -1,33 +1,27 @@
 import asyncio
-import contextlib
 import os
-import signal
 import socket
 import sys
 import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
+from typing import Callable, Optional
 
 import click
 import yaml
 from fastmcp import FastMCP
 from pydantic import BaseModel
-from rich.align import Align
-from rich.console import Console
-from rich.layout import Layout
-from rich.live import Live
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
+from textual.app import App, ComposeResult
+from textual.containers import Vertical
+from textual.widget import Widget
+from textual.widgets import DataTable, Header, Label, RichLog
 
-# Color palette for different servers
 SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cyan", "bright_magenta", "bright_yellow"]
 
 
 class ServerConfig(BaseModel):
     """Configuration for a single server"""
-
     command: str
     working_dir: str = "."
     port: int
@@ -35,23 +29,22 @@ class ServerConfig(BaseModel):
 
 class Config(BaseModel):
     """Overall configuration"""
-
     servers: dict[str, ServerConfig]
 
 
 class ManagedProcess:
-    """Represents a process managed by the MCP server"""
+    """Represents a process managed by the server"""
 
     def __init__(self, name: str, config: ServerConfig, color: str):
         self.name = name
         self.config = config
         self.color = color
-        self.process: asyncio.subprocess.Process | None = None
+        self.process: Optional[asyncio.subprocess.Process] = None
         self.logs: deque = deque(maxlen=500)
-        self.start_time: float | None = None
-        self.error: str | None = None
+        self.start_time: Optional[float] = None
+        self.error: Optional[str] = None
 
-    async def start(self, log_callback):
+    async def start(self, log_callback: Callable[[str, str, str], None]) -> bool:
         """Start the managed process"""
         try:
             self.error = None
@@ -69,7 +62,6 @@ class ManagedProcess:
             )
 
             asyncio.create_task(self._read_output(log_callback))
-
             await asyncio.sleep(0.5)
 
             if self.process.returncode is not None:
@@ -82,7 +74,7 @@ class ManagedProcess:
             self.error = str(e)
             return False
 
-    async def _read_output(self, log_callback):
+    async def _read_output(self, log_callback: Callable[[str, str, str], None]):
         """Read process output and forward to callback"""
         while self.process and self.process.stdout:
             try:
@@ -93,10 +85,9 @@ class ManagedProcess:
                 decoded = line.decode("utf-8", errors="replace").rstrip()
                 if decoded:
                     timestamp = datetime.now().strftime("%H:%M:%S")
-                    formatted = f"{timestamp} {self.name} | {decoded}"
-
+                    
                     self.logs.append(decoded)
-                    await log_callback(formatted, self.color)
+                    await log_callback(self.name, timestamp, decoded)
 
             except Exception:
                 break
@@ -108,6 +99,7 @@ class ManagedProcess:
                 if sys.platform == "win32":
                     self.process.terminate()
                 else:
+                    import signal
                     os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
             except (ProcessLookupError, OSError):
                 pass
@@ -116,30 +108,337 @@ class ManagedProcess:
                 self.start_time = None
 
     @property
-    def is_running(self):
+    def is_running(self) -> bool:
         return self.process is not None and self.process.returncode is None
 
     @property
-    def uptime(self):
+    def uptime(self) -> Optional[int]:
         if not self.is_running or not self.start_time:
             return None
         return int(time.time() - self.start_time)
 
+    @property
+    def status(self) -> str:
+        if self.is_running:
+            return "running"
+        elif self.error:
+            return "error"
+        else:
+            return "stopped"
+
+
+class DevServerManager:
+    """Core business logic for managing development servers"""
+
+    def __init__(self, config: Config):
+        self.config = config
+        self.processes: dict[str, ManagedProcess] = {}
+        self._log_callbacks: list[Callable[[str, str, str], None]] = []
+        self._status_callbacks: list[Callable[[], None]] = []
+        self._assign_colors()
+
+    def _assign_colors(self):
+        """Assign colors to servers"""
+        for i, name in enumerate(self.config.servers.keys()):
+            color = SERVER_COLORS[i % len(SERVER_COLORS)]
+            config = self.config.servers[name]
+            self.processes[name.lower()] = ManagedProcess(name, config, color)
+
+    def add_log_callback(self, callback: Callable[[str, str, str], None]):
+        """Add callback for log events"""
+        self._log_callbacks.append(callback)
+
+    def add_status_callback(self, callback: Callable[[], None]):
+        """Add callback for status change events"""
+        self._status_callbacks.append(callback)
+
+    async def _notify_log(self, server: str, timestamp: str, message: str):
+        """Notify all log callbacks"""
+        for callback in self._log_callbacks:
+            try:
+                await callback(server, timestamp, message)
+            except Exception:
+                pass
+
+    def _notify_status_change(self):
+        """Notify all status callbacks"""
+        for callback in self._status_callbacks:
+            try:
+                callback()
+            except Exception:
+                pass
+
+    async def start_server(self, name: str) -> dict:
+        """Start a configured development server"""
+        process = self.processes.get(name.lower())
+        if not process:
+            return {"status": "error", "message": f"Server '{name}' not found"}
+
+        if process.is_running:
+            return {"status": "already_running", "message": f"Server '{name}' running"}
+
+        if self._is_port_in_use(process.config.port):
+            return {"status": "error", "message": f"Port {process.config.port} in use"}
+
+        success = await process.start(self._notify_log)
+        self._notify_status_change()
+
+        if success:
+            return {"status": "started", "message": f"Server '{name}' started"}
+        else:
+            return {"status": "error", "message": f"Failed to start '{name}': {process.error}"}
+
+    async def stop_server(self, name: str) -> dict:
+        """Stop a running server (managed or external)"""
+        process = self.processes.get(name.lower())
+        if not process:
+            return {"status": "error", "message": f"Server '{name}' not found"}
+
+        if process.is_running:
+            process.stop()
+            self._notify_status_change()
+            return {"status": "stopped", "message": f"Server '{name}' stopped"}
+
+        if self._is_port_in_use(process.config.port):
+            if self._kill_port_process(process.config.port):
+                self._notify_status_change()
+                return {"status": "stopped", "message": f"External on port {process.config.port} killed"}
+            else:
+                return {"status": "error", "message": f"Failed to kill external on port {process.config.port}"}
+
+        return {"status": "not_running", "message": f"Server '{name}' not running"}
+
+    def get_server_status(self, name: str) -> dict:
+        """Get the status of a server"""
+        process = self.processes.get(name.lower())
+        if not process:
+            return {"status": "error", "message": f"Server '{name}' not found"}
+
+        if process.is_running:
+            return {
+                "status": "running",
+                "type": "managed",
+                "port": process.config.port,
+                "uptime_seconds": process.uptime,
+                "command": process.config.command,
+                "working_dir": process.config.working_dir,
+            }
+        elif self._is_port_in_use(process.config.port):
+            return {
+                "status": "running",
+                "type": "external",
+                "port": process.config.port,
+                "message": "External process on port",
+            }
+        else:
+            return {"status": "stopped", "type": "none", "port": process.config.port, "error": process.error}
+
+    def get_server_logs(self, name: str, lines: int = 500) -> dict:
+        """Get recent log output from a managed server"""
+        process = self.processes.get(name.lower())
+        if not process:
+            return {"status": "error", "message": f"Server '{name}' not found"}
+
+        if not process.is_running:
+            if self._is_port_in_use(process.config.port):
+                return {"status": "error", "message": "Cannot get logs for external process"}
+            else:
+                return {"status": "error", "message": "Server not running"}
+
+        log_lines = list(process.logs)[-lines:]
+        return {"status": "success", "lines": log_lines, "count": len(log_lines)}
+
+    def get_all_servers(self) -> list[dict]:
+        """Get status of all servers"""
+        servers = []
+        for name, process in self.processes.items():
+            external_running = not process.is_running and self._is_port_in_use(process.config.port)
+            
+            servers.append({
+                "name": process.name,
+                "status": process.status,
+                "port": process.config.port,
+                "uptime": process.uptime,
+                "error": process.error,
+                "external_running": external_running,
+                "color": process.color,
+            })
+        return servers
+
+    def shutdown_all(self):
+        """Shutdown all managed processes immediately"""
+        for process in self.processes.values():
+            if process.is_running:
+                process.stop()
+        self._notify_status_change()
+
+    def _is_port_in_use(self, port: int) -> bool:
+        """Check if a port is in use"""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(("localhost", port)) == 0
+
+    def _kill_port_process(self, port: int) -> bool:
+        """Attempt to kill process using a port"""
+        try:
+            if sys.platform == "darwin" or sys.platform.startswith("linux"):
+                import subprocess
+                result = subprocess.run(f"lsof -ti:{port} | xargs kill -9", shell=True, capture_output=True)
+                return result.returncode == 0
+            else:
+                return False
+        except Exception:
+            return False
+
+
+class ServerStatusWidget(Widget):
+    """Widget displaying server status table"""
+
+    def __init__(self, manager: DevServerManager):
+        super().__init__()
+        self.manager = manager
+        self.manager.add_status_callback(self.refresh_table)
+
+    def compose(self) -> ComposeResult:
+        table = DataTable()
+        table.add_columns("Server", "Status", "Port", "Uptime/Error")
+        yield table
+
+    def on_mount(self):
+        self.update_table()
+
+    def update_table(self):
+        table = self.query_one(DataTable)
+        table.clear()
+        
+        servers = self.manager.get_all_servers()
+        for server in servers:
+            status_text = self._format_status(server)
+            uptime_text = self._format_uptime_or_error(server)
+            
+            table.add_row(
+                server["name"],
+                status_text,
+                str(server["port"]),
+                uptime_text
+            )
+
+    def _format_status(self, server: dict) -> str:
+        if server["status"] == "running":
+            return "● Running"
+        elif server["external_running"]:
+            return "● External"
+        elif server["status"] == "error":
+            return "● Error"
+        else:
+            return "● Stopped"
+
+    def _format_uptime_or_error(self, server: dict) -> str:
+        if server["status"] == "running" and server["uptime"]:
+            return f"{server['uptime']}s"
+        elif server["external_running"]:
+            return "External process"
+        elif server["error"]:
+            error = server["error"][:30] + "..." if len(server["error"]) > 30 else server["error"]
+            return error
+        else:
+            return "-"
+
+    def refresh_table(self):
+        self.update_table()
+
+
+class LogsWidget(Widget):
+    """Widget displaying server logs"""
+
+    def __init__(self, manager: DevServerManager):
+        super().__init__()
+        self.manager = manager
+        self.manager.add_log_callback(self.add_log_line)
+
+    def compose(self) -> ComposeResult:
+        yield RichLog(highlight=True, markup=True)
+
+    async def add_log_line(self, server: str, timestamp: str, message: str):
+        log = self.query_one(RichLog)
+        
+        process = self.manager.processes.get(server.lower())
+        color = process.color if process else "white"
+        
+        formatted = f"[dim]{timestamp}[/dim] [{color}]{server}[/{color}] | {message}"
+        log.write(formatted)
+
+
+class DevServerApp(App):
+    """Main Textual application"""
+
+    CSS = """
+    Screen {
+        layout: vertical;
+    }
+
+    #logs {
+        height: 1fr;
+    }
+
+    #status {
+        height: auto;
+        max-height: 8;
+        min-height: 4;
+    }
+
+    RichLog {
+        height: 1fr;
+        border: solid $primary;
+    }
+
+    DataTable {
+        height: 1fr;
+    }
+    """
+
+    BINDINGS = [
+        ("ctrl+c", "quit", "Quit"),
+    ]
+    
+    def action_quit(self) -> None:
+        """Clean quit action"""
+        import sys
+        sys.exit(0)
+
+    def __init__(self, manager: DevServerManager, mcp_url: str):
+        super().__init__()
+        self.manager = manager
+        self.mcp_url = mcp_url
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        
+        with Vertical(id="logs"):
+            yield Label("[bold]Server Output[/bold]")
+            yield LogsWidget(self.manager)
+        
+        with Vertical(id="status"):
+            yield Label(f"[bold]Server Status[/bold] | MCP: {self.mcp_url}")
+            yield ServerStatusWidget(self.manager)
+        
+        yield Label("[dim italic]Press Ctrl+C to quit[/dim italic]", id="quit-label")
+
+    def on_mount(self):
+        self.title = "DevServer MCP"
+        self.sub_title = "Development Server Manager"
+
 
 class DevServerMCP:
-    """Main MCP Server implementation"""
+    """MCP Server integration"""
 
     def __init__(self, config_path: str, transport: str = "streamable-http", port: int = 3001):
-        self.console = Console()
         self.config = self._load_config(config_path)
-        self.processes: dict[str, ManagedProcess] = {}
-        self.output_lines: deque = deque(maxlen=1000)
+        self.manager = DevServerManager(self.config)
         self.mcp = FastMCP("devserver")
-        self._shutdown_event = asyncio.Event()
         self.transport = transport
         self.port = port
+        self._shutdown_event = asyncio.Event()
         self._setup_tools()
-        self._assign_colors()
 
     def _load_config(self, config_path: str) -> Config:
         """Load configuration from YAML file"""
@@ -152,262 +451,79 @@ class DevServerMCP:
 
         return Config(**data)
 
-    def _assign_colors(self):
-        """Assign colors to servers"""
-        for i, name in enumerate(self.config.servers.keys()):
-            color = SERVER_COLORS[i % len(SERVER_COLORS)]
-            config = self.config.servers[name]
-            self.processes[name.lower()] = ManagedProcess(name, config, color)
-
     def _setup_tools(self):
         """Setup MCP tools"""
 
         @self.mcp.tool()
         async def start_server(name: str) -> dict:
             """Start a configured development server
-
+            
             Args:
                 name: Name of the server to start (from config)
-
+            
             Returns:
                 dict with status and message
             """
-            process = self.processes.get(name.lower())
-            if not process:
-                return {"status": "error", "message": f"Server '{name}' not found"}
-
-            if process.is_running:
-                return {"status": "already_running", "message": f"Server '{name}' running"}
-
-            # Check if port is already in use
-            if self._is_port_in_use(process.config.port):
-                return {"status": "error", "message": f"Port {process.config.port} in use"}
-
-            success = await process.start(self._add_output_line)
-
-            if success:
-                return {"status": "started", "message": f"Server '{name}' started"}
-            else:
-                return {"status": "error", "message": f"Failed to start '{name}': {process.error}"}
+            return await self.manager.start_server(name)
 
         @self.mcp.tool()
         async def stop_server(name: str) -> dict:
             """Stop a running server (managed or external)
-
+            
             Args:
                 name: Name of the server to stop
-
+            
             Returns:
                 dict with status and message
             """
-            process = self.processes.get(name.lower())
-            if not process:
-                return {"status": "error", "message": f"Server '{name}' not found"}
-
-            if process.is_running:
-                process.stop()
-                return {"status": "stopped", "message": f"Server '{name}' stopped"}
-
-            # Check for external process
-            if self._is_port_in_use(process.config.port):
-                # Try to kill external process on port
-                if self._kill_port_process(process.config.port):
-                    return {"status": "stopped", "message": f"External on port {process.config.port} killed"}
-                else:
-                    return {"status": "error", "message": f"Failed to kill external on port {process.config.port}"}
-
-            return {"status": "not_running", "message": f"Server '{name}' not running"}
+            return await self.manager.stop_server(name)
 
         @self.mcp.tool()
         async def get_server_status(name: str) -> dict:
             """Get the status of a server
-
+            
             Args:
                 name: Name of the server to check
-
+            
             Returns:
                 dict with server status information
             """
-            process = self.processes.get(name.lower())
-            if not process:
-                return {"status": "error", "message": f"Server '{name}' not found"}
-
-            if process.is_running:
-                return {
-                    "status": "running",
-                    "type": "managed",
-                    "port": process.config.port,
-                    "uptime_seconds": process.uptime,
-                    "command": process.config.command,
-                    "working_dir": process.config.working_dir,
-                }
-            elif self._is_port_in_use(process.config.port):
-                return {
-                    "status": "running",
-                    "type": "external",
-                    "port": process.config.port,
-                    "message": "External process on port",
-                }
-            else:
-                return {"status": "stopped", "type": "none", "port": process.config.port, "error": process.error}
+            return self.manager.get_server_status(name)
 
         @self.mcp.tool()
         async def get_server_logs(name: str, lines: int = 500) -> dict:
             """Get recent log output from a managed server
-
+            
             Args:
                 name: Name of the server
                 lines: Number of recent lines to return (max 500)
-
+            
             Returns:
                 dict with logs or error message
             """
-            process = self.processes.get(name.lower())
-            if not process:
-                return {"status": "error", "message": f"Server '{name}' not found"}
-
-            if not process.is_running:
-                if self._is_port_in_use(process.config.port):
-                    return {"status": "error", "message": "Cannot get logs for external process"}
-                else:
-                    return {"status": "error", "message": "Server not running"}
-
-            log_lines = list(process.logs)[-lines:]
-            return {"status": "success", "lines": log_lines, "count": len(log_lines)}
-
-    def _is_port_in_use(self, port: int) -> bool:
-        """Check if a port is in use"""
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(("localhost", port)) == 0
-
-    def _kill_port_process(self, port: int) -> bool:
-        """Attempt to kill process using a port"""
-        try:
-            if sys.platform == "darwin" or sys.platform.startswith("linux"):
-                import subprocess
-
-                result = subprocess.run(f"lsof -ti:{port} | xargs kill -9", shell=True, capture_output=True)
-                return result.returncode == 0
-            else:
-                return False
-        except Exception:
-            return False
-
-    async def _add_output_line(self, line: str, color: str):
-        """Add a line to the output buffer"""
-        self.output_lines.append((line, color))
-
-    def _create_layout(self) -> Layout:
-        """Create the TUI layout"""
-        layout = Layout()
-
-        # Main output area
-        output_text = Text()
-        for line, color in list(self.output_lines)[-50:]:  # Show last 50 lines
-            output_text.append(line + "\n", style=color)
-
-        output_panel = Panel(output_text, title="[bold]Server Output[/bold]", border_style="blue")
-
-        # Status bar
-        status_table = Table(show_header=False, box=None, expand=True)
-        status_table.add_column("Server", style="bold")
-        status_table.add_column("Status")
-        status_table.add_column("Port")
-        status_table.add_column("Uptime/Error")
-
-        for _name, process in self.processes.items():
-            if process.is_running:
-                status = Text("● Running", style="green")
-                uptime = f"{process.uptime}s" if process.uptime else "0s"
-                info = Text(uptime, style="dim")
-            elif self._is_port_in_use(process.config.port):
-                status = Text("● External", style="yellow")
-                info = Text("External process", style="dim yellow")
-            elif process.error:
-                status = Text("● Error", style="red")
-                info = Text(process.error[:30] + "..." if len(process.error) > 30 else process.error, style="red")
-            else:
-                status = Text("● Stopped", style="dim")
-                info = Text("-", style="dim")
-
-            status_table.add_row(
-                Text(process.name, style=process.color), status, Text(str(process.config.port), style="dim"), info
-            )
-
-        # Add quit instruction
-        quit_text = Text("Press Ctrl+C to quit", style="dim italic")
-        status_table.add_row("", Align.center(quit_text), "", "")
-
-        status_panel = Panel(
-            Align.center(status_table),
-            height=len(self.processes) + 2 + 1,  # Adjusted height for quit message
-            title="[bold]Server Status[/bold]",
-            border_style="green",
-        )
-
-        # Compose layout
-        layout.split_column(
-            Layout(output_panel, name="output"),
-            Layout(status_panel, name="status", size=len(self.processes) + 3),  # Adjusted size
-        )
-
-        return layout
+            return self.manager.get_server_logs(name, lines)
 
     async def run(self):
         """Run the MCP server with TUI"""
-
-        # Set up signal handler for clean exit
-        def signal_handler(sig, frame):
-            self._shutdown_event.set()
-
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-
-        # For stdio transport, run without TUI since the MCP protocol uses stdio
+        
         if self.transport == "stdio":
-            await self._add_output_line("MCP server started with STDIO transport", "green")
             await self.mcp.run_async()
             return
 
-        # For HTTP transport, run MCP server in background and show TUI
-        mcp_task = None
+        # Start MCP server in background
+        asyncio.create_task(
+            self.mcp.run_async(transport="streamable-http", port=self.port, host="127.0.0.1")
+        )
+
+        await asyncio.sleep(0.5)
+
+        mcp_url = f"http://127.0.0.1:{self.port}/mcp"
+        app = DevServerApp(self.manager, mcp_url)
+        
         try:
-            # Start MCP server in background
-            mcp_task = asyncio.create_task(
-                self.mcp.run_async(transport="streamable-http", port=self.port, host="127.0.0.1")
-            )
-
-            # Give the server a moment to start
-            await asyncio.sleep(0.5)
-
-            transport_msg = f"MCP HTTP server started on http://127.0.0.1:{self.port}/mcp"
-
-            with Live(self._create_layout(), console=self.console, screen=True, refresh_per_second=2) as live:
-                # Add initial message about transport
-                await self._add_output_line(transport_msg, "green")
-
-                while not self._shutdown_event.is_set():
-                    live.update(self._create_layout())
-                    try:
-                        await asyncio.wait_for(self._shutdown_event.wait(), timeout=0.5)
-                        break
-                    except TimeoutError:
-                        continue
+            await app.run_async()
         finally:
-            # Cancel MCP task immediately
-            if mcp_task and not mcp_task.done():
-                mcp_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await mcp_task
-
-            # Stop all processes immediately
-            self.shutdown()
-
-    def shutdown(self):
-        """Shutdown all managed processes immediately"""
-        for process in self.processes.values():
-            if process.is_running:
-                process.stop()
+            self.manager.shutdown_all()
 
 
 @click.command()
@@ -439,13 +555,8 @@ def main(config, transport, port):
                     break
                 current = current.parent
 
-    try:
-        server = DevServerMCP(config, transport, port)
-        asyncio.run(server.run())
-    except KeyboardInterrupt:
-        pass
-    except Exception:
-        pass
+    server = DevServerMCP(config, transport, port)
+    asyncio.run(server.run())
 
 
 if __name__ == "__main__":
