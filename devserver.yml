@@ -1,0 +1,41 @@
+# DevServer MCP Configuration
+# Define your development servers here
+
+servers:
+  # Backend server
+  backend:
+    command: "uv run fastapi dev backend.py"
+    working_dir: "./testapp"
+    port: 8000
+
+  # Frontend server
+  frontend:
+    command: "pnpm dev"
+    working_dir: "./testapp/frontend"
+    port: 3000
+
+  # # Celery worker
+  # worker:
+  #   command: "celery -A myproject worker -l info"
+  #   working_dir: "."
+  #   port: 5555 # Flower port for monitoring
+
+  # Additional examples:
+
+  # React development server
+  # react:
+  #   command: "npm start"
+  #   working_dir: "./client"
+  #   port: 3000
+
+  # FastAPI with uvicorn
+  # api:
+  #   command: "uvicorn main:app --reload --host 0.0.0.0 --port 8001"
+  #   working_dir: "./api"
+  #   port: 8001
+
+  # Redis server
+  # redis:
+  #   command: "redis-server"
+  #   working_dir: "."
+  #   port: 6379

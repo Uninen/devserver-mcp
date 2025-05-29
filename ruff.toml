@@ -1,0 +1,80 @@
+line-length = 120
+indent-width = 4
+target-version = "py313"
+
+exclude = [
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+]
+
+[lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = []
+fixable = ["ALL"]
+unfixable = ["F401"]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.per-file-ignores]
+# module-import-not-at-top-of-file (E402)
+"__init__.py" = ["E402"]
+"*.ipynb" = ["E402", "I001"]
+
+[lint.flake8-quotes]
+docstring-quotes = "double"
+
+[lint.isort]
+section-order = [
+    "future",
+    "standard-library",
+    "django",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
+single-line-exclusions = ["os", "json"]
+known-first-party = ["devserver_mcp"]
+
+[lint.pylint]
+max-args = 8
+max-statements = 80
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[format]
+docstring-code-format = true
+docstring-code-line-length = 120
