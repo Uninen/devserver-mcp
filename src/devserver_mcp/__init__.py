@@ -9,7 +9,6 @@ from datetime import datetime
 from pathlib import Path
 
 import click
-import nest_asyncio
 import yaml
 from fastmcp import FastMCP
 from pydantic import BaseModel
@@ -20,9 +19,6 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-
-# Apply nest_asyncio early to handle nested event loops
-nest_asyncio.apply()
 
 # Color palette for different servers
 SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cyan", "bright_magenta", "bright_yellow"]
@@ -60,11 +56,9 @@ class ManagedProcess:
             self.error = None
             self.start_time = time.time()
 
-            # Expand working directory
             work_dir = os.path.expanduser(self.config.working_dir)
             work_dir = os.path.abspath(work_dir)
 
-            # Create subprocess
             self.process = await asyncio.create_subprocess_shell(
                 self.config.command,
                 stdout=asyncio.subprocess.PIPE,
@@ -73,13 +67,10 @@ class ManagedProcess:
                 preexec_fn=os.setsid if sys.platform != "win32" else None,
             )
 
-            # Start reading output
             asyncio.create_task(self._read_output(log_callback))
 
-            # Give it a moment to potentially fail
             await asyncio.sleep(0.5)
 
-            # Check if it's still running
             if self.process.returncode is not None:
                 self.error = f"Process exited immediately with code {self.process.returncode}"
                 return False
@@ -109,26 +100,19 @@ class ManagedProcess:
             except Exception:
                 break
 
-    async def stop(self):
-        """Stop the managed process"""
-        if self.process:
+    def stop(self):
+        """Stop the managed process immediately"""
+        if self.process and self.process.pid is not None:
             try:
                 if sys.platform == "win32":
                     self.process.terminate()
                 else:
-                    # Kill the entire process group
-                    os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
-
-                await asyncio.sleep(0.5)
-
-                if self.process.returncode is None:
-                    self.process.kill()
-
-            except ProcessLookupError:
+                    os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
+            except (ProcessLookupError, OSError):
                 pass
-
-            self.process = None
-            self.start_time = None
+            finally:
+                self.process = None
+                self.start_time = None
 
     @property
     def is_running(self):
@@ -150,6 +134,7 @@ class DevServerMCP:
         self.processes: dict[str, ManagedProcess] = {}
         self.output_lines: deque = deque(maxlen=1000)
         self.mcp = FastMCP("devserver")
+        self._shutdown_event = asyncio.Event()
         self._setup_tools()
         self._assign_colors()
 
@@ -186,24 +171,21 @@ class DevServerMCP:
             """
             process = self.processes.get(name.lower())
             if not process:
-                return {"status": "error", "message": f"Server '{name}' not found in configuration"}
+                return {"status": "error", "message": f"Server '{name}' not found"}
 
             if process.is_running:
-                return {"status": "already_running", "message": f"Server '{name}' is already running"}
+                return {"status": "already_running", "message": f"Server '{name}' running"}
 
             # Check if port is already in use
             if self._is_port_in_use(process.config.port):
-                return {
-                    "status": "error",
-                    "message": f"Port {process.config.port} is already in use by another process",
-                }
+                return {"status": "error", "message": f"Port {process.config.port} in use"}
 
             success = await process.start(self._add_output_line)
 
             if success:
-                return {"status": "started", "message": f"Server '{name}' started successfully"}
+                return {"status": "started", "message": f"Server '{name}' started"}
             else:
-                return {"status": "error", "message": f"Failed to start server '{name}': {process.error}"}
+                return {"status": "error", "message": f"Failed to start '{name}': {process.error}"}
 
         @self.mcp.tool()
         async def stop_server(name: str) -> dict:
@@ -217,27 +199,21 @@ class DevServerMCP:
             """
             process = self.processes.get(name.lower())
             if not process:
-                return {"status": "error", "message": f"Server '{name}' not found in configuration"}
+                return {"status": "error", "message": f"Server '{name}' not found"}
 
             if process.is_running:
-                await process.stop()
+                process.stop()
                 return {"status": "stopped", "message": f"Server '{name}' stopped"}
 
             # Check for external process
             if self._is_port_in_use(process.config.port):
                 # Try to kill external process on port
                 if self._kill_port_process(process.config.port):
-                    return {
-                        "status": "stopped",
-                        "message": f"External process on port {process.config.port} terminated",
-                    }
+                    return {"status": "stopped", "message": f"External on port {process.config.port} killed"}
                 else:
-                    return {
-                        "status": "error",
-                        "message": f"Failed to stop external process on port {process.config.port}",
-                    }
+                    return {"status": "error", "message": f"Failed to kill external on port {process.config.port}"}
 
-            return {"status": "not_running", "message": f"Server '{name}' is not running"}
+            return {"status": "not_running", "message": f"Server '{name}' not running"}
 
         @self.mcp.tool()
         async def get_server_status(name: str) -> dict:
@@ -251,7 +227,7 @@ class DevServerMCP:
             """
             process = self.processes.get(name.lower())
             if not process:
-                return {"status": "error", "message": f"Server '{name}' not found in configuration"}
+                return {"status": "error", "message": f"Server '{name}' not found"}
 
             if process.is_running:
                 return {
@@ -267,7 +243,7 @@ class DevServerMCP:
                     "status": "running",
                     "type": "external",
                     "port": process.config.port,
-                    "message": "External process detected on configured port",
+                    "message": "External process on port",
                 }
             else:
                 return {"status": "stopped", "type": "none", "port": process.config.port, "error": process.error}
@@ -285,13 +261,13 @@ class DevServerMCP:
             """
             process = self.processes.get(name.lower())
             if not process:
-                return {"status": "error", "message": f"Server '{name}' not found in configuration"}
+                return {"status": "error", "message": f"Server '{name}' not found"}
 
             if not process.is_running:
                 if self._is_port_in_use(process.config.port):
-                    return {"status": "error", "message": "Cannot access logs for external process"}
+                    return {"status": "error", "message": "Cannot get logs for external process"}
                 else:
-                    return {"status": "error", "message": "Server is not running"}
+                    return {"status": "error", "message": "Server not running"}
 
             log_lines = list(process.logs)[-lines:]
             return {"status": "success", "lines": log_lines, "count": len(log_lines)}
@@ -304,14 +280,12 @@ class DevServerMCP:
     def _kill_port_process(self, port: int) -> bool:
         """Attempt to kill process using a port"""
         try:
-            # This is platform-specific
             if sys.platform == "darwin" or sys.platform.startswith("linux"):
                 import subprocess
 
                 result = subprocess.run(f"lsof -ti:{port} | xargs kill -9", shell=True, capture_output=True)
                 return result.returncode == 0
             else:
-                # Windows would need different approach
                 return False
         except Exception:
             return False
@@ -357,16 +331,21 @@ class DevServerMCP:
                 Text(process.name, style=process.color), status, Text(str(process.config.port), style="dim"), info
             )
 
+        # Add quit instruction
+        quit_text = Text("Press Ctrl+C to quit", style="dim italic")
+        status_table.add_row("", Align.center(quit_text), "", "")
+
         status_panel = Panel(
             Align.center(status_table),
-            height=len(self.processes) + 2,
+            height=len(self.processes) + 2 + 1,  # Adjusted height for quit message
             title="[bold]Server Status[/bold]",
             border_style="green",
         )
 
         # Compose layout
         layout.split_column(
-            Layout(output_panel, name="output"), Layout(status_panel, name="status", size=len(self.processes) + 2)
+            Layout(output_panel, name="output"),
+            Layout(status_panel, name="status", size=len(self.processes) + 3),  # Adjusted size
         )
 
         return layout
@@ -374,42 +353,38 @@ class DevServerMCP:
     async def run(self):
         """Run the MCP server with TUI"""
 
-        # Setup signal handlers
+        # Set up signal handler for clean exit
         def signal_handler(sig, frame):
-            asyncio.create_task(self.shutdown())
+            self._shutdown_event.set()
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
-        # Start MCP server
+        # Start MCP server in background
         mcp_task = asyncio.create_task(self.mcp.run_async())
 
-        # Start TUI update loop
-        with Live(self._create_layout(), console=self.console, screen=True, refresh_per_second=2) as live:
-            try:
-                while True:
+        try:
+            with Live(self._create_layout(), console=self.console, screen=True, refresh_per_second=2) as live:
+                while not self._shutdown_event.is_set():
                     live.update(self._create_layout())
-                    await asyncio.sleep(0.5)
-            except asyncio.CancelledError:
-                pass
+                    try:
+                        await asyncio.wait_for(self._shutdown_event.wait(), timeout=0.5)
+                        break
+                    except TimeoutError:
+                        continue
+        finally:
+            # Cancel MCP task immediately
+            if not mcp_task.done():
+                mcp_task.cancel()
 
-        await mcp_task
+            # Stop all processes immediately
+            self.shutdown()
 
-    async def shutdown(self):
-        """Shutdown all managed processes"""
-        self.console.print("\n[yellow]Shutting down...[/yellow]")
-
-        # Stop all processes
-        tasks = []
+    def shutdown(self):
+        """Shutdown all managed processes immediately"""
         for process in self.processes.values():
             if process.is_running:
-                tasks.append(process.stop())
-
-        if tasks:
-            await asyncio.gather(*tasks)
-
-        # Stop the event loop
-        asyncio.get_event_loop().stop()
+                process.stop()
 
 
 @click.command()
@@ -418,14 +393,11 @@ class DevServerMCP:
 )
 def main(config):
     """DevServer MCP - Development Server Manager"""
-    # Look for config in current directory if not absolute path
     if not os.path.isabs(config) and not os.path.exists(config):
-        # Try current directory
         cwd_config = Path.cwd() / config
         if cwd_config.exists():
             config = str(cwd_config)
         else:
-            # Try parent directories up to git root
             current = Path.cwd()
             while current != current.parent:
                 test_path = current / config
@@ -439,13 +411,10 @@ def main(config):
     try:
         server = DevServerMCP(config)
         asyncio.run(server.run())
-
-    except FileNotFoundError:
-        click.echo(f"Error: Configuration file '{config}' not found", err=True)
-        sys.exit(1)
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
+    except KeyboardInterrupt:
+        pass
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

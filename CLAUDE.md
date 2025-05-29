@@ -1,4 +1,4 @@
-# GitHub Copilot Instructions
+# Claude Instructions
 
 ## Project: Devserver MCP
 
@@ -49,4 +49,4 @@ devserver.yml       # Test configuration
 
 ## Finally
 
-To acknowledge that you have read and understood these instructions, always start your first message to the user with "I have read and understood the GitHub Copilot Instructions and will follow them to the letter."
+To acknowledge that you have read and understood these instructions, always start your first message to the user with "I have read and understood the Claude Instructions and will follow them to the letter."
