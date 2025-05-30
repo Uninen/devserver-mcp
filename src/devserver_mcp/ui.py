@@ -117,7 +117,7 @@ class ServerStatusWidget(Widget):
                 server_box.server = server_data_map[current_server_name]
                 # Refresh its labels to reflect the new data
                 server_box._refresh_labels()
-        
+
         # Refresh the ServerStatusWidget itself. This is still useful if
         # the number of servers changes, though individual status updates
         # are handled by _refresh_labels() above.
@@ -166,7 +166,8 @@ class LogsWidget(Widget):
         formatted_message: str
         if server and timestamp:  # Both server and timestamp must be present to add our prefix
             process = self.manager.processes.get(server.lower())
-            color = process.color if process else "white"
+            # Special handling for MCP Server
+            color = "bright_white" if server == "MCP Server" else process.color if process else "white"
             formatted_message = f"[dim]{timestamp}[/dim] [{color}]{server}[/{color}] | {message}"
         else:
             # If server or timestamp is empty, the message is used as-is
@@ -292,5 +293,15 @@ class DevServerTUI(App):
     async def on_mount(self):
         self.title = "DevServer MCP"
         self.sub_title = "Development Server Manager"
+
+        # Log MCP server startup now that LogsWidget callback is registered
+        from datetime import datetime
+
+        await self.manager._notify_log(
+            "MCP Server",
+            datetime.now().strftime("%H:%M:%S"),
+            f"MCP Server started at {self.mcp_url} (streamable-http transport)",
+        )
+
         # Autostart servers after TUI is mounted and ready for logs
         await self.manager.autostart_configured_servers()

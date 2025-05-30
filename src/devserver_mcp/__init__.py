@@ -1,7 +1,9 @@
 import asyncio
 import contextlib
+import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -16,10 +18,50 @@ from devserver_mcp.utils import configure_silent_logging, no_op_exception_handle
 
 def create_mcp_server(manager: DevServerManager) -> FastMCP:
     mcp = FastMCP("devserver")
-    mcp.add_tool(manager.start_server)
-    mcp.add_tool(manager.stop_server)
-    mcp.add_tool(manager.get_server_status)
-    mcp.add_tool(manager.get_server_logs)
+    
+    # Wrap each tool with logging
+    async def start_server_with_logging(name: str) -> dict:
+        # Log the tool call
+        await manager._notify_log(
+            "MCP Server",
+            datetime.now().strftime("%H:%M:%S"),
+            f"Tool 'start_server' called with: {{'name': {repr(name)}}}"
+        )
+        return await manager.start_server(name)
+    
+    async def stop_server_with_logging(name: str) -> dict:
+        # Log the tool call
+        await manager._notify_log(
+            "MCP Server",
+            datetime.now().strftime("%H:%M:%S"),
+            f"Tool 'stop_server' called with: {{'name': {repr(name)}}}"
+        )
+        return await manager.stop_server(name)
+    
+    async def get_server_status_with_logging(name: str) -> dict:
+        # Log the tool call
+        await manager._notify_log(
+            "MCP Server",
+            datetime.now().strftime("%H:%M:%S"),
+            f"Tool 'get_server_status' called with: {{'name': {repr(name)}}}"
+        )
+        return manager.get_server_status(name)
+    
+    async def get_server_logs_with_logging(name: str, lines: int = 500) -> dict:
+        # Log the tool call
+        await manager._notify_log(
+            "MCP Server",
+            datetime.now().strftime("%H:%M:%S"),
+            f"Tool 'get_server_logs' called with: {{'name': {repr(name)}, 'lines': {lines}}}"
+        )
+        return manager.get_server_logs(name, lines)
+    
+    # Add the wrapped tools with explicit names to match what tests expect
+    mcp.add_tool(start_server_with_logging, name="start_server")
+    mcp.add_tool(stop_server_with_logging, name="stop_server")
+    mcp.add_tool(get_server_status_with_logging, name="get_server_status")
+    mcp.add_tool(get_server_logs_with_logging, name="get_server_logs")
+    
     return mcp
 
 
@@ -78,6 +120,7 @@ class DevServerMCP:
 
         # Run TUI normally without silencing (since we're in a real terminal)
         mcp_url = f"http://localhost:{self.port}/mcp/"
+        
         app = DevServerTUI(self.manager, mcp_url)
 
         try:
