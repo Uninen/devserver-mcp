@@ -25,6 +25,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
     - `uv run ruff format path/to/file.py` -- format
 
 ### Testing Guidelines
+- Adhere to the general testing guidelines as `docs/writing_tests.md`
 - Write meaningful tests, not coverage fillers
 - Always use pytest functions, never use classes
 - When creating or fixing tests, always execute **the full test suite** (using `run_tests` tool) to make sure all tests pass

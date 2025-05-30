@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Created comprehensive test_config_resilience.py covering various resilience scenarios. (GitHub Copilot)
 * 30-01-2025 -- Aggressively cleaned up test suite: removed 46% of tests (72→39) by deleting trivial implementation detail tests while preserving critical business logic tests (app startup, server workflows, error handling, UI behavior). Created comprehensive list of testing gaps that need improvement. (claude-sonnet-4-20250514)
 * 30-05-2025 -- Added MCP server logging to TUI - MCP startup messages and tool calls now appear in Server Logs window. (claude-opus-4-20250514)
 * 30-05-2025 -- Added 'autostart' configuration boolean to automatically start offline, non-external servers on MCP startup, including tests. (Assistant-0.1)
