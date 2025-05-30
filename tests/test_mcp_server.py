@@ -1,11 +1,10 @@
-"""Tests for MCP server functionality"""
-
 import json
 
 import pytest
 from fastmcp import Client
 
-from devserver_mcp import Config, DevServerManager, ServerConfig, create_mcp_server
+from devserver_mcp import create_mcp_server
+from devserver_mcp.manager import Config, DevServerManager, ServerConfig
 
 
 @pytest.fixture

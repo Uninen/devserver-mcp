@@ -60,7 +60,6 @@ docstring-quotes = "double"
 section-order = [
     "future",
     "standard-library",
-    "django",
     "third-party",
     "first-party",
     "local-folder",

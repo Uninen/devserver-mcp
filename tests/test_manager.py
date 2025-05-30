@@ -3,7 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from devserver_mcp import Config, DevServerManager, DevServerMCP, ManagedProcess, ServerConfig
+from devserver_mcp import DevServerMCP
+from devserver_mcp.manager import Config, DevServerManager, ManagedProcess, ServerConfig
 
 
 @pytest.fixture
