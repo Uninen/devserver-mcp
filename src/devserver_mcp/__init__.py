@@ -20,25 +20,36 @@ class DevServerMCP:
         config: Config | None = None,
         port: int = 3001,
     ):
-        if config is not None:
-            self.config = config
-        elif config_path is not None:
-            self.config = load_config(config_path)
-        else:
-            raise ValueError("Either config_path or config must be provided")
+        self.config = self._load_config(config_path, config)
+        self.port = port
         self.manager = DevServerManager(self.config)
         self.mcp = create_mcp_server(self.manager)
-        self.port = port
         self._mcp_task = None
+
+    def _load_config(self, config_path: str | None, config: Config | None) -> Config:
+        if config is not None:
+            return config
+        if config_path is not None:
+            return load_config(config_path)
+        raise ValueError("Either config_path or config must be provided")
+
+    def _is_interactive_terminal(self) -> bool:
+        return sys.stdout.isatty() and sys.stderr.isatty()
 
     async def run(self):
         configure_silent_logging()
 
-        if not (sys.stdout.isatty() and sys.stderr.isatty()):
-            with silence_all_output():
-                await asyncio.sleep(0.1)
+        if not self._is_interactive_terminal():
+            await self._run_headless()
             return
 
+        await self._run_with_tui()
+
+    async def _run_headless(self):
+        with silence_all_output():
+            await asyncio.sleep(0.1)
+
+    async def _run_with_tui(self):
         self._mcp_task = asyncio.create_task(
             self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
         )
@@ -59,7 +70,7 @@ class DevServerMCP:
         with silence_all_output():
             if self._mcp_task and not self._mcp_task.done():
                 self._mcp_task.cancel()
-                with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
+                with contextlib.suppress(TimeoutError, asyncio.CancelledError):
                     await asyncio.wait_for(self._mcp_task, timeout=0.5)
 
             await self.manager.shutdown_all()

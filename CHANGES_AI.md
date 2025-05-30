@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Refactored DevServerMCP class for simplicity and added comprehensive tests: extracted private methods for better testability, separated headless/TUI execution paths, and achieved 75% test coverage with 16 meaningful test cases. (GitHub Copilot)
 * 30-01-2025 -- Refactored the app for better test coverage and code simplicity: separated config/MCP server concerns into dedicated modules, simplified manager callback systems, and added comprehensive tests achieving 88% coverage. (claude-sonnet-4-20250514)
 * 30-05-2025 -- Refactored config path resolution with better error handling and comprehensive tests: improved resolve_config_path with max depth protection, permission error handling, unexpected exception handling, and added meaningful tests for all edge cases including symlink cycles and filesystem errors. (GitHub Copilot)
 * 30-05-2025 -- Created comprehensive test_config_resilience.py covering various resilience scenarios. (GitHub Copilot)
