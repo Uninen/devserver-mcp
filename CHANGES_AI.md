@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Added comprehensive tests for MCP stop_server tool covering error cases, not running servers, running process stoppage, and case insensitive server names. (GitHub Copilot)
 * 30-05-2025 -- Refactored FastMCP server implementation to improve testability by extracting create_mcp_server() function and load_config() function from DevServerMCP class, enabling direct in-memory testing with FastMCP Client following the recommended testing patterns. Added comprehensive MCP tool tests demonstrating the refactor works. (GitHub Copilot)
 * 30-05-2025 -- Added comprehensive tests for DevServerManager and improved testability of DevServerMCP. (GitHub Copilot)
 * 30-05-2025 -- Added console script entry point and __main__.py module for proper PyPI package installation - users can now run 'devserver-mcp' command or 'python -m devserver_mcp' after installing from PyPI. (claude-3-5-sonnet-20241022)
