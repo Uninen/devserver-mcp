@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import json
 import os
 import sys
 from datetime import datetime
@@ -18,51 +17,87 @@ from devserver_mcp.utils import configure_silent_logging, no_op_exception_handle
 
 def create_mcp_server(manager: DevServerManager) -> FastMCP:
     mcp = FastMCP("devserver")
-    
-    # Wrap each tool with logging
+
     async def start_server_with_logging(name: str) -> dict:
-        # Log the tool call
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'start_server' called with: {{'name': {repr(name)}}}"
+            f"Tool 'start_server' called with: {{'name': {repr(name)}}}",
         )
         return await manager.start_server(name)
-    
+
     async def stop_server_with_logging(name: str) -> dict:
-        # Log the tool call
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'stop_server' called with: {{'name': {repr(name)}}}"
+            f"Tool 'stop_server' called with: {{'name': {repr(name)}}}",
         )
         return await manager.stop_server(name)
-    
+
     async def get_server_status_with_logging(name: str) -> dict:
-        # Log the tool call
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'get_server_status' called with: {{'name': {repr(name)}}}"
+            f"Tool 'get_server_status' called with: {{'name': {repr(name)}}}",
         )
         return manager.get_server_status(name)
-    
+
     async def get_server_logs_with_logging(name: str, lines: int = 500) -> dict:
-        # Log the tool call
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'get_server_logs' called with: {{'name': {repr(name)}, 'lines': {lines}}}"
+            f"Tool 'get_server_logs' called with: {{'name': {repr(name)}, 'lines': {lines}}}",
         )
         return manager.get_server_logs(name, lines)
-    
-    # Add the wrapped tools with explicit names to match what tests expect
+
     mcp.add_tool(start_server_with_logging, name="start_server")
     mcp.add_tool(stop_server_with_logging, name="stop_server")
     mcp.add_tool(get_server_status_with_logging, name="get_server_status")
     mcp.add_tool(get_server_logs_with_logging, name="get_server_logs")
-    
+
     return mcp
+
+
+def resolve_config_path(config_path: str) -> str:
+    try:
+        if os.path.isabs(config_path) or os.path.exists(config_path):
+            return config_path
+
+        try:
+            cwd = Path.cwd()
+            cwd_config = cwd / config_path
+            if cwd_config.exists():
+                return str(cwd_config)
+        except (OSError, PermissionError):
+            try:
+                cwd = Path.cwd().resolve()
+            except (OSError, PermissionError):
+                return config_path
+
+        current = cwd
+        max_depth = 20  # Prevent infinite loops in case of symlink cycles
+        depth = 0
+
+        while current != current.parent and depth < max_depth:
+            try:
+                test_path = current / config_path
+                if test_path.exists():
+                    return str(test_path)
+
+                git_dir = current / ".git"
+                if git_dir.exists():
+                    break
+
+            except (OSError, PermissionError):
+                pass
+
+            current = current.parent
+            depth += 1
+
+    except Exception:
+        pass
+
+    return config_path
 
 
 def load_config(config_path: str) -> Config:
@@ -99,28 +134,20 @@ class DevServerMCP:
         self._mcp_task = None
 
     async def run(self):
-        """Run the MCP server with TUI"""
-        # Configure silent logging before doing anything
         configure_silent_logging()
 
-        # Check if we're running in a non-terminal environment (like tests)
-        # If so, run briefly without TUI to avoid any output
+        # Workaround for tests
         if not (sys.stdout.isatty() and sys.stderr.isatty()):
             with silence_all_output():
-                # Just run for a brief moment in test environments
                 await asyncio.sleep(0.1)
             return
 
-        # Start MCP server in background - silence only the startup logs
-        with silence_all_output():
-            self._mcp_task = asyncio.create_task(
-                self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
-            )
-            await asyncio.sleep(0.5)
+        self._mcp_task = asyncio.create_task(
+            self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
+        )
 
-        # Run TUI normally without silencing (since we're in a real terminal)
         mcp_url = f"http://localhost:{self.port}/mcp/"
-        
+
         app = DevServerTUI(self.manager, mcp_url)
 
         try:
@@ -130,7 +157,6 @@ class DevServerMCP:
         except Exception:
             pass
         finally:
-            # Silence shutdown to prevent tracebacks
             with silence_all_output():
                 # Cancel MCP task gracefully
                 if self._mcp_task and not self._mcp_task.done():
@@ -139,7 +165,7 @@ class DevServerMCP:
                         await asyncio.wait_for(self._mcp_task, timeout=0.5)
 
                 # Shutdown all managed processes
-                self.manager.shutdown_all()
+                await self.manager.shutdown_all()
 
                 # Give a moment for cleanup
                 await asyncio.sleep(0.1)
@@ -152,27 +178,20 @@ class DevServerMCP:
 @click.option("--port", "-p", default=3001, type=int, help="Port for HTTP transport (ignored for stdio)")
 def main(config, port):
     """DevServer MCP - Development Server Manager"""
-    # Configure silent logging immediately
     configure_silent_logging()
 
-    if not os.path.isabs(config) and not os.path.exists(config):
-        cwd_config = Path.cwd() / config
-        if cwd_config.exists():
-            config = str(cwd_config)
-        else:
-            current = Path.cwd()
-            while current != current.parent:
-                test_path = current / config
-                if test_path.exists():
-                    config = str(test_path)
-                    break
-                if (current / ".git").exists():
-                    break
-                current = current.parent
+    config = resolve_config_path(config)
 
-    mcp_server = DevServerMCP(config_path=config, port=port)
+    try:
+        mcp_server = DevServerMCP(config_path=config, port=port)
+    except FileNotFoundError:
+        click.echo(f"Error: Config file not found: {config}", err=True)
+        click.echo(f"Looked for '{Path(config).name}' in current directory and parent directories.", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error loading config: {e}", err=True)
+        sys.exit(1)
 
-    # Custom event loop with exception handler to suppress shutdown errors
     loop = asyncio.new_event_loop()
     loop.set_exception_handler(no_op_exception_handler)
     asyncio.set_event_loop(loop)

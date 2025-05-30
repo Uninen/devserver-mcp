@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Refactored config path resolution with better error handling and comprehensive tests: improved resolve_config_path with max depth protection, permission error handling, unexpected exception handling, and added meaningful tests for all edge cases including symlink cycles and filesystem errors. (GitHub Copilot)
 * 30-05-2025 -- Created comprehensive test_config_resilience.py covering various resilience scenarios. (GitHub Copilot)
 * 30-01-2025 -- Aggressively cleaned up test suite: removed 46% of tests (72→39) by deleting trivial implementation detail tests while preserving critical business logic tests (app startup, server workflows, error handling, UI behavior). Created comprehensive list of testing gaps that need improvement. (claude-sonnet-4-20250514)
 * 30-05-2025 -- Added MCP server logging to TUI - MCP startup messages and tool calls now appear in Server Logs window. (claude-opus-4-20250514)
@@ -39,3 +40,8 @@
 * 29-05-2025 -- Refactored shutdown logic and added quit instruction to TUI. (Gemini)
 * 29-05-2025 -- Fixed "Already running asyncio in this thread" error by using FastMCP's run_async() method instead of run() and adding nest_asyncio support. (claude-3-5-sonnet-20241022)
 * 29-05-2025 -- First version of this document. (human)
+
+# Recent Changes
+
+* 30-05-2025 -- Preserved original comments in __init__.py and removed only added trivial comments, cleaned up broken test fragments. (claude-3-5-sonnet-20241022)
+* 30-05-2025 -- Added comprehensive config path resolution with error handling and complete test coverage for edge cases. (claude-3-5-sonnet-20241022)

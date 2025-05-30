@@ -12,7 +12,7 @@ servers:
     port: 5173
     autostart: true
 
-  broken:
-    command: "dummycommand"
-    port: 1234
-    autostart: true
+  # broken:
+  #   command: "dummycommand"
+  #   port: 1234
+  #   autostart: true
