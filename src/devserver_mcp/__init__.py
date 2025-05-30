@@ -79,7 +79,7 @@ class DevServerMCP:
 
 @click.command()
 @click.option(
-    "--config", "-c", default="devserver.yml", help="Path to configuration file", type=click.Path(exists=False)
+    "--config", "-c", default="devservers.yml", help="Path to configuration file", type=click.Path(exists=False)
 )
 @click.option("--port", "-p", default=3001, type=int, help="Port for HTTP transport")
 def main(config, port):

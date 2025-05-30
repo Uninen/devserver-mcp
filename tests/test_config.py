@@ -62,13 +62,8 @@ def test_resolve_config_path_not_exists():
 
 
 def test_resolve_config_path_in_parent_directory():
-    result = resolve_config_path("devserver.yml")
-    assert result == "devserver.yml"
-
-
-def test_resolve_config_path_stops_at_git():
-    result = resolve_config_path("devserver.yml")
-    assert result == "devserver.yml"
+    result = resolve_config_path("devservers.yml")
+    assert result == "devservers.yml"
 
 
 def test_resolve_config_path_permission_error():

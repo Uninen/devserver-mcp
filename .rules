@@ -41,7 +41,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 testapp/
 ├── front/          # simple Vite app
 └── backend.py      # simple FastAPI app
-devserver.yml       # Test configuration
+devservers.yml       # Test configuration
 ```
 
 ## Change Logging

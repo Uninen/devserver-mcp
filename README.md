@@ -1,14 +1,21 @@
 # DevServer MCP
 
-A Model Context Protocol (MCP) server that manages development servers (Django, Vue, Celery, etc.) for LLM-assisted development workflows. Provides programmatic control over multiple development servers through a unified interface with a beautiful TUI.
+A Model Context Protocol (MCP) server that manages development servers for LLM-assisted workflows. Provides programmatic control over multiple development servers through a unified interface with a simple TUI.
+
+You can also turn the servers on and off by clicking via the TUI.
+
+![Screenshot](./docs/screenshots/devservers_v0.1.png)
+
+## Project Status
+
+This is both **ALPHA** software and an excercise in vibe coding; most of this codebase is written with the help of LLM tools.
+
+The tests validate some of the functionality and the server is already useful if you happen to need the functionality but YMMV.
 
 ## Features
 
 - 🚀 **Process Management**: Start, stop, and monitor multiple development servers
-- 📊 **Rich TUI**: Beautiful terminal interface with real-time log streaming
-- 🎨 **Color-coded Output**: Different colors for each server's output
-- 📝 **Log Buffering**: Access to last 500 lines of logs for each managed server
-- 🔍 **External Process Detection**: Detects servers already running on configured ports
+- 📊 **Rich TUI**: Simple terminal interface with real-time log streaming
 
 ## Installation
 
@@ -18,7 +25,7 @@ uv add git+https://github.com/Uninen/devserver-mcp.git
 
 ## Configuration
 
-Create a `devserver.yml` file in your project root:
+Create a `devservers.yml` file in your project root:
 
 ```yaml
 servers:
@@ -56,7 +63,9 @@ Add MCP configuration for VS Code:
 
 ### Running the MCP Server
 
-`devserver-mcp`
+Start the TUI: `devservers`
+
+Now you can watch and control the devservers and see the logs while also giving LLMs full access to the servers and their logs.
 
 ### MCP Tools Available
 
@@ -67,53 +76,23 @@ The server exposes the following tools for LLM interaction:
 3. **get_server_status(name)** - Get server status
 4. **get_server_logs(name, lines)** - Get recent logs from managed servers
 
-### TUI Interface
-
-The terminal interface shows:
-- **Main Area**: Real-time, color-coded server output
-- **Status Bar**: Current status of all configured servers
-  - 🟢 Running (managed)
-  - 🟡 External (running but not managed)
-  - 🔴 Error
-  - ⚫ Stopped
-
-### Keyboard Shortcuts
-
-- `Ctrl+C` or `Ctrl+D`: Gracefully shutdown all servers and exit
-
-## Advanced Features
-
-### External Process Support
-
-If a server is already running on a configured port (started outside of DevServer MCP), it will be detected as "external". You can:
-- Stop external processes (if permissions allow)
-- Restart them as managed processes to gain log access
-
-### Log Access
-
-- Managed processes: Full access to last 500 lines of output
-- External processes: No log access (shown as unavailable)
-
-### Error Handling
-
-- Failed starts are clearly indicated in the status bar
-- Error messages are preserved and shown in status
-- Port conflicts are detected before attempting to start
-
-## Platform Support
-
-- ✅ macOS
-- ✅ Linux
-- ⚠️  Windows (limited support for process group management)
-
 ## Developing
 
 ### Using MCP Inspector
 
-1. Start the server: `devserver-mcp`
+1. Start the server: `devservers`
 2. Start MCP Inspector: `npx @modelcontextprotocol/inspector http://localhost:3001`
 
 ### Scripting MCP Inspector
 
-1. Start the server: `devserver-mcp`
+1. Start the server: `devservers`
 2. Use MCP Inspector in CLI mode, for example: `npx @modelcontextprotocol/inspector --cli http://localhost:3001 --method tools/call --tool-name start_server --tool-arg name=frontend`
+
+## Elsewhere
+
+- Follow [unessa.net on Bluesky](https://bsky.app/profile/uninen.net) or [@uninen on Twitter](https://twitter.com/uninen)
+- Read my continuously updating learnings from Vite / Vue / TypeScript and other Web development topics from my [Today I Learned site](https://til.unessa.net/)
+
+## Contributing
+
+Contributions are welcome! Please follow the [code of conduct](./CODE_OF_CONDUCT.md) when interacting with others.
