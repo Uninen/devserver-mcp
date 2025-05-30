@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Added `prefix_logs` config to control log prefixing and updated tests. (claude-3.5-sonnet-20240620)
 * 30-05-2025 -- Suppressed pytest-asyncio warning by setting asyncio_default_fixture_loop_scope in pytest.ini. (Claude 3 Opus)
 * 30-05-2025 -- Fixed various Pytest warnings related to async mocks and test collection. (Gemini)
 * 30-05-2025 -- Fixed backend process stopping issue and enabled log copy-paste: made stop() method async with proper process termination waiting, added race condition delay after stopping, enabled RichLog focus for text selection, and updated all tests to handle async stop method. Backend servers now properly show "stopped" instead of "external" after clicking to stop. (claude-3-5-sonnet-20241022)

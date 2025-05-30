@@ -7,6 +7,7 @@ class ServerConfig(BaseModel):
     command: str
     working_dir: str = "."
     port: int
+    prefix_logs: bool = True
 
 
 class Config(BaseModel):

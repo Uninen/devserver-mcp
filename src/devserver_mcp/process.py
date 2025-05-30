@@ -62,11 +62,17 @@ class ManagedProcess:
 
                 decoded = line.decode("utf-8", errors="replace").rstrip()
                 if decoded:
-                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    if self.config.prefix_logs:
+                        server_name_to_log = self.name
+                        timestamp_to_log = datetime.now().strftime("%H:%M:%S")
+                    else:
+                        server_name_to_log = ""
+                        timestamp_to_log = ""
 
-                    self.logs.append(decoded)
+                    self.logs.append(decoded)  # We still store the raw log
                     # Handle both sync and async callbacks
-                    result = log_callback(self.name, timestamp, decoded)
+                    # The callback will decide how to use server_name_to_log and timestamp_to_log
+                    result = log_callback(server_name_to_log, timestamp_to_log, decoded)
                     if asyncio.iscoroutine(result):
                         await result
 

@@ -147,10 +147,17 @@ class LogsWidget(Widget):
 
     async def add_log_line(self, server: str, timestamp: str, message: str):
         log = self.query_one(RichLog)
-        process = self.manager.processes.get(server.lower())
-        color = process.color if process else "white"
-        formatted = f"[dim]{timestamp}[/dim] [{color}]{server}[/{color}] | {message}"
-        log.write(formatted)
+        formatted_message: str
+        if server and timestamp:  # Both server and timestamp must be present to add our prefix
+            process = self.manager.processes.get(server.lower())
+            color = process.color if process else "white"
+            formatted_message = f"[dim]{timestamp}[/dim] [{color}]{server}[/{color}] | {message}"
+        else:
+            # If server or timestamp is empty, the message is used as-is
+            # This assumes the message might already be prefixed by an external tool (e.g. honcho)
+            # or prefixing is explicitly disabled.
+            formatted_message = message
+        log.write(formatted_message)
 
 
 class DevServerTUI(App):
@@ -244,7 +251,7 @@ class DevServerTUI(App):
         ("ctrl+c", "quit", "Quit"),
     ]
 
-    async def action_quit(self) -> None:  # type: ignore
+    async def action_quit(self) -> None: 
         await self.manager.shutdown_all()
         self.exit(0)
 

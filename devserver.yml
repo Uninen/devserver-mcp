@@ -4,6 +4,7 @@ servers:
     command: "uv run fastapi dev backend.py"
     working_dir: "./testapp"
     port: 8000
+    prefix_logs: false
 
   frontend:
     command: "pnpm dev"

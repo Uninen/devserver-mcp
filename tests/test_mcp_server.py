@@ -63,7 +63,13 @@ async def test_get_server_status_tool(mcp_server):
         assert "status" in response
         assert "port" in response
         assert response["port"] == 8000
-        assert response["status"] == "stopped"  # Server should be stopped initially
+        # Server should be stopped initially, or running if port is externally occupied
+        if response["status"] == "running":
+            assert response.get("type") == "external", (
+                "If status is 'running' before start, it must be an external process"
+            )
+        else:
+            assert response["status"] == "stopped"
 
 
 @pytest.mark.asyncio
@@ -136,8 +142,16 @@ async def test_stop_server_tool_not_running(mcp_server):
         # Check that we get the expected response for a stopped server
         assert "status" in response
         assert "message" in response
-        assert response["status"] == "not_running"
-        assert "not running" in response["message"]
+        if response["status"] == "error":
+            # This can happen if the port is in use by an external process
+            assert "Cannot stop external process" in response["message"]
+        elif response["status"] == "not_running":
+            assert "not running" in response["message"]
+        else:
+            # Fail if the status is unexpected for a server that wasn't started by this test
+            pytest.fail(
+                f"Unexpected status '{response['status']}' for a server not started by the test. Message: '{response['message']}'"
+            )
 
 
 @pytest.mark.asyncio

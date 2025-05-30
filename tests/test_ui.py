@@ -24,6 +24,33 @@ def manager(sample_config):
     return DevServerManager(sample_config)
 
 
+@pytest.fixture
+def config_with_log_prefix_options():
+    """Sample configuration for testing log prefixing"""
+    return Config(
+        servers={
+            "log_prefix_server": ServerConfig(
+                command="echo 'prefixed'",
+                working_dir=".",
+                port=9001,
+                prefix_logs=True,  # Explicitly True, or default
+            ),
+            "no_log_prefix_server": ServerConfig(
+                command="echo 'not prefixed'",
+                working_dir=".",
+                port=9002,
+                prefix_logs=False,
+            ),
+        }
+    )
+
+
+@pytest.fixture
+def manager_for_log_prefix_tests(config_with_log_prefix_options):
+    """Create a manager instance for log prefix testing"""
+    return DevServerManager(config_with_log_prefix_options)
+
+
 # ServerBox tests
 
 
@@ -233,6 +260,49 @@ async def test_logs_widget_unknown_server_color(manager):
     formatted_message = mock_rich_log.write.call_args[0][0]
 
     assert "[white]unknown[/white]" in formatted_message
+
+
+async def test_logs_widget_prefix_enabled(manager_for_log_prefix_tests):
+    """Test log line formatting when prefix_logs is True (default)."""
+    widget = LogsWidget(manager_for_log_prefix_tests)
+    mock_rich_log = MagicMock()
+    widget.query_one = MagicMock(return_value=mock_rich_log)
+
+    server_name = "log_prefix_server"  # This server has prefix_logs=True
+    timestamp = "10:00:00"
+    message = "Log message with prefix"
+
+    await widget.add_log_line(server_name, timestamp, message)
+
+    mock_rich_log.write.assert_called_once()
+    formatted_message = mock_rich_log.write.call_args[0][0]
+
+    # log_prefix_server should be the first one, getting "cyan"
+    assert f"[dim]{timestamp}[/dim]" in formatted_message
+    assert (
+        f"[{manager_for_log_prefix_tests.processes[server_name.lower()].color}]{server_name}[/{manager_for_log_prefix_tests.processes[server_name.lower()].color}]"
+        in formatted_message
+    )
+    assert f" | {message}" in formatted_message
+    assert message == formatted_message.split(" | ")[-1]
+
+
+async def test_logs_widget_prefix_disabled(manager_for_log_prefix_tests):
+    """Test log line formatting when prefix_logs is False."""
+    widget = LogsWidget(manager_for_log_prefix_tests)
+    mock_rich_log = MagicMock()
+    widget.query_one = MagicMock(return_value=mock_rich_log)
+
+    server_name = "no_log_prefix_server"  # This server has prefix_logs=False
+    # For prefix_logs=False, ManagedProcess sends empty server and timestamp to the callback
+    # The TUI's add_log_line receives these empty strings.
+    sent_server_arg = ""
+    sent_timestamp_arg = ""
+    message = "Log message without prefix"
+
+    await widget.add_log_line(sent_server_arg, sent_timestamp_arg, message)
+
+    mock_rich_log.write.assert_called_once_with(message)
 
 
 # DevServerApp tests
