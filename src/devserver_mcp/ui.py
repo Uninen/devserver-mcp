@@ -1,5 +1,6 @@
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
+from textual.events import Click
 from textual.widget import Widget
 from textual.widgets import Label, RichLog, Static
 
@@ -9,9 +10,10 @@ from .manager import DevServerManager
 class ServerBox(Static):
     """A bordered box showing a single server's status."""
 
-    def __init__(self, server: dict):
+    def __init__(self, server: dict, manager: DevServerManager):
         super().__init__(classes="server-box")
         self.server = server
+        self.manager = manager
 
     def compose(self) -> ComposeResult:
         name = self.server["name"]
@@ -28,6 +30,17 @@ class ServerBox(Static):
             return "[#ff0040]● Error[/#ff0040]"
         else:
             return "[#8000ff]● Stopped[/#8000ff]"
+
+    async def on_click(self, event: Click) -> None:
+        """Handle click events on the server box."""
+        server_name = self.server["name"]
+
+        if self.server["status"] == "stopped":
+            # Start the server if it's stopped
+            await self.manager.start_server(server_name)
+        elif self.server["status"] == "running" and not self.server["external_running"]:
+            # Stop the server if it's running and managed
+            await self.manager.stop_server(server_name)
 
 
 class ServerStatusWidget(Widget):
@@ -53,7 +66,7 @@ class ServerStatusWidget(Widget):
     def compose(self) -> ComposeResult:
         servers = self.manager.get_all_servers()
         for server in servers:
-            yield ServerBox(server)
+            yield ServerBox(server, self.manager)
 
     def refresh_boxes(self):
         self.refresh()
@@ -141,9 +154,15 @@ class DevServerTUI(App):
     }
 
     .server-box {
-        margin-bottom: 1;
+        margin-bottom: 0;
         padding: 0 1;
         color: #00ffff;
+        background: transparent;
+        border: round transparent;
+    }
+
+    .server-box:hover {
+        border: round #DF7BFF;
     }
 
     #bottom-bar {

@@ -1,10 +1,10 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from devserver_mcp.manager import DevServerManager
 from devserver_mcp.types import Config, ServerConfig
-from devserver_mcp.ui import DevServerTUI, LogsWidget, ServerStatusWidget
+from devserver_mcp.ui import DevServerTUI, LogsWidget, ServerBox, ServerStatusWidget
 
 
 @pytest.fixture
@@ -22,6 +22,115 @@ def sample_config():
 def manager(sample_config):
     """Create a manager instance for testing"""
     return DevServerManager(sample_config)
+
+
+# ServerBox tests
+
+
+async def test_server_box_initialization_with_manager(manager):
+    """Test that ServerBox initializes correctly with manager"""
+    server = {"name": "frontend", "status": "stopped", "external_running": False, "error": None}
+    box = ServerBox(server, manager)
+
+    assert box.server == server
+    assert box.manager == manager
+
+
+async def test_server_box_click_start_stopped_server(manager):
+    """Test clicking on a stopped server starts it"""
+    server = {"name": "frontend", "status": "stopped", "external_running": False, "error": None}
+    box = ServerBox(server, manager)
+
+    # Mock the manager's start_server method as async
+    manager.start_server = AsyncMock()
+
+    # Create a minimal mock click event
+    mock_event = MagicMock()
+
+    await box.on_click(mock_event)
+
+    manager.start_server.assert_called_once_with("frontend")
+
+
+async def test_server_box_click_stop_running_managed_server(manager):
+    """Test clicking on a running managed server stops it"""
+    server = {"name": "backend", "status": "running", "external_running": False, "error": None}
+    box = ServerBox(server, manager)
+
+    # Mock the manager's stop_server method as async
+    manager.stop_server = AsyncMock()
+
+    # Create a minimal mock click event
+    mock_event = MagicMock()
+
+    await box.on_click(mock_event)
+
+    manager.stop_server.assert_called_once_with("backend")
+
+
+async def test_server_box_click_external_server_no_action(manager):
+    """Test clicking on an external server does nothing"""
+    server = {"name": "external", "status": "running", "external_running": True, "error": None}
+    box = ServerBox(server, manager)
+
+    # Mock the manager methods as async
+    manager.start_server = AsyncMock()
+    manager.stop_server = AsyncMock()
+
+    # Create a minimal mock click event
+    mock_event = MagicMock()
+
+    await box.on_click(mock_event)
+
+    # Neither method should be called for external servers
+    manager.start_server.assert_not_called()
+    manager.stop_server.assert_not_called()
+
+
+async def test_server_box_click_error_server_no_action(manager):
+    """Test clicking on an error server does nothing"""
+    server = {"name": "error_server", "status": "error", "external_running": False, "error": "Connection failed"}
+    box = ServerBox(server, manager)
+
+    # Mock the manager methods as async
+    manager.start_server = AsyncMock()
+    manager.stop_server = AsyncMock()
+
+    # Create a minimal mock click event
+    mock_event = MagicMock()
+
+    await box.on_click(mock_event)
+
+    # Neither method should be called for error servers
+    manager.start_server.assert_not_called()
+    manager.stop_server.assert_not_called()
+
+
+async def test_server_box_integration_click_in_app(sample_config):
+    """Test clicking server boxes within the full app context"""
+    manager = DevServerManager(sample_config)
+    app = DevServerTUI(manager, "http://localhost:3001/mcp/")
+
+    # Mock the manager methods as async
+    manager.start_server = AsyncMock()
+    manager.stop_server = AsyncMock()
+
+    async with app.run_test() as pilot:
+        # Wait for the app to fully load
+        await pilot.pause()
+
+        # Find server boxes - they should have class "server-box"
+        server_boxes = app.query(".server-box")
+        assert len(server_boxes) >= 1
+
+        # Click on the first server box
+        await pilot.click(".server-box")
+        await pilot.pause()
+
+        # At least one of the manager methods should have been called
+        # depending on the server state
+        call_count = manager.start_server.call_count + manager.stop_server.call_count
+        assert call_count >= 1
 
 
 # ServerStatusWidget tests
