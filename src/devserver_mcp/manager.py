@@ -147,4 +147,8 @@ class DevServerManager:
 
     def _is_port_in_use(self, port: int) -> bool:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(("localhost", port)) == 0
+            try:
+                s.bind(("localhost", port))
+                return False
+            except OSError:
+                return True
