@@ -199,3 +199,18 @@ async def test_widget_manager_interaction(manager):
     await manager._notify_log("test", "12:34:56", "test message")
 
     # Should not raise any exceptions
+
+
+async def test_dev_server_start(manager):
+    """Test that the app starts without errors"""
+    mcp_url = "http://localhost:3001/mcp/"
+    app = DevServerTUI(manager, mcp_url)
+    try:
+        # The CSS is parsed during the __init__ or on_mount of the App.
+        # If there are parsing errors, Textual typically raises an error or logs warnings.
+        # We'll try to compose the app which forces CSS processing.
+        # This is a bit indirect, but Textual doesn't offer a direct CSS validation API.
+        async with app.run_test() as _pilot:  # Changed pilot to _pilot to fix lint error
+            pass  # If it runs without crashing, CSS is likely fine
+    except Exception as e:
+        pytest.fail(f"App failed to start during initialization: {e}")
