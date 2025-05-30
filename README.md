@@ -8,7 +8,7 @@ You can also turn the servers on and off by clicking via the TUI.
 
 ## Project Status
 
-This is both **ALPHA** software and an excercise in vibe coding; most of this codebase is written with the help of LLM tools.
+This is both **ALPHA** software and an exercise in vibe coding; most of this codebase is written with the help of LLM tools.
 
 The tests validate some of the functionality and the server is already useful if you happen to need the functionality but YMMV.
 

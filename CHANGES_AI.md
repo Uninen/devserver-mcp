@@ -45,8 +45,3 @@
 * 29-05-2025 -- Refactored shutdown logic and added quit instruction to TUI. (Gemini)
 * 29-05-2025 -- Fixed "Already running asyncio in this thread" error by using FastMCP's run_async() method instead of run() and adding nest_asyncio support. (claude-3-5-sonnet-20241022)
 * 29-05-2025 -- First version of this document. (human)
-
-# Recent Changes
-
-* 30-05-2025 -- Preserved original comments in __init__.py and removed only added trivial comments, cleaned up broken test fragments. (claude-3-5-sonnet-20241022)
-* 30-05-2025 -- Added comprehensive config path resolution with error handling and complete test coverage for edge cases. (claude-3-5-sonnet-20241022)
