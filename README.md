@@ -63,7 +63,11 @@ Add MCP configuration for VS Code:
 
 ### Running the MCP Server
 
-Start the TUI: `devservers`
+Start the TUI: 
+
+```bash
+devservers
+```
 
 Now you can watch and control the devservers and see the logs while also giving LLMs full access to the servers and their logs.
 

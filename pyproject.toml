@@ -1,7 +1,7 @@
 [project]
 name = "devserver-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "MCP server for managing dev servers"
 readme = "README.md"
 authors = [
     { name = "Ville Säävuori", email = "ville@unessa.net" }
