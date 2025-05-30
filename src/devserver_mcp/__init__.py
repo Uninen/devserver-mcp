@@ -473,7 +473,6 @@ class DevServerMCP:
         self,
         config_path: str | None = None,
         config: Config | None = None,
-        transport: str = "streamable-http",
         port: int = 3001,
     ):
         if config is not None:
@@ -489,7 +488,6 @@ class DevServerMCP:
             raise ValueError("Either config_path or config must be provided")
         self.manager = DevServerManager(self.config)
         self.mcp = FastMCP("devserver")
-        self.transport = transport
         self.port = port
         self._shutdown_event = asyncio.Event()
         self._mcp_task = None
@@ -563,11 +561,6 @@ class DevServerMCP:
         # Configure silent logging before doing anything
         configure_silent_logging()
 
-        if self.transport == "stdio":
-            with silence_all_output():
-                await self.mcp.run_async()
-            return
-
         # Check if we're running in a non-terminal environment (like tests)
         # If so, run briefly without TUI to avoid any output
         if not (sys.stdout.isatty() and sys.stderr.isatty()):
@@ -578,13 +571,11 @@ class DevServerMCP:
 
         # Start MCP server in background - silence only the startup logs
         with silence_all_output():
-            self._mcp_task = asyncio.create_task(
-                self.mcp.run_async(transport="streamable-http", port=self.port, host="127.0.0.1")
-            )
+            self._mcp_task = asyncio.create_task(self.mcp.run_async(transport="sse", port=self.port, host="localhost"))
             await asyncio.sleep(0.5)
 
         # Run TUI normally without silencing (since we're in a real terminal)
-        mcp_url = f"http://127.0.0.1:{self.port}/mcp"
+        mcp_url = f"http://localhost:{self.port}/sse"
         app = DevServerApp(self.manager, mcp_url)
 
         try:
@@ -613,15 +604,8 @@ class DevServerMCP:
 @click.option(
     "--config", "-c", default="devserver.yml", help="Path to configuration file", type=click.Path(exists=False)
 )
-@click.option(
-    "--transport",
-    "-t",
-    default="streamable-http",
-    type=click.Choice(["stdio", "streamable-http"]),
-    help="Transport method for MCP server",
-)
 @click.option("--port", "-p", default=3001, type=int, help="Port for HTTP transport (ignored for stdio)")
-def main(config, transport, port):
+def main(config, port):
     """DevServer MCP - Development Server Manager"""
     # Configure silent logging immediately
     configure_silent_logging()
@@ -642,7 +626,7 @@ def main(config, transport, port):
                 current = current.parent
 
     try:
-        server = DevServerMCP(config_path=config, transport=transport, port=port)
+        server = DevServerMCP(config_path=config, port=port)
     except Exception:
         # Silence all errors during instantiation (for test expectations)
         return

@@ -1,8 +1,8 @@
 {
   "servers": {
     "devserver": {
-      "url": "http://127.0.0.1:3001/mcp/",
-      "type": "http"
+      "url": "http://localhost:3001/sse",
+      "type": "sse"
     }
   }
 }

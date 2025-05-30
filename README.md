@@ -13,7 +13,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 ## Installation
 
 ```bash
-uv add devserver_mcp
+uv add git+https://github.com/Uninen/devserver-mcp.git
 ```
 
 ## Configuration
@@ -38,11 +38,25 @@ servers:
     port: 5555
 ```
 
+Add MCP configuration for VS Code:
+
+```json
+// .vscode/mcp.json
+{
+  "servers": {
+    "devserver": {
+      "url": "http://localhost:3001/sse",
+      "type": "sse"
+    }
+  }
+}
+```
+
 ## Usage
 
 ### Running the MCP Server
 
-TBA
+`devserver-mcp`
 
 ### MCP Tools Available
 
@@ -91,3 +105,15 @@ If a server is already running on a configured port (started outside of DevServe
 - ✅ macOS
 - ✅ Linux
 - ⚠️  Windows (limited support for process group management)
+
+## Developing
+
+### Using MCP Inspector
+
+1. Start the server: `devserver-mcp`
+2. Start MCP Inspector: `npx @modelcontextprotocol/inspector http://localhost:3001`
+
+### Scripting MCP Inspector
+
+1. Start the server: `devserver-mcp`
+2. Use MCP Inspector in CLI mode, for example: `npx @modelcontextprotocol/inspector --cli http://localhost:3001 --method tools/call --tool-name start_server --tool-arg name=frontend`
