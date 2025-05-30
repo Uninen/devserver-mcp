@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -172,3 +172,130 @@ def test_devservermcp_config_injection(simple_config):
     mcp = DevServerMCP(config=simple_config)
     assert isinstance(mcp.manager, DevServerManager)
     assert mcp.config is simple_config
+
+
+@pytest.fixture
+def autostart_true_config():
+    return Config(
+        servers={
+            "autostart_api": ServerConfig(command="echo autostart_api", working_dir=".", port=12347, autostart=True),
+            "no_autostart_web": ServerConfig(
+                command="echo no_autostart_web", working_dir=".", port=12348, autostart=False
+            ),
+        }
+    )
+
+
+@pytest.fixture
+def autostart_manager(autostart_true_config):
+    return DevServerManager(autostart_true_config)
+
+
+@pytest.fixture
+def all_autostart_false_config():
+    return Config(
+        servers={
+            "server_one": ServerConfig(command="echo one", working_dir=".", port=12351, autostart=False),
+            "server_two": ServerConfig(command="echo two", working_dir=".", port=12352, autostart=False),
+        }
+    )
+
+
+@pytest.fixture
+def all_autostart_false_manager(all_autostart_false_config):
+    return DevServerManager(all_autostart_false_config)
+
+
+@pytest.mark.asyncio
+async def test_autostart_server_starts_when_autostart_true_and_stopped(autostart_manager):
+    manager = autostart_manager
+    with (
+        patch.object(manager, "get_server_status", new_callable=MagicMock) as mock_get_status,
+        patch.object(manager, "start_server", new_callable=AsyncMock) as mock_start_server,
+    ):
+
+        def get_status_side_effect(server_name):
+            if server_name == "autostart_api":
+                return {"status": "stopped"}
+            if server_name == "no_autostart_web":  # Has autostart=False
+                return {"status": "stopped"}
+            # Should not be called for other servers in this config
+            pytest.fail(f"Unexpected call to get_server_status with {server_name}")
+            return {}  # Keep linters happy
+
+        mock_get_status.side_effect = get_status_side_effect
+        # Mock the return value of the actual start_server, not the one in this test
+        mock_start_server.return_value = {"status": "started", "message": "Server started"}
+
+        await manager.autostart_configured_servers()
+
+        # Assert start_server was called for 'autostart_api'
+        mock_start_server.assert_called_once_with("autostart_api")
+        # Ensure get_server_status was called only for 'autostart_api'
+        mock_get_status.assert_called_once_with("autostart_api")
+
+
+@pytest.mark.asyncio
+async def test_autostart_server_not_started_if_autostart_true_but_external(autostart_manager):
+    manager = autostart_manager
+    with (
+        patch.object(manager, "get_server_status", new_callable=MagicMock) as mock_get_status,
+        patch.object(manager, "start_server", new_callable=AsyncMock) as mock_start_server,
+    ):
+
+        def get_status_side_effect(server_name):
+            if server_name == "autostart_api":  # This one has autostart=True
+                return {"status": "running", "type": "external"}  # Simulate external process
+            if server_name == "no_autostart_web":
+                return {"status": "stopped"}
+            pytest.fail(f"Unexpected call to get_server_status with {server_name}")
+            return {}
+
+        mock_get_status.side_effect = get_status_side_effect
+
+        await manager.autostart_configured_servers()
+
+        mock_start_server.assert_not_called()
+        # Ensure get_server_status was called only for 'autostart_api'
+        mock_get_status.assert_called_once_with("autostart_api")
+
+
+@pytest.mark.asyncio
+async def test_autostart_server_not_started_if_autostart_true_but_managed_running(autostart_manager):
+    manager = autostart_manager
+    with (
+        patch.object(manager, "get_server_status", new_callable=MagicMock) as mock_get_status,
+        patch.object(manager, "start_server", new_callable=AsyncMock) as mock_start_server,
+    ):
+
+        def get_status_side_effect(server_name):
+            if server_name == "autostart_api":  # This one has autostart=True
+                return {"status": "running", "type": "managed"}  # Simulate managed process already running
+            if server_name == "no_autostart_web":
+                return {"status": "stopped"}
+            pytest.fail(f"Unexpected call to get_server_status with {server_name}")
+            return {}
+
+        mock_get_status.side_effect = get_status_side_effect
+
+        await manager.autostart_configured_servers()
+
+        mock_start_server.assert_not_called()
+        # Ensure get_server_status was called only for 'autostart_api'
+        mock_get_status.assert_called_once_with("autostart_api")
+
+
+@pytest.mark.asyncio
+async def test_autostart_servers_not_started_if_all_autostart_false(all_autostart_false_manager):
+    manager = all_autostart_false_manager
+    with (
+        patch.object(manager, "get_server_status", new_callable=MagicMock) as mock_get_status,
+        patch.object(manager, "start_server", new_callable=AsyncMock) as mock_start_server,
+    ):
+        # mock_get_status.return_value is not needed as get_server_status should not be called.
+
+        await manager.autostart_configured_servers()
+
+        mock_start_server.assert_not_called()
+        # get_server_status should not be called as no server has autostart=True
+        mock_get_status.assert_not_called()

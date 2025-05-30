@@ -19,6 +19,15 @@ class DevServerManager:
         self._status_callbacks: list[Callable[[], None]] = []
         self._assign_colors()
 
+    async def autostart_configured_servers(self):
+        """Automatically start servers configured with autostart: true."""
+        for name, process in self.processes.items():
+            if process.config.autostart:
+                # Check if the process is not running and the port is not in use (i.e., not an external process)
+                server_status = self.get_server_status(name)
+                if server_status["status"] == "stopped": # It implies not managed running and port not in use
+                    await self.start_server(name)
+
     def _assign_colors(self):
         """Assign colors to servers"""
         for i, name in enumerate(self.config.servers.keys()):

@@ -144,7 +144,7 @@ async def test_stop_server_tool_not_running(mcp_server):
         assert "message" in response
         if response["status"] == "error":
             # This can happen if the port is in use by an external process
-            assert "Cannot stop external process" in response["message"]
+            assert "Failed to kill external process" in response["message"]
         elif response["status"] == "not_running":
             assert "not running" in response["message"]
         else:

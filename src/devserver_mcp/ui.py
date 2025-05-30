@@ -105,6 +105,22 @@ class ServerStatusWidget(Widget):
             yield ServerBox(server, self.manager)
 
     def refresh_boxes(self):
+        # Get the latest status of all servers
+        updated_servers_data = self.manager.get_all_servers()
+        server_data_map = {s_data["name"]: s_data for s_data in updated_servers_data}
+
+        # Iterate through the child ServerBox widgets
+        for server_box in self.query(ServerBox):
+            current_server_name = server_box.server["name"]
+            if current_server_name in server_data_map:
+                # Update the ServerBox's internal data
+                server_box.server = server_data_map[current_server_name]
+                # Refresh its labels to reflect the new data
+                server_box._refresh_labels()
+        
+        # Refresh the ServerStatusWidget itself. This is still useful if
+        # the number of servers changes, though individual status updates
+        # are handled by _refresh_labels() above.
         self.refresh()
 
     def _format_status(self, server: dict) -> str:
@@ -273,6 +289,8 @@ class DevServerTUI(App):
                 yield LogsWidget(self.manager)
         yield Static(f"MCP: {self.mcp_url} | Press Ctrl+C to quit", id="bottom-bar")
 
-    def on_mount(self):
+    async def on_mount(self):
         self.title = "DevServer MCP"
         self.sub_title = "Development Server Manager"
+        # Autostart servers after TUI is mounted and ready for logs
+        await self.manager.autostart_configured_servers()

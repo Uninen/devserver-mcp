@@ -316,7 +316,7 @@ async def test_dev_server_app_initialization(manager):
     assert app.mcp_url == mcp_url
 
     # Simulate mounting to set the title
-    app.on_mount()
+    await app.on_mount()
     assert app.title == "DevServer MCP"
     assert app.sub_title == "Development Server Manager"
 

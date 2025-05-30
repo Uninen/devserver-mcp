@@ -8,6 +8,7 @@ class ServerConfig(BaseModel):
     working_dir: str = "."
     port: int
     prefix_logs: bool = True
+    autostart: bool = False
 
 
 class Config(BaseModel):

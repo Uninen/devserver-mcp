@@ -10,3 +10,4 @@ servers:
     command: "pnpm dev"
     working_dir: "./testapp/front"
     port: 5173
+    autostart: true
