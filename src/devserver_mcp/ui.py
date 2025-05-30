@@ -108,8 +108,8 @@ class DevServerTUI(App):
     CSS = """
     Screen {
         layout: vertical;
-        background: #1a1a2e;
-        color: #f8f8f2;
+        background: #1e1e2e;
+        color: #cdd6f4;
     }
 
     #main-split {
@@ -117,52 +117,69 @@ class DevServerTUI(App):
         height: 1fr;
     }
 
-    #servers-panel, #logs-panel, #status {
-        border: solid #ff00cc;
-        background: #232347;
-        margin: 1 1;
-        padding: 1 2;
-        height: 1fr;
-    }
-
     #servers-panel {
-        width: 36%;
-        min-width: 28;
+        border: solid #89b4fa;
+        border-title-color: #89b4fa;
+        border-title-style: bold;
+        border-title-align: left;
+        background: #1e1e2e;
+        margin: 1 1;
+        height: 1fr;
+        width: 20%;
+        min-width: 25;
+        max-width: 35;
     }
 
-    #logs-panel {
+    #logs-panel, #logs {
+        border: solid #89b4fa;
+        border-title-color: #89b4fa;
+        border-title-style: bold;
+        border-title-align: left;
+        background: #1e1e2e;
+        margin: 1 1;
+        height: 1fr;
         width: 1fr;
         min-width: 40;
     }
 
-    #servers-heading, #logs-heading {
-        background: #232347;
-        color: #ff00cc;
-        padding-left: 1;
-        margin-bottom: 1;
-        text-style: bold;
+    #status {
+        background: #1e1e2e;
     }
 
     .server-box {
-        border: solid #00fff7;
-        background: #181825;
+        border: solid #45475a;
+        background: #1e1e2e;
         margin-bottom: 1;
         padding: 1 1;
     }
 
     #bottom-bar {
-        background: #181825;
-        color: #ff00cc;
-        height: 2;
+        background: #1e1e2e;
+        color: #89b4fa;
+        height: 1;
         padding: 0 2;
         dock: bottom;
         content-align: center middle;
     }
+    
     RichLog {
         height: 1fr;
+        background: #1e1e2e;
     }
+    
     DataTable {
         height: 1fr;
+        background: #1e1e2e;
+    }
+    
+    ServerStatusWidget {
+        background: #1e1e2e;
+        padding: 1 2;
+    }
+    
+    LogsWidget {
+        background: #1e1e2e;
+        padding: 1 2;
     }
     """
 
@@ -180,13 +197,16 @@ class DevServerTUI(App):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="main-split"):
-            with Vertical(id="servers-panel"):
-                yield Label("Dev Servers", id="servers-heading")
+            servers_panel = Vertical(id="servers-panel", classes="panel")
+            servers_panel.border_title = "Dev Servers"
+            with servers_panel:
                 yield ServerStatusWidget(self.manager)
-            with Vertical(id="logs-panel"):
-                yield Label("Server Logs", id="logs-heading")
+
+            logs_panel = Vertical(id="logs-panel", classes="panel")
+            logs_panel.border_title = "Server Logs"
+            with logs_panel:
                 yield LogsWidget(self.manager)
-        yield Static(f" MCP: {self.mcp_url}   |   Press Ctrl+C to quit ", id="bottom-bar")
+        yield Static(f"MCP: {self.mcp_url} | Press Ctrl+C to quit", id="bottom-bar")
 
     def on_mount(self):
         self.title = "DevServer MCP"

@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Improved TUI design: moved headings to border titles, made left panel narrower (20% width), unified dark background theme, reduced footer height, and cleaned up overall appearance while maintaining test compatibility. (GitHub Copilot)
 * 30-05-2025 -- Complete synthwave UI redesign: vertical split, bordered panels, bottom bar, minimal look, and all tests passing. (GitHub Copilot)
 * 30-05-2025 -- Added comprehensive tests for ManagedProcess start and status methods, covering success cases, immediate exit scenarios, exception handling, and all status states (running/error/stopped). (GitHub Copilot)
 * 30-05-2025 -- Added comprehensive tests for ManagedProcess.stop method covering various scenarios including running processes, already stopped processes, and exception handling during termination. (GitHub Copilot)
