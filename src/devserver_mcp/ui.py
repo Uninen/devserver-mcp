@@ -118,11 +118,10 @@ class DevServerTUI(App):
     }
 
     #servers-panel {
-        border: solid #ff0080;
-        border-title-color: #00ffff;
+        border: solid #DF7BFF;
+        border-title-color: white;
         border-title-style: bold;
         border-title-align: left;
-        background: #0f0f1a;
         margin: 1 1;
         height: 1fr;
         width: 20%;
@@ -131,68 +130,47 @@ class DevServerTUI(App):
     }
 
     #logs-panel, #logs {
-        border: solid #ff0080;
-        border-title-color: #00ffff;
+        border: solid #DF7BFF;
+        border-title-color: white;
         border-title-style: bold;
         border-title-align: left;
-        background: #0f0f1a;
-        margin: 1 1;
+        margin: 1;
         height: 1fr;
         width: 1fr;
         min-width: 40;
     }
 
-    #status {
-        background: #0f0f1a;
-    }
-
     .server-box {
-        border: solid #8000ff;
-        background: #1a0033;
-        margin-bottom: 2;
-        padding: 1 2;
+        margin-bottom: 1;
+        padding: 0 1;
         color: #00ffff;
     }
 
     #bottom-bar {
-        background: #1a0033;
         color: #ff0080;
-        height: 3;
-        padding: 1 2;
+        height: 2;
+        padding: 0;
         dock: bottom;
         content-align: center middle;
     }
     
     RichLog {
         height: 1fr;
-        background: #0f0f1a;
+        background: transparent;
         color: #00ff80;
     }
     
     DataTable {
         height: 1fr;
-        background: #0f0f1a;
+        background: transparent;
         color: #ff00ff;
     }
     
-    ServerStatusWidget {
-        background: #0f0f1a;
-        padding: 1 2;
-    }
-    
     LogsWidget {
-        background: #0f0f1a;
+        background: transparent;
         padding: 1 2;
     }
-    
-    ServerBox {
-        background: #1a0033;
-        border: solid #8000ff;
-        margin-bottom: 2;
-        padding: 1 2;
-        color: #00ffff;
-    }
-    
+        
     #server-name {
         color: #ff0080;
         text-style: bold;
