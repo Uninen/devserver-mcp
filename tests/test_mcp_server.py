@@ -3,8 +3,8 @@ import json
 import pytest
 from fastmcp import Client
 
-from devserver_mcp import create_mcp_server
 from devserver_mcp.manager import DevServerManager
+from devserver_mcp.mcp_server import create_mcp_server
 from devserver_mcp.types import Config, ServerConfig
 
 
@@ -134,3 +134,32 @@ async def test_stop_server_tool_running_process(mcp_server, manager):
             assert "message" in stop_response
             assert stop_response["status"] == "stopped"
             assert "stopped" in stop_response["message"]
+
+
+@pytest.mark.asyncio
+async def test_get_server_logs_tool(mcp_server):
+    async with Client(mcp_server) as client:
+        result = await client.call_tool("get_server_logs", {"name": "test-server"})
+
+        assert len(result) == 1
+
+        response = _parse_tool_result(result)
+
+        assert "status" in response
+        # Should be error since server is not running
+        assert response["status"] == "error"
+        assert "not running" in response["message"]
+
+
+@pytest.mark.asyncio
+async def test_get_server_logs_with_lines_parameter(mcp_server):
+    async with Client(mcp_server) as client:
+        result = await client.call_tool("get_server_logs", {"name": "test-server", "lines": 100})
+
+        assert len(result) == 1
+
+        response = _parse_tool_result(result)
+
+        assert "status" in response
+        assert response["status"] == "error"
+        assert "not running" in response["message"]

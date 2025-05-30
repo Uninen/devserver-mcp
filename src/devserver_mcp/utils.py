@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import logging
 import os
@@ -47,3 +48,15 @@ def configure_silent_logging():
 def no_op_exception_handler(loop, context):
     # Suppress all exceptions during shutdown
     pass  # pragma: no cover
+
+
+def _cleanup_loop(loop):
+    with silence_all_output():
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+
+        loop.close()

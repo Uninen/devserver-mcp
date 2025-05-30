@@ -8,7 +8,8 @@ import yaml
 from click.testing import CliRunner
 from pydantic import ValidationError
 
-from devserver_mcp import load_config, main, resolve_config_path
+from devserver_mcp import main
+from devserver_mcp.config import load_config, resolve_config_path
 from devserver_mcp.manager import DevServerManager
 from devserver_mcp.types import Config, ServerConfig
 
@@ -225,15 +226,15 @@ def test_resolve_config_path_git_boundary():
 
 
 def test_resolve_config_path_error_handling():
-    with patch("devserver_mcp.Path.cwd", side_effect=PermissionError("Access denied")):
+    with patch("devserver_mcp.config.Path.cwd", side_effect=PermissionError("Access denied")):
         result = resolve_config_path("config.yml")
         assert result == "config.yml"
 
-    with patch("devserver_mcp.Path.cwd", side_effect=OSError("Filesystem error")):
+    with patch("devserver_mcp.config.Path.cwd", side_effect=OSError("Filesystem error")):
         result = resolve_config_path("config.yml")
         assert result == "config.yml"
 
-    with patch("devserver_mcp.Path.exists", side_effect=PermissionError("No access")):
+    with patch("pathlib.Path.exists", side_effect=PermissionError("No access")):
         result = resolve_config_path("config.yml")
         assert result == "config.yml"
 
@@ -254,9 +255,9 @@ def test_resolve_config_path_error_handling():
         parent.exists.return_value = False
 
     with (
-        patch("devserver_mcp.Path.cwd", return_value=mock_path),
-        patch("devserver_mcp.os.path.isabs", return_value=False),
-        patch("devserver_mcp.os.path.exists", return_value=False),
+        patch("devserver_mcp.config.Path.cwd", return_value=mock_path),
+        patch("os.path.isabs", return_value=False),
+        patch("os.path.exists", return_value=False),
     ):
         result = resolve_config_path("config.yml")
         assert result == "config.yml"
@@ -283,11 +284,11 @@ def test_resolve_config_path_symlink_cycles():
 
 
 def test_resolve_config_path_unexpected_exceptions():
-    with patch("devserver_mcp.os.path.isabs", side_effect=RuntimeError("Unexpected error")):
+    with patch("os.path.isabs", side_effect=RuntimeError("Unexpected error")):
         result = resolve_config_path("config.yml")
         assert result == "config.yml"
 
-    with patch("devserver_mcp.Path.cwd") as mock_cwd:
+    with patch("devserver_mcp.config.Path.cwd") as mock_cwd:
         mock_cwd.return_value.__truediv__.side_effect = RuntimeError("Path operation failed")
         result = resolve_config_path("config.yml")
         assert result == "config.yml"
