@@ -87,4 +87,3 @@ backups/*
 .claude_project/project.xml
 front/test-results/**
 **/.claude/settings.local.json
-screenshots/
