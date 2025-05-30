@@ -10,7 +10,7 @@ class ServerBox(Static):
     """A bordered box showing a single server's status."""
 
     def __init__(self, server: dict):
-        super().__init__()
+        super().__init__(classes="server-box")
         self.server = server
 
     def compose(self) -> ComposeResult:
@@ -21,13 +21,13 @@ class ServerBox(Static):
 
     def _format_status(self, server: dict) -> str:
         if server["status"] == "running":
-            return "[green]● Running[/green]"
+            return "[#00ff80]● Running[/#00ff80]"
         elif server["external_running"]:
-            return "[cyan]● External[/cyan]"
+            return "[#00ffff]● External[/#00ffff]"
         elif server["status"] == "error":
-            return "[red]● Error[/red]"
+            return "[#ff0040]● Error[/#ff0040]"
         else:
-            return "[grey]● Stopped[/grey]"
+            return "[#8000ff]● Stopped[/#8000ff]"
 
 
 class ServerStatusWidget(Widget):
@@ -108,8 +108,8 @@ class DevServerTUI(App):
     CSS = """
     Screen {
         layout: vertical;
-        background: #1e1e2e;
-        color: #cdd6f4;
+        background: #0a0a0f;
+        color: #ff00ff;
     }
 
     #main-split {
@@ -118,11 +118,11 @@ class DevServerTUI(App):
     }
 
     #servers-panel {
-        border: solid #89b4fa;
-        border-title-color: #89b4fa;
+        border: solid #ff0080;
+        border-title-color: #00ffff;
         border-title-style: bold;
         border-title-align: left;
-        background: #1e1e2e;
+        background: #0f0f1a;
         margin: 1 1;
         height: 1fr;
         width: 20%;
@@ -131,11 +131,11 @@ class DevServerTUI(App):
     }
 
     #logs-panel, #logs {
-        border: solid #89b4fa;
-        border-title-color: #89b4fa;
+        border: solid #ff0080;
+        border-title-color: #00ffff;
         border-title-style: bold;
         border-title-align: left;
-        background: #1e1e2e;
+        background: #0f0f1a;
         margin: 1 1;
         height: 1fr;
         width: 1fr;
@@ -143,43 +143,63 @@ class DevServerTUI(App):
     }
 
     #status {
-        background: #1e1e2e;
+        background: #0f0f1a;
     }
 
     .server-box {
-        border: solid #45475a;
-        background: #1e1e2e;
-        margin-bottom: 1;
-        padding: 1 1;
+        border: solid #8000ff;
+        background: #1a0033;
+        margin-bottom: 2;
+        padding: 1 2;
+        color: #00ffff;
     }
 
     #bottom-bar {
-        background: #1e1e2e;
-        color: #89b4fa;
-        height: 1;
-        padding: 0 2;
+        background: #1a0033;
+        color: #ff0080;
+        height: 3;
+        padding: 1 2;
         dock: bottom;
         content-align: center middle;
     }
     
     RichLog {
         height: 1fr;
-        background: #1e1e2e;
+        background: #0f0f1a;
+        color: #00ff80;
     }
     
     DataTable {
         height: 1fr;
-        background: #1e1e2e;
+        background: #0f0f1a;
+        color: #ff00ff;
     }
     
     ServerStatusWidget {
-        background: #1e1e2e;
+        background: #0f0f1a;
         padding: 1 2;
     }
     
     LogsWidget {
-        background: #1e1e2e;
+        background: #0f0f1a;
         padding: 1 2;
+    }
+    
+    ServerBox {
+        background: #1a0033;
+        border: solid #8000ff;
+        margin-bottom: 2;
+        padding: 1 2;
+        color: #00ffff;
+    }
+    
+    #server-name {
+        color: #ff0080;
+        text-style: bold;
+    }
+    
+    #server-status {
+        color: #00ffff;
     }
     """
 
