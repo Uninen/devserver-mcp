@@ -466,8 +466,76 @@ def configure_silent_logging():
             logger.removeHandler(handler)
 
 
+def create_mcp_server(manager: DevServerManager) -> FastMCP:
+    """Create and configure a FastMCP server instance with tools"""
+    mcp = FastMCP("devserver")
+
+    @mcp.tool()
+    async def start_server(name: str) -> dict:
+        """Start a configured development server
+
+        Args:
+            name: Name of the server to start (from config)
+
+        Returns:
+            dict with status and message
+        """
+        return await manager.start_server(name)
+
+    @mcp.tool()
+    async def stop_server(name: str) -> dict:
+        """Stop a running server (managed or external)
+
+        Args:
+            name: Name of the server to stop
+
+        Returns:
+            dict with status and message
+        """
+        return await manager.stop_server(name)
+
+    @mcp.tool()
+    async def get_server_status(name: str) -> dict:
+        """Get the status of a server
+
+        Args:
+            name: Name of the server to check
+
+        Returns:
+            dict with server status information
+        """
+        return manager.get_server_status(name)
+
+    @mcp.tool()
+    async def get_server_logs(name: str, lines: int = 500) -> dict:
+        """Get recent log output from a managed server
+
+        Args:
+            name: Name of the server
+            lines: Number of recent lines to return (max 500)
+
+        Returns:
+            dict with logs or error message
+        """
+        return manager.get_server_logs(name, lines)
+
+    return mcp
+
+
+def load_config(config_path: str) -> Config:
+    """Load configuration from YAML file"""
+    path = Path(config_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    with open(path) as f:
+        data = yaml.safe_load(f)
+
+    return Config(**data)
+
+
 class DevServerMCP:
-    """MCP Server integration"""
+    """MCP Server integration with TUI"""
 
     def __init__(
         self,
@@ -480,81 +548,17 @@ class DevServerMCP:
                 raise TypeError("config must be a Config object")
             self.config = config
         elif config_path is not None:
-            loaded = self._load_config(config_path)
+            loaded = load_config(config_path)
             if not isinstance(loaded, Config):
                 raise TypeError("Loaded config is not a Config object")
             self.config = loaded
         else:
             raise ValueError("Either config_path or config must be provided")
         self.manager = DevServerManager(self.config)
-        self.mcp = FastMCP("devserver")
+        self.mcp = create_mcp_server(self.manager)
         self.port = port
         self._shutdown_event = asyncio.Event()
         self._mcp_task = None
-        self._setup_tools()
-
-    def _load_config(self, config_path: str) -> Config:
-        """Load configuration from YAML file"""
-        path = Path(config_path)
-        if not path.exists():
-            raise FileNotFoundError(f"Config file not found: {config_path}")
-
-        with open(path) as f:
-            data = yaml.safe_load(f)
-
-        return Config(**data)
-
-    def _setup_tools(self):
-        """Setup MCP tools"""
-
-        @self.mcp.tool()
-        async def start_server(name: str) -> dict:
-            """Start a configured development server
-
-            Args:
-                name: Name of the server to start (from config)
-
-            Returns:
-                dict with status and message
-            """
-            return await self.manager.start_server(name)
-
-        @self.mcp.tool()
-        async def stop_server(name: str) -> dict:
-            """Stop a running server (managed or external)
-
-            Args:
-                name: Name of the server to stop
-
-            Returns:
-                dict with status and message
-            """
-            return await self.manager.stop_server(name)
-
-        @self.mcp.tool()
-        async def get_server_status(name: str) -> dict:
-            """Get the status of a server
-
-            Args:
-                name: Name of the server to check
-
-            Returns:
-                dict with server status information
-            """
-            return self.manager.get_server_status(name)
-
-        @self.mcp.tool()
-        async def get_server_logs(name: str, lines: int = 500) -> dict:
-            """Get recent log output from a managed server
-
-            Args:
-                name: Name of the server
-                lines: Number of recent lines to return (max 500)
-
-            Returns:
-                dict with logs or error message
-            """
-            return self.manager.get_server_logs(name, lines)
 
     async def run(self):
         """Run the MCP server with TUI"""
@@ -571,11 +575,13 @@ class DevServerMCP:
 
         # Start MCP server in background - silence only the startup logs
         with silence_all_output():
-            self._mcp_task = asyncio.create_task(self.mcp.run_async(transport="sse", port=self.port, host="localhost"))
+            self._mcp_task = asyncio.create_task(
+                self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
+            )
             await asyncio.sleep(0.5)
 
         # Run TUI normally without silencing (since we're in a real terminal)
-        mcp_url = f"http://localhost:{self.port}/sse"
+        mcp_url = f"http://localhost:{self.port}/mcp/"
         app = DevServerApp(self.manager, mcp_url)
 
         try:

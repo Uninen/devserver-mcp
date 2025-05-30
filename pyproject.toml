@@ -27,6 +27,7 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "fastapi[standard]>=0.115.12",
+    "fastmcp[client]>=2.5.2",
     "pyright>=1.1.401",
     "pytest>=8.3.5",
     "pytest-asyncio>=1.0.0",

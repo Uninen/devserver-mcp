@@ -102,6 +102,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "fastapi", extra = ["standard"] },
+    { name = "fastmcp" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -124,6 +125,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.12" },
+    { name = "fastmcp", extras = ["client"], specifier = ">=2.5.2" },
     { name = "pyright", specifier = ">=1.1.401" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
