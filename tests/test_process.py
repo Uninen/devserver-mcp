@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -23,7 +24,8 @@ async def test_stop_running_process(managed_process):
     mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
-    mock_process.wait.return_value = None
+    mock_process.wait.return_value = None  # wait() is awaited in SUT
+    mock_process.terminate = MagicMock()  # terminate() is called synchronously in SUT
 
     managed_process.process = mock_process
     managed_process.start_time = 1234567890.0
@@ -62,7 +64,8 @@ async def test_stop_process_with_lookup_error(managed_process):
     mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
-    mock_process.terminate.side_effect = ProcessLookupError("Process not found")
+    # terminate() is called synchronously in SUT, so it should be a MagicMock
+    mock_process.terminate = MagicMock(side_effect=ProcessLookupError("Process not found"))
 
     managed_process.process = mock_process
     managed_process.start_time = 1234567890.0
@@ -82,7 +85,8 @@ async def test_stop_process_with_os_error(managed_process):
     mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
-    mock_process.terminate.side_effect = OSError("Operation not permitted")
+    # terminate() is called synchronously in SUT, so it should be a MagicMock
+    mock_process.terminate = MagicMock(side_effect=OSError("Operation not permitted"))
 
     managed_process.process = mock_process
     managed_process.start_time = 1234567890.0
@@ -102,7 +106,8 @@ async def test_is_running_after_stop(managed_process):
     mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
-    mock_process.wait.return_value = None
+    mock_process.wait.return_value = None  # wait() is awaited in SUT
+    mock_process.terminate = MagicMock()  # terminate() is called synchronously in SUT
 
     managed_process.process = mock_process
 
@@ -123,7 +128,8 @@ async def test_status_after_stop(managed_process):
     mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
-    mock_process.wait.return_value = None
+    mock_process.wait.return_value = None  # wait() is awaited in SUT
+    mock_process.terminate = MagicMock()  # terminate() is called synchronously in SUT
 
     managed_process.process = mock_process
     managed_process.error = None
@@ -151,9 +157,10 @@ async def test_start_success(managed_process):
         mock_process = AsyncMock()
         mock_process.returncode = None
         mock_process.stdout = AsyncMock()
+        mock_process.stdout.readline.return_value = b""  # Ensure _read_output loop terminates
         mock_create_subprocess.return_value = mock_process
 
-        with patch("asyncio.create_task") as mock_create_task, patch("asyncio.sleep") as mock_sleep:
+        with patch("asyncio.create_task", side_effect=asyncio.create_task) as mock_create_task, patch("asyncio.sleep") as mock_sleep:
             result = await managed_process.start(mock_log_callback)
 
         # Verify success
@@ -177,9 +184,11 @@ async def test_start_process_exits_immediately(managed_process):
         # Mock process that exits immediately
         mock_process = AsyncMock()
         mock_process.returncode = 1  # Process exited with code 1
+        mock_process.stdout = AsyncMock()  # If _read_output runs, stdout might be accessed
+        mock_process.stdout.readline.return_value = b""  # Ensure _read_output loop terminates
         mock_create_subprocess.return_value = mock_process
 
-        with patch("asyncio.create_task"), patch("asyncio.sleep"):
+        with patch("asyncio.create_task", side_effect=asyncio.create_task), patch("asyncio.sleep"):
             result = await managed_process.start(mock_log_callback)
 
         # Verify failure
@@ -214,9 +223,11 @@ async def test_start_clears_previous_error(managed_process):
     with patch("asyncio.create_subprocess_shell") as mock_create_subprocess:
         mock_process = AsyncMock()
         mock_process.returncode = None
+        mock_process.stdout = AsyncMock()  # If _read_output runs, stdout might be accessed
+        mock_process.stdout.readline.return_value = b""  # Ensure _read_output loop terminates
         mock_create_subprocess.return_value = mock_process
 
-        with patch("asyncio.create_task"), patch("asyncio.sleep"):
+        with patch("asyncio.create_task", side_effect=asyncio.create_task), patch("asyncio.sleep"):
             result = await managed_process.start(mock_log_callback)
 
         # Verify error was cleared

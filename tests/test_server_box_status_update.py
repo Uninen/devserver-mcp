@@ -9,7 +9,7 @@ from devserver_mcp.types import Config, ServerConfig
 from devserver_mcp.ui import ServerBox
 
 
-class TestApp(App):
+class AppForTesting(App):
     """Test app to properly mount ServerBox widget"""
 
     def __init__(self, server_data, manager):
@@ -58,7 +58,7 @@ async def test_server_box_status_updates_after_click_start():
     manager.get_all_servers = MagicMock(return_value=[updated_server_data])
 
     # Create test app and run with Textual test framework
-    app = TestApp(initial_server_data, manager)
+    app = AppForTesting(initial_server_data, manager)
     async with app.run_test():
         # Get the ServerBox widget
         box = app.query_one(ServerBox)
