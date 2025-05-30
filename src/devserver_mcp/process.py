@@ -32,6 +32,7 @@ class ManagedProcess:
                 self.config.command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                stdin=asyncio.subprocess.DEVNULL,  # Prevent child from reading terminal input
                 cwd=work_dir,
                 preexec_fn=os.setsid if sys.platform != "win32" else None,
             )
