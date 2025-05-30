@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 31-05-2025 -- Simplified ServerStatusWidget class by removing unused __setattr__ method, duplicate _format_status method, and unused _format_error method. Removed corresponding test for unused functionality. (GitHub Copilot)
 * 31-05-2025 -- Fixed port detection logic in DevServerManager._is_port_in_use to properly detect bound ports by attempting to bind rather than connect. (GitHub Copilot)
 * 31-05-2025 -- Aggressively refactored test suite removing suboptimal tests. (GitHub Copilot)
 * 30-05-2025 -- Refactored DevServerMCP class for simplicity and added comprehensive tests: extracted private methods for better testability, separated headless/TUI execution paths, and achieved 75% test coverage with 16 meaningful test cases. (GitHub Copilot)

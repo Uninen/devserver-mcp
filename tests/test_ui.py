@@ -4,7 +4,7 @@ import pytest
 
 from devserver_mcp.manager import DevServerManager
 from devserver_mcp.types import Config, ServerConfig
-from devserver_mcp.ui import DevServerTUI, LogsWidget, ServerBox, ServerStatusWidget
+from devserver_mcp.ui import DevServerTUI, LogsWidget, ServerBox
 
 
 @pytest.fixture
@@ -97,20 +97,6 @@ async def test_server_box_click_error_server_no_action(manager):
 
     manager.start_server.assert_not_called()
     manager.stop_server.assert_not_called()
-
-
-async def test_server_status_widget_long_error_truncation(manager):
-    widget = ServerStatusWidget(manager)
-
-    long_error_server = {
-        "status": "error",
-        "external_running": False,
-        "error": "This is a very long error message that should be truncated",
-    }
-
-    formatted = widget._format_error(long_error_server)
-    assert len(formatted) <= 33  # 30 chars + "..."
-    assert formatted.endswith("...")
 
 
 async def test_logs_widget_prefix_enabled(manager_for_log_prefix_tests):
