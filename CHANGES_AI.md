@@ -1,5 +1,8 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Fixed tests to work without test-specific workarounds: updated test_server_box_status_update to use proper Textual app context, made _refresh_labels() safe for all contexts by checking widget composition state. (GitHub Copilot)
+* 30-05-2025 -- Fixed ServerBox status update issue: when clicking to start/stop servers, the box now updates its internal server data and refreshes the status display, ensuring UI reflects actual server state. (GitHub Copilot)
+* 30-05-2025 -- Created failing test demonstrating the issue where ServerBox status doesn't update after clicking to start a server - box retains original "stopped" data even after successful start. (claude-3-5-sonnet-20241022)
 * 30-05-2025 -- Made server boxes clickable: stopped servers start on click, running managed servers stop on click, added hover styling for visual feedback, and created comprehensive test suite covering all click scenarios using Textual's testing framework. (GitHub Copilot)
 * 30-05-2025 -- Updated UI to 80s synthwave theme with darker background (#0a0a0f), neon colors (magenta/cyan/purple), improved footer spacing (3-line height with centered content), and increased spacing between server boxes (margin-bottom: 2). (GitHub Copilot)
 * 30-05-2025 -- Improved TUI design: moved headings to border titles, made left panel narrower (20% width), unified dark background theme, reduced footer height, and cleaned up overall appearance while maintaining test compatibility. (GitHub Copilot)

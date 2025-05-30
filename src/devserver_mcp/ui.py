@@ -34,13 +34,45 @@ class ServerBox(Static):
     async def on_click(self, event: Click) -> None:
         """Handle click events on the server box."""
         server_name = self.server["name"]
+        action_taken = False
 
         if self.server["status"] == "stopped":
             # Start the server if it's stopped
             await self.manager.start_server(server_name)
+            action_taken = True
         elif self.server["status"] == "running" and not self.server["external_running"]:
             # Stop the server if it's running and managed
             await self.manager.stop_server(server_name)
+            action_taken = True
+
+        # Update server data and refresh display only if action was taken
+        if action_taken:
+            self._update_server_data()
+            self._refresh_labels()
+
+    def _update_server_data(self) -> None:
+        """Update the server data from the manager."""
+        servers = self.manager.get_all_servers()
+        for server in servers:
+            if server["name"] == self.server["name"]:
+                self.server = server
+                break
+
+    def _refresh_labels(self) -> None:
+        """Refresh the server name and status labels if they exist."""
+        # Check if the widget has been composed and labels exist
+        if not hasattr(self, "_nodes") or not self._nodes:
+            return
+
+        try:
+            name_label = self.query_one("#server-name", Label)
+            status_label = self.query_one("#server-status", Label)
+
+            name_label.update(f"[b]{self.server['name']}[/b]")
+            status_label.update(self._format_status(self.server))
+        except Exception:
+            # Labels don't exist (e.g., in tests or not yet composed)
+            pass
 
 
 class ServerStatusWidget(Widget):
