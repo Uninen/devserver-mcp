@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import sys
 import time
@@ -6,6 +7,8 @@ from collections import deque
 from datetime import datetime
 
 from devserver_mcp.types import LogCallback, ServerConfig
+
+logger = logging.getLogger(__name__)
 
 
 class ManagedProcess:
@@ -70,15 +73,33 @@ class ManagedProcess:
             except Exception:
                 break
 
-    def stop(self):
+    async def stop(self):
         if self.process and self.process.pid is not None:
+            logger.debug(f"Stopping process {self.name} (PID: {self.process.pid})")
             try:
                 self.process.terminate()
-            except (ProcessLookupError, OSError):
+                logger.debug(f"Sent SIGTERM to process {self.name}")
+                # Wait for process to actually terminate
+                try:
+                    await asyncio.wait_for(self.process.wait(), timeout=5.0)
+                    logger.debug(f"Process {self.name} terminated gracefully")
+                except TimeoutError:
+                    logger.debug(f"Process {self.name} didn't terminate gracefully, sending SIGKILL")
+                    # Force kill if it doesn't terminate gracefully
+                    try:
+                        self.process.kill()
+                        await asyncio.wait_for(self.process.wait(), timeout=2.0)
+                        logger.debug(f"Process {self.name} killed")
+                    except (TimeoutError, ProcessLookupError, OSError):
+                        logger.debug(f"Failed to kill process {self.name}")
+                        pass
+            except (ProcessLookupError, OSError) as e:
+                logger.debug(f"Process {self.name} already terminated: {e}")
                 pass
             finally:
                 self.process = None
                 self.start_time = None
+                logger.debug(f"Process {self.name} cleanup completed")
 
     @property
     def is_running(self) -> bool:

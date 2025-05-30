@@ -75,7 +75,7 @@ class DevServerManager:
             return {"status": "error", "message": f"Server '{name}' not found"}
 
         if process.is_running:
-            process.stop()
+            await process.stop()
             self._notify_status_change()
             return {"status": "stopped", "message": f"Server '{name}' stopped"}
 
@@ -141,11 +141,15 @@ class DevServerManager:
             )
         return servers
 
-    def shutdown_all(self):
+    async def shutdown_all(self):
         """Shutdown all managed processes immediately"""
+        stop_tasks = []
         for process in self.processes.values():
             if process.is_running:
-                process.stop()
+                stop_tasks.append(process.stop())
+
+        if stop_tasks:
+            await asyncio.gather(*stop_tasks, return_exceptions=True)
         self._notify_status_change()
 
     def _is_port_in_use(self, port: int) -> bool:

@@ -256,13 +256,15 @@ async def test_dev_server_app_quit_action(manager):
     """Test the quit action"""
     app = DevServerTUI(manager, "http://localhost:3001/mcp/")
 
-    # Mock the exit method
+    # Mock the exit method and shutdown_all
     app.exit = MagicMock()
+    manager.shutdown_all = AsyncMock()
 
     # Test quit action
-    app.action_quit()
+    await app.action_quit()
 
     app.exit.assert_called_once_with(0)
+    manager.shutdown_all.assert_called_once()
 
 
 async def test_dev_server_app_compose_structure(manager):

@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+* 30-05-2025 -- Fixed backend process stopping issue and enabled log copy-paste: made stop() method async with proper process termination waiting, added race condition delay after stopping, enabled RichLog focus for text selection, and updated all tests to handle async stop method. Backend servers now properly show "stopped" instead of "external" after clicking to stop. (claude-3-5-sonnet-20241022)
 * 30-05-2025 -- Fixed tests to work without test-specific workarounds: updated test_server_box_status_update to use proper Textual app context, made _refresh_labels() safe for all contexts by checking widget composition state. (GitHub Copilot)
 * 30-05-2025 -- Fixed ServerBox status update issue: when clicking to start/stop servers, the box now updates its internal server data and refreshes the status display, ensuring UI reflects actual server state. (GitHub Copilot)
 * 30-05-2025 -- Created failing test demonstrating the issue where ServerBox status doesn't update after clicking to start a server - box retains original "stopped" data even after successful start. (claude-3-5-sonnet-20241022)

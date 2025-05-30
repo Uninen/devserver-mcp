@@ -10,7 +10,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
   - `uv add --dev [package]` -- add dev dependency
   - `uv run [command in .venv context]` -- run a command in the project environment
   - `pyproject.toml` -- python project configuration
-- Tests: 
+- Tests:
   - In `tests/`
   - Run with: `uv run pytest`
 - Test the server implementation using the test app (see details below): `uv run python src/devserver_mcp/__init__.py`
@@ -20,7 +20,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 - Python 3.13+, type hints, PEP8
 - Follow OWASP security practices
 - Handle errors explicitly
-- Use Ruff to fix linting and format all files: 
+- Use Ruff to fix linting and format all files:
     - `uv run ruff check --fix path/to/file.py` -- fix all linting errors
     - `uv run ruff format path/to/file.py` -- format
 
@@ -33,6 +33,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 - See `docs/design.md` for technical design specs
 - See latest FastMCP documentation at: https://gofastmcp.com/llms-full.txt
 - Check existing code patterns before implementing new features
+- Textual documentation: https://textual.textualize.io/guide/
 
 ### Test App Structure
 ```

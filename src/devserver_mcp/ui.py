@@ -1,3 +1,5 @@
+import asyncio
+
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.events import Click
@@ -43,6 +45,8 @@ class ServerBox(Static):
         elif self.server["status"] == "running" and not self.server["external_running"]:
             # Stop the server if it's running and managed
             await self.manager.stop_server(server_name)
+            # Add small delay to allow port to be released
+            await asyncio.sleep(0.1)
             action_taken = True
 
         # Update server data and refresh display only if action was taken
@@ -137,7 +141,9 @@ class LogsWidget(Widget):
         self.manager.add_log_callback(self.add_log_line)
 
     def compose(self) -> ComposeResult:
-        yield RichLog(highlight=True, markup=True, id="server-logs")
+        log = RichLog(highlight=True, markup=True, id="server-logs", auto_scroll=True, wrap=True)
+        log.can_focus = True
+        yield log
 
     async def add_log_line(self, server: str, timestamp: str, message: str):
         log = self.query_one(RichLog)
@@ -209,6 +215,8 @@ class DevServerTUI(App):
         height: 1fr;
         background: transparent;
         color: #00ff80;
+        scrollbar-background: #333;
+        scrollbar-color: #DF7BFF;
     }
     
     DataTable {
@@ -236,7 +244,8 @@ class DevServerTUI(App):
         ("ctrl+c", "quit", "Quit"),
     ]
 
-    def action_quit(self) -> None:  # type: ignore
+    async def action_quit(self) -> None:  # type: ignore
+        await self.manager.shutdown_all()
         self.exit(0)
 
     def __init__(self, manager: DevServerManager, mcp_url: str):

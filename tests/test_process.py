@@ -16,45 +16,50 @@ def managed_process(server_config):
     return ManagedProcess(name="test_server", config=server_config, color="blue")
 
 
-def test_stop_running_process(managed_process):
+@pytest.mark.asyncio
+async def test_stop_running_process(managed_process):
     """Test stopping a running process"""
     # Mock a running process
-    mock_process = MagicMock()
+    mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
+    mock_process.wait.return_value = None
 
     managed_process.process = mock_process
     managed_process.start_time = 1234567890.0
 
     # Call stop
-    managed_process.stop()
+    await managed_process.stop()
 
     # Verify process was terminated
     mock_process.terminate.assert_called_once()
+    mock_process.wait.assert_called()
 
     # Verify cleanup
     assert managed_process.process is None
     assert managed_process.start_time is None
 
 
-def test_stop_already_stopped_process(managed_process):
+@pytest.mark.asyncio
+async def test_stop_already_stopped_process(managed_process):
     """Test stopping a process that's already stopped"""
     # Process is already None
     managed_process.process = None
     managed_process.start_time = None
 
     # Should not raise any exception
-    managed_process.stop()
+    await managed_process.stop()
 
     # Should remain None
     assert managed_process.process is None
     assert managed_process.start_time is None
 
 
-def test_stop_process_with_lookup_error(managed_process):
+@pytest.mark.asyncio
+async def test_stop_process_with_lookup_error(managed_process):
     """Test stopping a process that raises ProcessLookupError"""
     # Mock a process that raises ProcessLookupError when terminated
-    mock_process = MagicMock()
+    mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
     mock_process.terminate.side_effect = ProcessLookupError("Process not found")
@@ -63,17 +68,18 @@ def test_stop_process_with_lookup_error(managed_process):
     managed_process.start_time = 1234567890.0
 
     # Should handle the exception gracefully
-    managed_process.stop()
+    await managed_process.stop()
 
     # Verify cleanup still happens
     assert managed_process.process is None
     assert managed_process.start_time is None
 
 
-def test_stop_process_with_os_error(managed_process):
+@pytest.mark.asyncio
+async def test_stop_process_with_os_error(managed_process):
     """Test stopping a process that raises OSError"""
     # Mock a process that raises OSError when terminated
-    mock_process = MagicMock()
+    mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
     mock_process.terminate.side_effect = OSError("Operation not permitted")
@@ -82,19 +88,21 @@ def test_stop_process_with_os_error(managed_process):
     managed_process.start_time = 1234567890.0
 
     # Should handle the exception gracefully
-    managed_process.stop()
+    await managed_process.stop()
 
     # Verify cleanup still happens
     assert managed_process.process is None
     assert managed_process.start_time is None
 
 
-def test_is_running_after_stop(managed_process):
+@pytest.mark.asyncio
+async def test_is_running_after_stop(managed_process):
     """Test that is_running returns False after stopping"""
     # Mock a running process
-    mock_process = MagicMock()
+    mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
+    mock_process.wait.return_value = None
 
     managed_process.process = mock_process
 
@@ -102,18 +110,20 @@ def test_is_running_after_stop(managed_process):
     assert managed_process.is_running is True
 
     # Stop the process
-    managed_process.stop()
+    await managed_process.stop()
 
     # Verify it's not running after stop
     assert managed_process.is_running is False
 
 
-def test_status_after_stop(managed_process):
+@pytest.mark.asyncio
+async def test_status_after_stop(managed_process):
     """Test that status returns 'stopped' after stopping"""
     # Mock a running process
-    mock_process = MagicMock()
+    mock_process = AsyncMock()
     mock_process.pid = 12345
     mock_process.returncode = None
+    mock_process.wait.return_value = None
 
     managed_process.process = mock_process
     managed_process.error = None
@@ -122,7 +132,7 @@ def test_status_after_stop(managed_process):
     assert managed_process.status == "running"
 
     # Stop the process
-    managed_process.stop()
+    await managed_process.stop()
 
     # Verify status is stopped after stop
     assert managed_process.status == "stopped"

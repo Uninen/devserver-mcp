@@ -67,7 +67,8 @@ async def test_stop_server_success(manager):
     proc.process = MagicMock()
     proc.process.returncode = None
     proc.process.pid = 123
-    with patch.object(ManagedProcess, "stop", return_value=None) as mock_stop:
+    with patch.object(ManagedProcess, "stop", return_value=asyncio.Future()) as mock_stop:
+        mock_stop.return_value.set_result(None)
         result = await manager.stop_server("api")
         assert result["status"] == "stopped"
         assert "stopped" in result["message"]
@@ -156,12 +157,14 @@ def test_get_all_servers(manager):
     assert any(s["name"] == "api" for s in servers)
 
 
-def test_shutdown_all(manager):
+@pytest.mark.asyncio
+async def test_shutdown_all(manager):
     proc = manager.processes["api"]
     proc.process = MagicMock()
     proc.process.returncode = None
-    with patch.object(ManagedProcess, "stop", return_value=None) as mock_stop:
-        manager.shutdown_all()
+    with patch.object(ManagedProcess, "stop", return_value=asyncio.Future()) as mock_stop:
+        mock_stop.return_value.set_result(None)
+        await manager.shutdown_all()
         mock_stop.assert_called()
 
 
