@@ -160,7 +160,10 @@ async def test_start_success(managed_process):
         mock_process.stdout.readline.return_value = b""  # Ensure _read_output loop terminates
         mock_create_subprocess.return_value = mock_process
 
-        with patch("asyncio.create_task", side_effect=asyncio.create_task) as mock_create_task, patch("asyncio.sleep") as mock_sleep:
+        with (
+            patch("asyncio.create_task", side_effect=asyncio.create_task) as mock_create_task,
+            patch("asyncio.sleep") as mock_sleep,
+        ):
             result = await managed_process.start(mock_log_callback)
 
         # Verify success

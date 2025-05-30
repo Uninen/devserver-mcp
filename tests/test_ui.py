@@ -293,7 +293,6 @@ async def test_logs_widget_prefix_disabled(manager_for_log_prefix_tests):
     mock_rich_log = MagicMock()
     widget.query_one = MagicMock(return_value=mock_rich_log)
 
-    server_name = "no_log_prefix_server"  # This server has prefix_logs=False
     # For prefix_logs=False, ManagedProcess sends empty server and timestamp to the callback
     # The TUI's add_log_line receives these empty strings.
     sent_server_arg = ""

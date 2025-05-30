@@ -251,7 +251,7 @@ class DevServerTUI(App):
         ("ctrl+c", "quit", "Quit"),
     ]
 
-    async def action_quit(self) -> None: 
+    async def action_quit(self) -> None:
         await self.manager.shutdown_all()
         self.exit(0)
 

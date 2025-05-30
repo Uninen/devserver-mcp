@@ -150,7 +150,8 @@ async def test_stop_server_tool_not_running(mcp_server):
         else:
             # Fail if the status is unexpected for a server that wasn't started by this test
             pytest.fail(
-                f"Unexpected status '{response['status']}' for a server not started by the test. Message: '{response['message']}'"
+                f"Unexpected status '{response['status']}' for a server not started by the test. \
+                Message: '{response['message']}'"
             )
 
 
