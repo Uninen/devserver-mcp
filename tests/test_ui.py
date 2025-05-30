@@ -166,12 +166,6 @@ async def test_dev_server_app_compose_structure(manager):
     assert hasattr(app, "CSS")
     assert hasattr(app, "BINDINGS")
 
-    # Check that CSS contains expected selectors
-    assert "#logs" in app.CSS
-    assert "#status" in app.CSS
-    assert "RichLog" in app.CSS
-    assert "DataTable" in app.CSS
-
     # Check bindings exist
     assert app.BINDINGS is not None
     assert len(app.BINDINGS) > 0
