@@ -16,7 +16,7 @@ class ServerStatusWidget(Widget):
 
     def compose(self) -> ComposeResult:
         table = DataTable()
-        table.add_columns("Server", "Status", "Port", "Uptime/Error")
+        table.add_columns("Server", "Status", "Port", "Error")
         yield table
 
     def on_mount(self):
@@ -29,9 +29,8 @@ class ServerStatusWidget(Widget):
         servers = self.manager.get_all_servers()
         for server in servers:
             status_text = self._format_status(server)
-            uptime_text = self._format_uptime_or_error(server)
 
-            table.add_row(server["name"], status_text, str(server["port"]), uptime_text)
+            table.add_row(server["name"], status_text, str(server["port"]))
 
     def _format_status(self, server: dict) -> str:
         if server["status"] == "running":
@@ -43,9 +42,9 @@ class ServerStatusWidget(Widget):
         else:
             return "● Stopped"
 
-    def _format_uptime_or_error(self, server: dict) -> str:
-        if server["status"] == "running" and server["uptime"]:
-            return f"{server['uptime']}s"
+    def _format_error(self, server: dict) -> str:
+        if server["status"] == "running":
+            return "Running"
         elif server["external_running"]:
             return "External process"
         elif server["error"]:
@@ -79,7 +78,7 @@ class LogsWidget(Widget):
         log.write(formatted)
 
 
-class DevServerApp(App):
+class DevServerTUI(App):
     """Main Textual application"""
 
     CSS = """

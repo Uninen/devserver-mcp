@@ -4,7 +4,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from devserver_mcp import DevServerMCP
-from devserver_mcp.manager import Config, DevServerManager, ManagedProcess, ServerConfig
+from devserver_mcp.manager import DevServerManager
+from devserver_mcp.process import ManagedProcess
+from devserver_mcp.types import Config, ServerConfig
 
 
 @pytest.fixture
@@ -48,6 +50,18 @@ async def test_start_server_not_found(manager):
 
 
 @pytest.mark.asyncio
+async def test_start_server_already_running(manager):
+    proc = manager.processes["api"]
+    proc.process = MagicMock()
+    proc.process.returncode = None  # indicates running process
+    proc.process.pid = 123
+
+    result = await manager.start_server("api")
+    assert result["status"] == "already_running"
+    assert "already running" in result["message"]
+
+
+@pytest.mark.asyncio
 async def test_stop_server_success(manager):
     proc = manager.processes["api"]
     proc.process = MagicMock()
@@ -62,13 +76,10 @@ async def test_stop_server_success(manager):
 
 @pytest.mark.asyncio
 async def test_stop_server_external(manager):
-    with (
-        patch.object(DevServerManager, "_is_port_in_use", return_value=True),
-        patch.object(DevServerManager, "_kill_port_process", return_value=True),
-    ):
+    with patch.object(DevServerManager, "_is_port_in_use", return_value=True):
         result = await manager.stop_server("api")
-        assert result["status"] == "stopped"
-        assert "External" in result["message"]
+        assert result["status"] == "error"
+        assert "external" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -119,6 +130,10 @@ def test_get_server_logs_success(manager):
     logs = manager.get_server_logs("api", lines=2)
     assert logs["status"] == "success"
     assert logs["lines"] == ["line1", "line2"]
+
+    logs = manager.get_server_logs("foo", lines=2)
+    assert logs["status"] == "error"
+    assert "not found" in logs["message"]
 
 
 def test_get_server_logs_not_running(manager):

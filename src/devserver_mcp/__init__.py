@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import logging
 import os
 import sys
 from pathlib import Path
@@ -9,108 +8,22 @@ import click
 import yaml
 from fastmcp import FastMCP
 
-from devserver_mcp.manager import Config, DevServerManager
-from devserver_mcp.ui import DevServerApp
-
-
-@contextlib.contextmanager
-def silence_all_output():
-    """Context manager to completely suppress all stdout/stderr output"""
-    with open(os.devnull, "w") as devnull:
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        try:
-            sys.stdout = devnull
-            sys.stderr = devnull
-            yield
-        finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-
-
-def configure_silent_logging():
-    """Configure all loggers to be completely silent"""
-    # Disable all logging
-    logging.getLogger().setLevel(logging.CRITICAL + 1)
-
-    # Specifically silence these common loggers
-    for logger_name in [
-        "uvicorn",
-        "uvicorn.access",
-        "uvicorn.error",
-        "fastapi",
-        "starlette",
-        "fastmcp",
-        "httpx",
-        "asyncio",
-    ]:
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(logging.CRITICAL + 1)
-        logger.disabled = True
-        logger.propagate = False
-        # Remove all handlers
-        for handler in logger.handlers[:]:
-            logger.removeHandler(handler)
+from devserver_mcp.manager import DevServerManager
+from devserver_mcp.types import Config
+from devserver_mcp.ui import DevServerTUI
+from devserver_mcp.utils import configure_silent_logging, no_op_exception_handler, silence_all_output
 
 
 def create_mcp_server(manager: DevServerManager) -> FastMCP:
-    """Create and configure a FastMCP server instance with tools"""
     mcp = FastMCP("devserver")
-
-    @mcp.tool()
-    async def start_server(name: str) -> dict:
-        """Start a configured development server
-
-        Args:
-            name: Name of the server to start (from config)
-
-        Returns:
-            dict with status and message
-        """
-        return await manager.start_server(name)
-
-    @mcp.tool()
-    async def stop_server(name: str) -> dict:
-        """Stop a running server (managed or external)
-
-        Args:
-            name: Name of the server to stop
-
-        Returns:
-            dict with status and message
-        """
-        return await manager.stop_server(name)
-
-    @mcp.tool()
-    async def get_server_status(name: str) -> dict:
-        """Get the status of a server
-
-        Args:
-            name: Name of the server to check
-
-        Returns:
-            dict with server status information
-        """
-        return manager.get_server_status(name)
-
-    @mcp.tool()
-    async def get_server_logs(name: str, lines: int = 500) -> dict:
-        """Get recent log output from a managed server
-
-        Args:
-            name: Name of the server
-            lines: Number of recent lines to return (max 500)
-
-        Returns:
-            dict with logs or error message
-        """
-        return manager.get_server_logs(name, lines)
-
+    mcp.add_tool(manager.start_server)
+    mcp.add_tool(manager.stop_server)
+    mcp.add_tool(manager.get_server_status)
+    mcp.add_tool(manager.get_server_logs)
     return mcp
 
 
 def load_config(config_path: str) -> Config:
-    """Load configuration from YAML file"""
     path = Path(config_path)
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -131,13 +44,9 @@ class DevServerMCP:
         port: int = 3001,
     ):
         if config is not None:
-            if not isinstance(config, Config):
-                raise TypeError("config must be a Config object")
             self.config = config
         elif config_path is not None:
             loaded = load_config(config_path)
-            if not isinstance(loaded, Config):
-                raise TypeError("Loaded config is not a Config object")
             self.config = loaded
         else:
             raise ValueError("Either config_path or config must be provided")
@@ -169,7 +78,7 @@ class DevServerMCP:
 
         # Run TUI normally without silencing (since we're in a real terminal)
         mcp_url = f"http://localhost:{self.port}/mcp/"
-        app = DevServerApp(self.manager, mcp_url)
+        app = DevServerTUI(self.manager, mcp_url)
 
         try:
             await app.run_async()
@@ -218,24 +127,15 @@ def main(config, port):
                     break
                 current = current.parent
 
-    try:
-        server = DevServerMCP(config_path=config, port=port)
-    except Exception:
-        # Silence all errors during instantiation (for test expectations)
-        return
+    mcp_server = DevServerMCP(config_path=config, port=port)
 
     # Custom event loop with exception handler to suppress shutdown errors
     loop = asyncio.new_event_loop()
+    loop.set_exception_handler(no_op_exception_handler)
     asyncio.set_event_loop(loop)
 
-    def exception_handler(loop, context):
-        # Suppress all exceptions during shutdown
-        pass
-
-    loop.set_exception_handler(exception_handler)
-
     try:
-        loop.run_until_complete(server.run())
+        loop.run_until_complete(mcp_server.run())
     except KeyboardInterrupt:
         # Silently handle Ctrl+C
         pass

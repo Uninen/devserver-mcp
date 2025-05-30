@@ -4,7 +4,8 @@ import pytest
 from fastmcp import Client
 
 from devserver_mcp import create_mcp_server
-from devserver_mcp.manager import Config, DevServerManager, ServerConfig
+from devserver_mcp.manager import DevServerManager
+from devserver_mcp.types import Config, ServerConfig
 
 
 @pytest.fixture

@@ -2,8 +2,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from devserver_mcp.manager import Config, DevServerManager, ServerConfig
-from devserver_mcp.ui import DevServerApp, LogsWidget, ServerStatusWidget
+from devserver_mcp.manager import DevServerManager
+from devserver_mcp.types import Config, ServerConfig
+from devserver_mcp.ui import DevServerTUI, LogsWidget, ServerStatusWidget
 
 
 @pytest.fixture
@@ -40,24 +41,24 @@ async def test_server_status_widget_formatting(manager):
     widget = ServerStatusWidget(manager)
 
     # Test running status
-    running_server = {"status": "running", "external_running": False, "uptime": 120, "error": None}
+    running_server = {"status": "running", "external_running": False, "error": None}
     assert widget._format_status(running_server) == "● Running"
-    assert widget._format_uptime_or_error(running_server) == "120s"
+    assert widget._format_error(running_server) == "Running"
 
     # Test external status
-    external_server = {"status": "stopped", "external_running": True, "uptime": None, "error": None}
+    external_server = {"status": "stopped", "external_running": True, "error": None}
     assert widget._format_status(external_server) == "● External"
-    assert widget._format_uptime_or_error(external_server) == "External process"
+    assert widget._format_error(external_server) == "External process"
 
     # Test error status
-    error_server = {"status": "error", "external_running": False, "uptime": None, "error": "Connection failed"}
+    error_server = {"status": "error", "external_running": False, "error": "Connection failed"}
     assert widget._format_status(error_server) == "● Error"
-    assert widget._format_uptime_or_error(error_server) == "Connection failed"
+    assert widget._format_error(error_server) == "Connection failed"
 
     # Test stopped status
-    stopped_server = {"status": "stopped", "external_running": False, "uptime": None, "error": None}
+    stopped_server = {"status": "stopped", "external_running": False, "error": None}
     assert widget._format_status(stopped_server) == "● Stopped"
-    assert widget._format_uptime_or_error(stopped_server) == "-"
+    assert widget._format_error(stopped_server) == "-"
 
 
 async def test_server_status_widget_long_error_truncation(manager):
@@ -67,11 +68,10 @@ async def test_server_status_widget_long_error_truncation(manager):
     long_error_server = {
         "status": "error",
         "external_running": False,
-        "uptime": None,
         "error": "This is a very long error message that should be truncated",
     }
 
-    formatted = widget._format_uptime_or_error(long_error_server)
+    formatted = widget._format_error(long_error_server)
     assert len(formatted) <= 33  # 30 chars + "..."
     assert formatted.endswith("...")
 
@@ -132,13 +132,10 @@ async def test_logs_widget_unknown_server_color(manager):
 async def test_dev_server_app_initialization(manager):
     """Test that the app initializes correctly"""
     mcp_url = "http://localhost:3001/mcp/"
-    app = DevServerApp(manager, mcp_url)
+    app = DevServerTUI(manager, mcp_url)
 
     assert app.manager is manager
     assert app.mcp_url == mcp_url
-
-    # Title is set on mount, so we need to check the initial state and post-mount
-    assert app.title == "DevServerApp"  # Default title before mount
 
     # Simulate mounting to set the title
     app.on_mount()
@@ -148,7 +145,7 @@ async def test_dev_server_app_initialization(manager):
 
 async def test_dev_server_app_quit_action(manager):
     """Test the quit action"""
-    app = DevServerApp(manager, "http://localhost:3001/mcp/")
+    app = DevServerTUI(manager, "http://localhost:3001/mcp/")
 
     # Mock the exit method
     app.exit = MagicMock()
@@ -161,7 +158,7 @@ async def test_dev_server_app_quit_action(manager):
 
 async def test_dev_server_app_compose_structure(manager):
     """Test the app composition structure"""
-    app = DevServerApp(manager, "http://localhost:3001/mcp/")
+    app = DevServerTUI(manager, "http://localhost:3001/mcp/")
 
     # We can't easily test the full compose result without running the app,
     # but we can verify the app has the expected attributes

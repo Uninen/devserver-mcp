@@ -1,131 +1,12 @@
 import asyncio
 import contextlib
-import os
 import socket
-import sys
-import time
-from collections import deque
-from collections.abc import Awaitable, Callable
-from datetime import datetime
+from collections.abc import Callable
 
-from pydantic import BaseModel
+from devserver_mcp.process import ManagedProcess
+from devserver_mcp.types import Config, LogCallback
 
 SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cyan", "bright_magenta", "bright_yellow"]
-
-LogCallback = Callable[[str, str, str], None] | Callable[[str, str, str], Awaitable[None]]
-
-
-class ServerConfig(BaseModel):
-    """Configuration for a single dev server"""
-
-    command: str
-    working_dir: str = "."
-    port: int
-
-
-class Config(BaseModel):
-    """Overall configuration"""
-
-    servers: dict[str, ServerConfig]
-
-
-class ManagedProcess:
-    """Represents a process managed by the dev server"""
-
-    def __init__(self, name: str, config: ServerConfig, color: str):
-        self.name = name
-        self.config = config
-        self.color = color
-        self.process: asyncio.subprocess.Process | None = None
-        self.logs: deque = deque(maxlen=500)
-        self.start_time: float | None = None
-        self.error: str | None = None
-
-    async def start(self, log_callback: LogCallback) -> bool:
-        """Start the managed process"""
-        try:
-            self.error = None
-            self.start_time = time.time()
-
-            work_dir = os.path.expanduser(self.config.working_dir)
-            work_dir = os.path.abspath(work_dir)
-
-            self.process = await asyncio.create_subprocess_shell(
-                self.config.command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
-                cwd=work_dir,
-                preexec_fn=os.setsid if sys.platform != "win32" else None,
-            )
-
-            asyncio.create_task(self._read_output(log_callback))
-            await asyncio.sleep(0.5)
-
-            if self.process.returncode is not None:
-                self.error = f"Process exited immediately with code {self.process.returncode}"
-                return False
-
-            return True
-
-        except Exception as e:
-            self.error = str(e)
-            return False
-
-    async def _read_output(self, log_callback: LogCallback):
-        """Read process output and forward to callback"""
-        while self.process and self.process.stdout:
-            try:
-                line = await self.process.stdout.readline()
-                if not line:
-                    break
-
-                decoded = line.decode("utf-8", errors="replace").rstrip()
-                if decoded:
-                    timestamp = datetime.now().strftime("%H:%M:%S")
-
-                    self.logs.append(decoded)
-                    # Handle both sync and async callbacks
-                    result = log_callback(self.name, timestamp, decoded)
-                    if asyncio.iscoroutine(result):
-                        await result
-
-            except Exception:
-                break
-
-    def stop(self):
-        """Stop the managed process immediately"""
-        if self.process and self.process.pid is not None:
-            try:
-                if sys.platform == "win32":
-                    self.process.terminate()
-                else:
-                    import signal
-
-                    os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
-            except (ProcessLookupError, OSError):
-                pass
-            finally:
-                self.process = None
-                self.start_time = None
-
-    @property
-    def is_running(self) -> bool:
-        return self.process is not None and self.process.returncode is None
-
-    @property
-    def uptime(self) -> int | None:
-        if not self.is_running or not self.start_time:
-            return None
-        return int(time.time() - self.start_time)
-
-    @property
-    def status(self) -> str:
-        if self.is_running:
-            return "running"
-        elif self.error:
-            return "error"
-        else:
-            return "stopped"
 
 
 class DevServerManager:
@@ -174,7 +55,7 @@ class DevServerManager:
             return {"status": "error", "message": f"Server '{name}' not found"}
 
         if process.is_running:
-            return {"status": "already_running", "message": f"Server '{name}' running"}
+            return {"status": "already_running", "message": f"Server '{name}' already running"}
 
         if self._is_port_in_use(process.config.port):
             return {"status": "error", "message": f"Port {process.config.port} in use"}
@@ -199,11 +80,7 @@ class DevServerManager:
             return {"status": "stopped", "message": f"Server '{name}' stopped"}
 
         if self._is_port_in_use(process.config.port):
-            if self._kill_port_process(process.config.port):
-                self._notify_status_change()
-                return {"status": "stopped", "message": f"External on port {process.config.port} killed"}
-            else:
-                return {"status": "error", "message": f"Failed to kill external on port {process.config.port}"}
+            return {"status": "error", "message": f"Failed to kill external process on port {process.config.port}"}
 
         return {"status": "not_running", "message": f"Server '{name}' not running"}
 
@@ -218,7 +95,6 @@ class DevServerManager:
                 "status": "running",
                 "type": "managed",
                 "port": process.config.port,
-                "uptime_seconds": process.uptime,
                 "command": process.config.command,
                 "working_dir": process.config.working_dir,
             }
@@ -258,7 +134,6 @@ class DevServerManager:
                     "name": process.name,
                     "status": process.status,
                     "port": process.config.port,
-                    "uptime": process.uptime,
                     "error": process.error,
                     "external_running": external_running,
                     "color": process.color,
@@ -277,16 +152,3 @@ class DevServerManager:
         """Check if a port is in use"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             return s.connect_ex(("localhost", port)) == 0
-
-    def _kill_port_process(self, port: int) -> bool:
-        """Attempt to kill process using a port"""
-        try:
-            if sys.platform == "darwin" or sys.platform.startswith("linux"):
-                import subprocess
-
-                result = subprocess.run(f"lsof -ti:{port} | xargs kill -9", shell=True, capture_output=True)
-                return result.returncode == 0
-            else:
-                return False
-        except Exception:
-            return False
