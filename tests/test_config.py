@@ -105,3 +105,93 @@ def test_config_model_validation():
     assert server.port == 8000
     assert server.prefix_logs is False
     assert server.autostart is True
+
+
+def test_load_config_with_experimental_section():
+    config_data = {
+        "servers": {
+            "backend": {
+                "command": "python manage.py runserver",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        try:
+            config = load_config(f.name)
+            assert config.experimental is not None
+            assert config.experimental.playwright is True
+        finally:
+            os.unlink(f.name)
+
+
+def test_load_config_without_experimental_section():
+    config_data = {
+        "servers": {
+            "backend": {
+                "command": "python manage.py runserver",
+                "port": 8000,
+            }
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        try:
+            config = load_config(f.name)
+            assert config.experimental is None
+        finally:
+            os.unlink(f.name)
+
+
+def test_load_config_with_empty_experimental_section():
+    config_data = {
+        "servers": {
+            "backend": {
+                "command": "python manage.py runserver",
+                "port": 8000,
+            }
+        },
+        "experimental": {},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        try:
+            config = load_config(f.name)
+            assert config.experimental is not None
+            assert config.experimental.playwright is False  # Default value
+        finally:
+            os.unlink(f.name)
+
+
+def test_load_config_with_experimental_section_playwright_false():
+    config_data = {
+        "servers": {
+            "backend": {
+                "command": "python manage.py runserver",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": False},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        try:
+            config = load_config(f.name)
+            assert config.experimental is not None
+            assert config.experimental.playwright is False
+        finally:
+            os.unlink(f.name)

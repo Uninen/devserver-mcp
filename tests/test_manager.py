@@ -222,13 +222,13 @@ def test_is_port_in_use_free_port(manager):
 
 def test_is_port_in_use_used_port(manager):
     import socket
-    
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.bind(("localhost", 0))
         sock.listen(1)
         port = sock.getsockname()[1]
-        
+
         result = manager._is_port_in_use(port)
         assert result is True
     finally:
@@ -240,7 +240,7 @@ def test_get_server_status_running_managed(manager):
     proc.process = MagicMock()
     proc.process.returncode = None
     proc.process.pid = 123
-    
+
     status = manager.get_server_status("api")
     assert status["status"] == "running"
     assert status["type"] == "managed"
@@ -258,7 +258,7 @@ def test_get_server_status_running_external(manager):
 def test_get_server_status_stopped(manager):
     proc = manager.processes["api"]
     proc.error = "Test error"
-    
+
     with patch.object(manager, "_is_port_in_use", return_value=False):
         status = manager.get_server_status("api")
         assert status["status"] == "stopped"
@@ -291,7 +291,7 @@ def test_get_server_logs_success(manager):
     proc.process = MagicMock()
     proc.process.returncode = None
     proc.logs.extend(["line1", "line2", "line3"])
-    
+
     result = manager.get_server_logs("api", lines=2)
     assert result["status"] == "success"
     assert result["lines"] == ["line2", "line3"]
@@ -301,11 +301,11 @@ def test_get_server_logs_success(manager):
 def test_get_all_servers(manager):
     proc = manager.processes["api"]
     proc.error = "Test error"
-    
+
     with patch.object(manager, "_is_port_in_use", return_value=False):
         servers = manager.get_all_servers()
         assert len(servers) == 2
-        
+
         api_server = next(s for s in servers if s["name"] == "api")
         assert api_server["status"] == "error"
         assert api_server["port"] == 12345
@@ -317,17 +317,17 @@ def test_get_all_servers(manager):
 async def test_shutdown_all(manager):
     proc1 = manager.processes["api"]
     proc2 = manager.processes["web"]
-    
+
     proc1.process = MagicMock()
     proc1.process.returncode = None
     proc2.process = MagicMock()
     proc2.process.returncode = None
-    
+
     with patch.object(ManagedProcess, "stop", return_value=asyncio.Future()) as mock_stop:
         mock_stop.return_value.set_result(None)
-        
+
         await manager.shutdown_all()
-        
+
         assert mock_stop.call_count == 2
 
 
@@ -347,9 +347,9 @@ def test_status_callback_registration(manager):
 async def test_notify_log_sync_callback(manager):
     callback = MagicMock()
     manager.add_log_callback(callback)
-    
+
     await manager._notify_log("server", "timestamp", "message")
-    
+
     callback.assert_called_once_with("server", "timestamp", "message")
 
 
@@ -357,16 +357,16 @@ async def test_notify_log_sync_callback(manager):
 async def test_notify_log_async_callback(manager):
     callback = AsyncMock()
     manager.add_log_callback(callback)
-    
+
     await manager._notify_log("server", "timestamp", "message")
-    
+
     callback.assert_called_once_with("server", "timestamp", "message")
 
 
 def test_notify_status_change(manager):
     callback = MagicMock()
     manager.add_status_callback(callback)
-    
+
     manager._notify_status_change()
-    
+
     callback.assert_called_once()

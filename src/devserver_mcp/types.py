@@ -11,8 +11,13 @@ class ServerConfig(BaseModel):
     autostart: bool = False
 
 
+class ExperimentalConfig(BaseModel):
+    playwright: bool = False
+
+
 class Config(BaseModel):
     servers: dict[str, ServerConfig]
+    experimental: ExperimentalConfig | None = None
 
 
 LogCallback = Callable[[str, str, str], None] | Callable[[str, str, str], Awaitable[None]]
