@@ -45,15 +45,15 @@ servers:
     port: 5555
 ```
 
-Add MCP configuration for VS Code:
+Add MCP configuration for your editor:
 
 ```json
 // .vscode/mcp.json
 {
   "servers": {
     "devserver": {
-      "url": "http://localhost:3001/sse",
-      "type": "sse"
+      "url": "http://localhost:3001/mcp/",
+      "type": "http"
     }
   }
 }
