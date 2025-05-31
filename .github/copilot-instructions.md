@@ -52,7 +52,7 @@ devservers.yml       # Test configuration
 
 ## Change Logging
 
-After completing any action resulting in changes to the codebase, update the changelog by adding a short one-line note to the top of the list under the main heading in `CHANGES_AI.md`. Keep it brief. When amending the previous action, update the existing line instead of adding a new one. If amending an action made by another model, add your model name in parentheses with a comma. Be sure to use the correct current date and your specific model name (not "GitHub Copilot" or "Claude" or "Gemini").
+After completing any action resulting in changes to the codebase, update the AI changelog by adding a short one-line note to the top of the list under the main heading in `CHANGES_AI.md`. Keep it brief. When amending the previous action, update the existing line instead of adding a new one. If amending an action made by another model, add your model name in parentheses with a comma. Be sure to use the correct current date and your specific model name (not "GitHub Copilot" or "Claude" or "Gemini" or "Jules").
 
 - Format: `- YYYY-MM-DD: Brief explanation of the completed changes. ([your-specific-model-name-or-id])`
 - Example 1: `- 2025-05-23: Added GET /user/ endpoint. (gpt-4.1)`
