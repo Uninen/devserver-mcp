@@ -5,39 +5,44 @@
 A Model Context Protocol (MCP) server that manages development servers (Django, Vue, Celery, etc.) for LLM-assisted development workflows. Provides programmatic control over multiple development servers through a unified interface with a beautiful TUI.
 
 ## Quick Reference
+
 - Dependency and environment management: `uv`
   - `uv add [package]` -- add dependency
   - `uv add --dev [package]` -- add dev dependency
   - `uv run [command in .venv context]` -- run a command in the project environment
-  - `pyproject.toml` -- python project configuration
+  - `pyproject.toml` -- Python project configuration
 - Tests:
   - In `tests/`
   - Run with: `run_tests` tool
-- Test the server implementation using the test app (see details below): `uv run python src/devserver_mcp/__init__.py`
+- Test the server implementation using the test app (see details below): `uv run devservers`
 
 ## Coding Guidelines
+
 - **NO trivial comments**
-- Python 3.13+, type hints, PEP8
+- Python 3.13+, type hints, PEP 8
 - Follow OWASP security practices
 - Handle errors explicitly
 - Use Ruff to fix linting and format all files:
-    - `uv run ruff check --fix path/to/file.py` -- fix all linting errors
-    - `uv run ruff format path/to/file.py` -- format
+  - `uv run ruff check --fix path/to/file.py` -- fix all linting errors
+  - `uv run ruff format path/to/file.py` -- format
 
 ### Testing Guidelines
-- Adhere to the general testing guidelines as `docs/writing_tests.md`
+
+- Adhere to the general testing guidelines in `docs/writing_tests.md`
 - Write meaningful tests, not coverage fillers
 - Always use pytest functions, never use classes
 - When creating or fixing tests, always execute **the full test suite** (using `run_tests` tool) to make sure all tests pass
-- Never use shell commands like `python -m ...` to run the tests, always use `run_tests` tool to run tests
+- Never use shell commands like `python -m ...` to run the tests; always use `run_tests` tool to run tests
 
 ## Documentation
+
 - See `docs/design.md` for technical design specs
 - See latest FastMCP documentation at: https://gofastmcp.com/llms-full.txt
 - Check existing code patterns before implementing new features
 - Textual documentation: https://textual.textualize.io/guide/
 
 ### Test App Structure
+
 ```
 testapp/
 ├── front/          # simple Vite app
@@ -46,9 +51,12 @@ devservers.yml       # Test configuration
 ```
 
 ## Change Logging
-- After completing any change or action, add a one-line note to the top of `CHANGES_AI.md` (to the top of list under the first heading)
-- Format: `* DD-MM-YYYY -- Short one line explanation of the completed changes. ([your-model-name])`
-- Example: `* 23-05-2025 -- Added user profile API endpoint with authentication. (gpt-4.1)`
+
+After completing any action resulting in changes to the codebase, update the changelog by adding a short one-line note to the top of the list under the main heading in `CHANGES_AI.md`. Keep it brief. When amending the previous action, update the existing line instead of adding a new one. If amending an action made by another model, add your model name in parentheses with a comma. Be sure to use the correct current date and your specific model name (not "GitHub Copilot" or "Claude" or "Gemini").
+
+- Format: `- YYYY-MM-DD: Brief explanation of the completed changes. ([your-specific-model-name-or-id])`
+- Example 1: `- 2025-05-23: Added GET /user/ endpoint. (gpt-4.1)`
+- Example 2: `- 2025-05-23: Added GET and POST /user/ endpoints. (gpt-4.1, Claude Sonnet 4)`
 
 ## Finally
 

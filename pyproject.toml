@@ -1,11 +1,9 @@
 [project]
 name = "devserver-mcp"
-version = "0.1.0"
+dynamic = ["version"]
 description = "MCP server for managing dev servers"
 readme = "README.md"
-authors = [
-    { name = "Ville Säävuori", email = "ville@unessa.net" }
-]
+authors = [{ name = "Ville Säävuori", email = "ville@unessa.net" }]
 requires-python = ">=3.13"
 dependencies = [
     "click>=8.2.1",
@@ -22,9 +20,12 @@ devservers = "devserver_mcp:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "src/devserver_mcp/__init__.py"
+
 [dependency-groups]
 dev = [
-    "fastmcp[client]>=2.5.2",
+    "playwright>=1.52.0",
     "pyright>=1.1.401",
     "pytest>=8.3.5",
     "pytest-asyncio>=1.0.0",
