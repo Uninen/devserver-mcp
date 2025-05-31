@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-05-31: Added optional experimental section with playwright boolean flag to config. (Jules)
 - 2025-05-31: Proofread and corrected copilot-instructions.md for grammar, capitalization, and style consistency. (Claude Sonnet 4)
 - 2025-05-31: Format change (human)
 
