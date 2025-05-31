@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
 from datetime import datetime
-from typing import Any, Coroutine
+from typing import Any, Coroutine, Callable
 
 from playwright.async_api import Browser, Page, Playwright
 
@@ -95,7 +95,7 @@ class PlaywrightManager:
             await self._notify_status_change()
 
     async def browser_navigate(self, url: str) -> dict[str, Any]:
-        if not self.page:
+        if not await self.ensure_launched() or not self.page:
             return {"status": "error", "message": "Browser not launched"}
 
         await self._log(f"Navigating to {url}")
