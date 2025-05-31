@@ -56,4 +56,7 @@ def load_config(config_path: str) -> Config:
     with open(path) as f:
         data = yaml.safe_load(f)
 
+    if "experimental_playwright" not in data:
+        data["experimental_playwright"] = False
+
     return Config(**data)

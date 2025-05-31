@@ -18,6 +18,7 @@ class ExperimentalConfig(BaseModel):
 class Config(BaseModel):
     servers: dict[str, ServerConfig]
     experimental: ExperimentalConfig | None = None
+    experimental_playwright: bool = False
 
 
 LogCallback = Callable[[str, str, str], None] | Callable[[str, str, str], Awaitable[None]]

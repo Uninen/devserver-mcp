@@ -3,9 +3,10 @@ from datetime import datetime
 from fastmcp import FastMCP
 
 from devserver_mcp.manager import DevServerManager
+from devserver_mcp.playwright_manager import PlaywrightManager
 
 
-def create_mcp_server(manager: DevServerManager) -> FastMCP:
+def create_mcp_server(manager: DevServerManager, playwright_manager: PlaywrightManager | None = None) -> FastMCP:
     mcp = FastMCP("devserver")
 
     async def start_server_with_logging(name: str) -> dict:
@@ -44,5 +45,35 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
     mcp.add_tool(stop_server_with_logging, name="stop_server")
     mcp.add_tool(get_server_status_with_logging, name="get_server_status")
     mcp.add_tool(get_server_logs_with_logging, name="get_server_logs")
+
+    if playwright_manager:
+
+        async def browser_navigate_with_logging(url: str) -> dict:
+            await manager._notify_log(
+                "MCP Server",
+                datetime.now().strftime("%H:%M:%S"),
+                f"Tool 'browser_navigate' called with: {{'url': {repr(url)}}}",
+            )
+            return await playwright_manager.browser_navigate(url)
+
+        async def browser_snapshot_with_logging() -> dict:
+            await manager._notify_log(
+                "MCP Server",
+                datetime.now().strftime("%H:%M:%S"),
+                "Tool 'browser_snapshot' called",
+            )
+            return await playwright_manager.browser_snapshot()
+
+        async def browser_console_messages_with_logging() -> dict:
+            await manager._notify_log(
+                "MCP Server",
+                datetime.now().strftime("%H:%M:%S"),
+                "Tool 'browser_console_messages' called",
+            )
+            return await playwright_manager.browser_console_messages()
+
+        mcp.add_tool(browser_navigate_with_logging, name="browser_navigate")
+        mcp.add_tool(browser_snapshot_with_logging, name="browser_snapshot")
+        mcp.add_tool(browser_console_messages_with_logging, name="browser_console_messages")
 
     return mcp

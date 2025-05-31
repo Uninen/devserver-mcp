@@ -12,7 +12,8 @@ from .manager import DevServerManager
 
 class ServerBox(Static):
     def __init__(self, server: dict, manager: DevServerManager):
-        super().__init__(classes="server-box")
+        is_playwright = server.get("name") == "Playwright"
+        super().__init__(classes="server-box playwright-box" if is_playwright else "server-box")
         self.server = server
         self.manager = manager
 
@@ -23,16 +24,32 @@ class ServerBox(Static):
         yield Label(status, id="server-status")
 
     def _format_status(self, server: dict) -> str:
+        if server.get("name") == "Playwright":
+            if server["status"] == "Launched":
+                return "[#00afff]● Launched[/#00afff]"
+            elif server["status"] == "Error" or server["status"].startswith("Error:"):
+                return "[#ff0040]● Error[/#ff0040]"
+            elif server["status"] == "Launching...":
+                return "[#ffa500]● Launching...[/#ffa500]" # Orange for launching
+            elif server["status"] == "Closing...":
+                return "[#ffa500]● Closing...[/#ffa500]" # Orange for closing
+            else: # Not Launched or any other state
+                return "[#808080]● Not Launched[/#808080]"
+        # Existing status formatting for other servers
         if server["status"] == "running":
             return "[#00ff80]● Running[/#00ff80]"
         elif server["external_running"]:
             return "[#00ffff]● External[/#00ffff]"
         elif server["status"] == "error":
             return "[#ff0040]● Error[/#ff0040]"
-        else:
+        else: # stopped
             return "[#8000ff]● Stopped[/#8000ff]"
 
     async def on_click(self, event: Click) -> None:
+        if self.server.get("name") == "Playwright":
+            # Playwright box is not clickable for start/stop actions
+            return
+
         server_name = self.server["name"]
         action_taken = False
 
@@ -128,6 +145,16 @@ class DevServerTUI(App):
         background: #0a0a0f;
         color: #ff00ff;
     }
+
+    .playwright-box {
+        border: round #0080ff; /* Blue border */
+        background: #001020; /* Darker blue background */
+    }
+
+    .playwright-box #server-name {
+        color: #00afff; /* Lighter blue for name */
+    }
+    /* Status color is handled by _format_status for playwright-box as well */
 
     #main-split {
         layout: horizontal;
