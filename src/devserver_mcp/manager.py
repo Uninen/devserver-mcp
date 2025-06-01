@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import socket
+from datetime import datetime
 from typing import Any, Literal
 
 from devserver_mcp.process import ManagedProcess
@@ -179,11 +180,11 @@ class DevServerManager:
         if self._playwright_operator and not self._playwright_operator.is_initialized:
             try:
                 await self._playwright_operator.initialize()
-                await self._notify_log(f"{get_tool_emoji()} Playwright", "", "Browser started successfully")
+                await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), "Browser started successfully")
                 self._notify_status_change()
             except Exception as e:
                 log_error_to_file(e, "Playwright autostart")
-                await self._notify_log(f"{get_tool_emoji()} Playwright", "", f"Failed to start browser: {e}")
+                await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Failed to start browser: {e}")
                 self._notify_status_change()
 
     async def _shutdown_playwright(self):
@@ -216,7 +217,7 @@ class DevServerManager:
 
         try:
             result = await self._playwright_operator.navigate(url, wait_until)
-            await self._notify_log(f"{get_tool_emoji()} Playwright", "", f"Navigated to {url}")
+            await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Navigated to {url}")
             return result
         except Exception as e:
             log_error_to_file(e, "playwright_navigate")
@@ -230,7 +231,7 @@ class DevServerManager:
             result = await self._playwright_operator.snapshot()
             page_url = result.get("url", "unknown page")
             await self._notify_log(
-                f"{get_tool_emoji()} Playwright", "", f"Captured accessibility snapshot of {page_url}"
+                f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Captured accessibility snapshot of {page_url}"
             )
             return result
         except Exception as e:
@@ -246,7 +247,7 @@ class DevServerManager:
             message_count = len(messages)
             clear_text = " and cleared" if clear else ""
             await self._notify_log(
-                f"{get_tool_emoji()} Playwright", "", f"Retrieved {message_count} console messages{clear_text}"
+                f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Retrieved {message_count} console messages{clear_text}"
             )
             return {"status": "success", "messages": messages}
         except Exception as e:
