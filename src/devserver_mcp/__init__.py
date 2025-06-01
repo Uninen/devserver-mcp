@@ -25,7 +25,7 @@ class DevServerMCP:
         self.config = self._load_config(config_path, config)
         self.port = port
         self.manager = DevServerManager(self.config)
-        self.mcp = create_mcp_server(self.manager)
+        self.mcp = create_mcp_server(self.manager, self.manager.playwright_manager)
         self._mcp_task = None
 
     def _load_config(self, config_path: str | None, config: Config | None) -> Config:
@@ -49,7 +49,22 @@ class DevServerMCP:
 
     async def _run_headless(self):
         with silence_all_output():
-            await asyncio.sleep(0.1)
+            self._mcp_task = asyncio.create_task(
+                self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
+            )
+
+            # Start configured servers and Playwright in headless mode
+            await self.manager.autostart_configured_servers()
+
+            try:
+                # Keep the MCP server running
+                await self._mcp_task
+            except (SystemExit, KeyboardInterrupt, asyncio.CancelledError):
+                pass
+            except Exception:
+                pass
+            finally:
+                await self._cleanup()
 
     async def _run_with_tui(self):
         self._mcp_task = asyncio.create_task(

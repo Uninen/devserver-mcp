@@ -1,7 +1,7 @@
-import asyncio
 import contextlib
+from collections.abc import Callable, Coroutine
 from datetime import datetime
-from typing import Any, Coroutine, Callable
+from typing import Any
 
 from playwright.async_api import Browser, Page, Playwright
 
@@ -76,7 +76,7 @@ class PlaywrightManager:
 
         try:
             if self.page:
-                with contextlib.suppress(Exception): # Page might already be closed if browser crashed
+                with contextlib.suppress(Exception):  # Page might already be closed if browser crashed
                     self.page.remove_listener("console", self._handle_console_message)
             if self.browser:
                 await self.browser.close()
@@ -121,7 +121,7 @@ class PlaywrightManager:
             return {"status": "error", "message": f"Failed to capture snapshot: {e}"}
 
     async def browser_console_messages(self) -> dict[str, Any]:
-        if not self.page: # Check for page, as console messages are tied to a page context
+        if not self.page:  # Check for page, as console messages are tied to a page context
             return {"status": "error", "message": "Browser not launched or no active page"}
 
         await self._log("Retrieving console messages")
@@ -137,7 +137,7 @@ class PlaywrightManager:
 
     async def get_page_content(self) -> dict[str, Any]:
         if not await self.ensure_launched() or not self.page:
-             return {"status": "error", "message": "Browser not launched"}
+            return {"status": "error", "message": "Browser not launched"}
         try:
             content = await self.page.content()
             return {"status": "success", "content": content}
@@ -183,11 +183,16 @@ class PlaywrightManager:
             if not element:
                 return {"status": "error", "message": f"Element with selector '{selector}' not found"}
 
-            attributes = await element.evaluate("element => Array.from(element.attributes).reduce((obj, attr) => { obj[attr.name] = attr.value; return obj; }, {})")
+            attributes = await element.evaluate(
+                "element => Array.from(element.attributes).reduce((obj, attr) => { obj[attr.name] = attr.value; return obj; }, {})"
+            )
             return {"status": "success", "attributes": attributes}
         except Exception as e:
             await self._log(f"Failed to get attributes for element with selector '{selector}': {e}", level="error")
-            return {"status": "error", "message": f"Failed to get attributes for element with selector '{selector}': {e}"}
+            return {
+                "status": "error",
+                "message": f"Failed to get attributes for element with selector '{selector}': {e}",
+            }
 
     async def get_element_text(self, selector: str) -> dict[str, Any]:
         if not await self.ensure_launched() or not self.page:
@@ -229,7 +234,11 @@ class PlaywrightManager:
             else:
                 # If no path, screenshot_bytes contains the image
                 # For now, let's just confirm it was taken if not saved to path
-                return {"status": "success", "message": "Screenshot taken", "screenshot_bytes_length": len(screenshot_bytes or b"")}
+                return {
+                    "status": "success",
+                    "message": "Screenshot taken",
+                    "screenshot_bytes_length": len(screenshot_bytes or b""),
+                }
 
         except Exception as e:
             await self._log(f"Failed to take screenshot: {e}", level="error")
@@ -261,7 +270,7 @@ class PlaywrightManager:
         try:
             current_url = self.page.url
             return {"status": "success", "url": current_url}
-        except Exception as e: # Should not happen for page.url but good practice
+        except Exception as e:  # Should not happen for page.url but good practice
             await self._log(f"Failed to get current URL: {e}", level="error")
             return {"status": "error", "message": f"Failed to get current URL: {e}"}
 
@@ -296,7 +305,7 @@ class PlaywrightManager:
             return {"status": "error", "message": f"Failed to reload page: {e}"}
 
     async def get_cookies(self, urls: list[str] | None = None) -> dict[str, Any]:
-        if not await self.ensure_launched() or not self.browser: # Check browser context for cookies
+        if not await self.ensure_launched() or not self.browser:  # Check browser context for cookies
             return {"status": "error", "message": "Browser not launched"}
         try:
             cookies = await self.browser.contexts[0].cookies(urls=urls)

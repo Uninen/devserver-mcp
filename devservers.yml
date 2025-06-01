@@ -1,4 +1,3 @@
-# test configuration
 servers:
   backend:
     command: "uv run fastapi dev backend.py"
@@ -11,11 +10,5 @@ servers:
     working_dir: "./testapp/front"
     port: 5173
     autostart: true
-
 experimental:
   playwright: true
-
-  # broken:
-  #   command: "dummycommand"
-  #   port: 1234
-  #   autostart: true

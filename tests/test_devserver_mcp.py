@@ -43,7 +43,9 @@ def test_init_with_config(simple_config):
         assert server.config == simple_config
         assert server.port == 8080
         mock_manager_cls.assert_called_once_with(simple_config)
-        mock_create_mcp.assert_called_once_with(mock_manager_cls.return_value)
+        mock_create_mcp.assert_called_once_with(
+            mock_manager_cls.return_value, mock_manager_cls.return_value.playwright_manager
+        )
 
 
 def test_init_with_config_path():
