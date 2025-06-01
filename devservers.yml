@@ -12,6 +12,9 @@ servers:
     port: 5173
     autostart: true
 
+experimental:
+  playwright: true
+
   # broken:
   #   command: "dummycommand"
   #   port: 1234

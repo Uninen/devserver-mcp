@@ -370,3 +370,79 @@ def test_notify_status_change(manager):
     manager._notify_status_change()
 
     callback.assert_called_once()
+
+
+@pytest.fixture
+def config_with_playwright():
+    """Config fixture that includes experimental playwright enabled."""
+    return Config(
+        servers={
+            "api": ServerConfig(command="echo hello", working_dir=".", port=12345),
+        },
+        experimental_playwright=True,  # This is what DevServerManager actually uses
+    )
+
+
+@pytest.mark.asyncio
+async def test_manager_initializes_playwright_when_enabled(config_with_playwright):
+    """Test that DevServerManager initializes PlaywrightManager when experimental_playwright is True."""
+    with patch("devserver_mcp.manager.PlaywrightManager") as mock_playwright_cls:
+        mock_playwright_instance = MagicMock()
+        mock_playwright_cls.return_value = mock_playwright_instance
+
+        manager = DevServerManager(config_with_playwright)
+
+        # Verify PlaywrightManager was instantiated
+        mock_playwright_cls.assert_called_once()
+        assert manager.playwright_manager is mock_playwright_instance
+
+        # Verify status callback was added
+        mock_playwright_instance.add_status_callback.assert_called_once()
+
+
+def test_manager_does_not_initialize_playwright_when_disabled(simple_config):
+    """Test that DevServerManager does not initialize PlaywrightManager when experimental_playwright is False."""
+    # simple_config has experimental_playwright=False by default
+    with patch("devserver_mcp.manager.PlaywrightManager") as mock_playwright_cls:
+        manager = DevServerManager(simple_config)
+
+        # Verify PlaywrightManager was NOT instantiated
+        mock_playwright_cls.assert_not_called()
+        assert manager.playwright_manager is None
+
+
+@pytest.mark.asyncio
+async def test_get_all_servers_includes_playwright_when_enabled(config_with_playwright):
+    """Test that get_all_servers includes playwright status when enabled."""
+    with patch("devserver_mcp.manager.PlaywrightManager") as mock_playwright_cls:
+        mock_playwright_instance = MagicMock()
+        mock_playwright_instance.get_status.return_value = {
+            "status": "Launched",
+            "name": "Playwright",
+        }
+        mock_playwright_cls.return_value = mock_playwright_instance
+
+        manager = DevServerManager(config_with_playwright)
+        servers = manager.get_all_servers()
+
+        # Should have 2 servers: playwright + api
+        assert len(servers) == 2
+
+        # Playwright should be first
+        playwright_server = servers[0]
+        assert playwright_server["name"] == "Playwright"
+        assert playwright_server["status"] == "Launched"
+        assert playwright_server["color"] == "bright_blue"
+
+
+def test_get_all_servers_excludes_playwright_when_disabled(simple_config):
+    """Test that get_all_servers excludes playwright when disabled."""
+    manager = DevServerManager(simple_config)
+    servers = manager.get_all_servers()
+
+    # Should only have the 2 regular servers (api, web), no playwright
+    assert len(servers) == 2
+    server_names = [s["name"] for s in servers]
+    assert "Playwright" not in server_names
+    assert "api" in server_names
+    assert "web" in server_names

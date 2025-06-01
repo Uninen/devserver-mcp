@@ -195,3 +195,53 @@ def test_load_config_with_experimental_section_playwright_false():
             assert config.experimental.playwright is False
         finally:
             os.unlink(f.name)
+
+
+def test_load_config_sets_experimental_playwright_correctly():
+    """Test that experimental.playwright in YAML correctly sets experimental_playwright field."""
+    config_data = {
+        "servers": {
+            "backend": {
+                "command": "python manage.py runserver",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        try:
+            config = load_config(f.name)
+            # Test both the nested structure and the flattened field
+            assert config.experimental is not None
+            assert config.experimental.playwright is True
+            assert config.experimental_playwright is True  # This is what DevServerManager uses
+        finally:
+            os.unlink(f.name)
+
+
+def test_load_config_sets_experimental_playwright_false_when_missing():
+    """Test that missing experimental.playwright correctly sets experimental_playwright to False."""
+    config_data = {
+        "servers": {
+            "backend": {
+                "command": "python manage.py runserver",
+                "port": 8000,
+            }
+        }
+        # No experimental section
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        try:
+            config = load_config(f.name)
+            assert config.experimental is None
+            assert config.experimental_playwright is False  # Should default to False
+        finally:
+            os.unlink(f.name)
