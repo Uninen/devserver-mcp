@@ -2,7 +2,7 @@
 
 ## v0.2.0 (2025-06-01)
 
-- feat: added an experimental Playwright tool
+- feat: added an experimental Playwright tool (#6)
 
 ## v0.1.0 (2025-05-31)
 

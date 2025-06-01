@@ -6,12 +6,10 @@ on:
       - main
     paths-ignore:
       - "*.md"
-      - "*.png"
       - "docs/**"
   pull_request:
     paths-ignore:
       - "*.md"
-      - "*.png"
       - "docs/**"
   workflow_dispatch:
 
