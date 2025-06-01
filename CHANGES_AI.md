@@ -1,5 +1,12 @@
 # AI Generated Changes
 
+- 2025-06-01: Fixed Playwright logging in TUI to include proper timestamps and formatting like other server logs. (claude-sonnet-4-20250514)
+- 2025-06-01: Fixed Pylance errors in log_error_to_file function (incorrect os.sys usage) and added comprehensive tests for utils module functionality. (claude-3-5-sonnet-20241022)
+- 2025-06-01: Unified tool emoji usage across codebase with centralized get_tool_emoji() function, improved Playwright logging format and consistency. (claude-3-5-sonnet-20241022)
+- 2025-06-01: Enhanced ToolBox UI to be visually distinct from dev servers: added generic tool emoji (🔧), moved status indicators to same line as tool name, and added comprehensive tests for visual formatting. (claude-sonnet-4-20250514)
+- 2025-06-01: Fixed mock-related test failures and verified all Playwright functionality working correctly with 100/100 tests passing. (claude-sonnet-4-20250514)
+- 2025-06-01: Fixed Playwright initialization event loop issue and enhanced error logging with detailed debug information. Added integration test to catch initialization problems. (claude-sonnet-4-20250514)
+- 2025-06-01: Implemented experimental Playwright MCP functionality with browser automation commands, error logging, TUI integration, and comprehensive tests. (claude-sonnet-4-20250514)
 - 2025-05-31: Added optional experimental section with playwright boolean flag to config. (Jules)
 - 2025-05-31: Proofread and corrected copilot-instructions.md for grammar, capitalization, and style consistency. (Claude Sonnet 4)
 - 2025-05-31: Format change (human)
