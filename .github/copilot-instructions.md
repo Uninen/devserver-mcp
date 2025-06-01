@@ -22,10 +22,10 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 - Python 3.13+, type hints, PEP 8
 - Follow OWASP security practices
 - Handle errors explicitly
-- Use Ruff to fix linting and format all files:
-  - `uv run ruff check --fix path/to/file.py` -- fix all linting errors
+- Use Ruff for linting and formatting:
+  - `uv run ruff check --fix path/to/file.py` -- fix all fixable linting errors
   - `uv run ruff format path/to/file.py` -- format
-- When youre done writing code, strip ALL comments and docstrings from all the code you've generated unless its critical for understanding an especially complex piece of code.
+- When you're done writing code, strip all comments and docstrings from the generated code, unless they're critical for understanding an especially complex piece
 
 ### Testing Guidelines
 
