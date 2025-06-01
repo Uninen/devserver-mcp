@@ -61,7 +61,6 @@ def _cleanup_loop(loop):
 
 def log_error_to_file(error: Exception, context: str = ""):
     try:
-        import os
         import traceback
 
         log_file = Path.cwd() / "mcp-errors.log"
@@ -71,8 +70,8 @@ def log_error_to_file(error: Exception, context: str = ""):
         traceback_str = "".join(tb_lines)
 
         env_info = {
-            "python_version": os.sys.version,
-            "platform": os.sys.platform,
+            "python_version": sys.version,
+            "platform": sys.platform,
             "cwd": str(Path.cwd()),
             "context": context,
         }
