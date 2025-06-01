@@ -9,7 +9,6 @@ from pathlib import Path
 
 @contextlib.contextmanager
 def silence_all_output():
-    """Context manager to completely suppress all stdout/stderr output"""
     with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         old_stderr = sys.stderr
@@ -23,11 +22,8 @@ def silence_all_output():
 
 
 def configure_silent_logging():
-    """Configure all loggers to be completely silent"""
-    # Disable all logging
     logging.getLogger().setLevel(logging.CRITICAL + 1)
 
-    # Specifically silence these common loggers
     for logger_name in [
         "uvicorn",
         "uvicorn.access",
@@ -42,13 +38,12 @@ def configure_silent_logging():
         logger.setLevel(logging.CRITICAL + 1)
         logger.disabled = True
         logger.propagate = False
-        # Remove all handlers
+
         for handler in logger.handlers[:]:  # pragma: no cover
             logger.removeHandler(handler)
 
 
 def no_op_exception_handler(loop, context):
-    # Suppress all exceptions during shutdown
     pass  # pragma: no cover
 
 
@@ -65,19 +60,16 @@ def _cleanup_loop(loop):
 
 
 def log_error_to_file(error: Exception, context: str = ""):
-    """Log errors to mcp-errors.log in the current working directory with detailed debug information"""
     try:
-        import traceback
         import os
-        
+        import traceback
+
         log_file = Path.cwd() / "mcp-errors.log"
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Get detailed traceback
+
         tb_lines = traceback.format_exception(type(error), error, error.__traceback__)
         traceback_str = "".join(tb_lines)
-        
-        # Get environment info
+
         env_info = {
             "python_version": os.sys.version,
             "platform": os.sys.platform,
@@ -86,16 +78,20 @@ def log_error_to_file(error: Exception, context: str = ""):
         }
 
         with open(log_file, "a", encoding="utf-8") as f:
-            f.write(f"\n{'='*80}\n")
+            f.write(f"\n{'=' * 80}\n")
             f.write(f"[{timestamp}] ERROR in context: {context}\n")
             f.write(f"Error Type: {type(error).__name__}\n")
             f.write(f"Error Message: {error}\n")
-            f.write(f"Environment Info:\n")
+            f.write("Environment Info:\n")
             for key, value in env_info.items():
                 f.write(f"  {key}: {value}\n")
             f.write(f"\nFull Traceback:\n{traceback_str}")
-            f.write(f"{'='*80}\n\n")
+            f.write(f"{'=' * 80}\n\n")
     except Exception:
         # If we can't write to the log file, silently continue
         # to avoid breaking the main application
         pass
+
+
+def get_tool_emoji() -> str:
+    return "🔧"

@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from devserver_mcp.process import ManagedProcess
 from devserver_mcp.types import Config, LogCallback
-from devserver_mcp.utils import log_error_to_file
+from devserver_mcp.utils import get_tool_emoji, log_error_to_file
 
 SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cyan", "bright_magenta", "bright_yellow"]
 
@@ -176,17 +176,14 @@ class DevServerManager:
                 self._playwright_operator = None
 
     async def _autostart_playwright(self):
-        """Auto-start Playwright if configured and available"""
         if self._playwright_operator and not self._playwright_operator.is_initialized:
             try:
                 await self._playwright_operator.initialize()
-                await self._notify_log("Playwright", "", "Browser started successfully")
-                # Notify UI that status has changed
+                await self._notify_log(f"{get_tool_emoji()} Playwright", "", "Browser started successfully")
                 self._notify_status_change()
             except Exception as e:
                 log_error_to_file(e, "Playwright autostart")
-                await self._notify_log("Playwright", "", f"Failed to start browser: {e}")
-                # Notify UI even when failed, so error state is reflected
+                await self._notify_log(f"{get_tool_emoji()} Playwright", "", f"Failed to start browser: {e}")
                 self._notify_status_change()
 
     async def _shutdown_playwright(self):
@@ -214,34 +211,43 @@ class DevServerManager:
     async def playwright_navigate(
         self, url: str, wait_until: Literal["commit", "domcontentloaded", "load", "networkidle"] = "networkidle"
     ) -> dict[str, Any]:
-        """Navigate browser to URL"""
         if not self._playwright_operator:
             return {"status": "error", "message": "Playwright not available"}
 
         try:
-            return await self._playwright_operator.navigate(url, wait_until)
+            result = await self._playwright_operator.navigate(url, wait_until)
+            await self._notify_log(f"{get_tool_emoji()} Playwright", "", f"Navigated to {url}")
+            return result
         except Exception as e:
             log_error_to_file(e, "playwright_navigate")
             return {"status": "error", "message": str(e)}
 
     async def playwright_snapshot(self) -> dict[str, Any]:
-        """Capture accessibility snapshot"""
         if not self._playwright_operator:
             return {"status": "error", "message": "Playwright not available"}
 
         try:
-            return await self._playwright_operator.snapshot()
+            result = await self._playwright_operator.snapshot()
+            page_url = result.get("url", "unknown page")
+            await self._notify_log(
+                f"{get_tool_emoji()} Playwright", "", f"Captured accessibility snapshot of {page_url}"
+            )
+            return result
         except Exception as e:
             log_error_to_file(e, "playwright_snapshot")
             return {"status": "error", "message": str(e)}
 
     async def playwright_console_messages(self, clear: bool = False) -> dict[str, Any]:
-        """Get console messages"""
         if not self._playwright_operator:
             return {"status": "error", "message": "Playwright not available"}
 
         try:
             messages = await self._playwright_operator.get_console_messages(clear)
+            message_count = len(messages)
+            clear_text = " and cleared" if clear else ""
+            await self._notify_log(
+                f"{get_tool_emoji()} Playwright", "", f"Retrieved {message_count} console messages{clear_text}"
+            )
             return {"status": "success", "messages": messages}
         except Exception as e:
             log_error_to_file(e, "playwright_console_messages")

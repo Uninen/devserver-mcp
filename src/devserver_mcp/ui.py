@@ -8,6 +8,7 @@ from textual.widget import Widget
 from textual.widgets import Label, RichLog, Static
 
 from .manager import DevServerManager
+from .utils import get_tool_emoji
 
 
 class ServerBox(Static):
@@ -83,7 +84,7 @@ class ToolBox(Static):
         yield Label(self._format_tool_with_status(), id="tool-display")
 
     def _get_tool_emoji(self) -> str:
-        return "🔧"
+        return get_tool_emoji()
 
     def _format_status_indicator(self) -> str:
         if self.status == "running":
@@ -156,13 +157,16 @@ class LogsWidget(Widget):
     async def add_log_line(self, server: str, timestamp: str, message: str):
         log = self.query_one(RichLog)
         formatted_message: str
-        if server and timestamp:  # Both server and timestamp must be present to add our prefix
+        if server and timestamp:
             process = self.manager.processes.get(server.lower())
-            # special handling for MCP Server
-            color = "bright_white" if server == "MCP Server" else process.color if process else "white"
+            if server == "MCP Server":
+                color = "bright_white"
+            elif server == f"{get_tool_emoji()} Playwright":
+                color = "magenta"
+            else:
+                color = process.color if process else "white"
             formatted_message = f"[dim]{timestamp}[/dim] [{color}]{server}[/{color}] | {message}"
         else:
-            # if server or timestamp is empty, the message is used as-is
             formatted_message = message
         log.write(formatted_message)
 

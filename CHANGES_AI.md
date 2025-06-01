@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-01: Unified tool emoji usage across codebase with centralized get_tool_emoji() function, improved Playwright logging format and consistency. (claude-3-5-sonnet-20241022)
 - 2025-06-01: Enhanced ToolBox UI to be visually distinct from dev servers: added generic tool emoji (🔧), moved status indicators to same line as tool name, and added comprehensive tests for visual formatting. (claude-sonnet-4-20250514)
 - 2025-06-01: Fixed mock-related test failures and verified all Playwright functionality working correctly with 100/100 tests passing. (claude-sonnet-4-20250514)
 - 2025-06-01: Fixed Playwright initialization event loop issue and enhanced error logging with detailed debug information. Added integration test to catch initialization problems. (claude-sonnet-4-20250514)

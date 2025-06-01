@@ -4,7 +4,7 @@ from typing import Any, Literal
 from fastmcp import FastMCP
 
 from devserver_mcp.manager import DevServerManager
-from devserver_mcp.utils import log_error_to_file
+from devserver_mcp.utils import get_tool_emoji, log_error_to_file
 
 
 def create_mcp_server(manager: DevServerManager) -> FastMCP:
@@ -55,13 +55,11 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
 
 
 def _add_playwright_commands(mcp: FastMCP, manager: DevServerManager) -> None:
-    """Add Playwright MCP commands when experimental feature is enabled"""
-
     async def browser_navigate_with_logging(
         url: str, wait_until: Literal["commit", "domcontentloaded", "load", "networkidle"] = "networkidle"
     ) -> dict[str, Any]:
         await manager._notify_log(
-            "MCP Server",
+            f"{get_tool_emoji()} Playwright",
             datetime.now().strftime("%H:%M:%S"),
             f"Tool 'browser_navigate' called with: {{'url': {repr(url)}, 'wait_until': {repr(wait_until)}}}",
         )
@@ -73,7 +71,7 @@ def _add_playwright_commands(mcp: FastMCP, manager: DevServerManager) -> None:
 
     async def browser_snapshot_with_logging() -> dict[str, Any]:
         await manager._notify_log(
-            "MCP Server",
+            f"{get_tool_emoji()} Playwright",
             datetime.now().strftime("%H:%M:%S"),
             "Tool 'browser_snapshot' called",
         )
@@ -85,7 +83,7 @@ def _add_playwright_commands(mcp: FastMCP, manager: DevServerManager) -> None:
 
     async def browser_console_messages_with_logging(clear: bool = False) -> dict[str, Any]:
         await manager._notify_log(
-            "MCP Server",
+            f"{get_tool_emoji()} Playwright",
             datetime.now().strftime("%H:%M:%S"),
             f"Tool 'browser_console_messages' called with: {{'clear': {clear}}}",
         )

@@ -25,6 +25,7 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 - Use Ruff to fix linting and format all files:
   - `uv run ruff check --fix path/to/file.py` -- fix all linting errors
   - `uv run ruff format path/to/file.py` -- format
+- When youre done writing code, strip ALL comments and docstrings from all the code you've generated unless its critical for understanding an especially complex piece of code.
 
 ### Testing Guidelines
 
