@@ -10,7 +10,7 @@ from devserver_mcp.manager import DevServerManager
 from devserver_mcp.mcp_server import create_mcp_server
 from devserver_mcp.types import Config
 from devserver_mcp.ui import DevServerTUI
-from devserver_mcp.utils import _cleanup_loop, configure_silent_logging, no_op_exception_handler, silence_all_output
+from devserver_mcp.utils import _cleanup_loop, configure_silent_logging, silence_all_output
 
 __version__ = "0.1.0"
 
@@ -49,39 +49,64 @@ class DevServerMCP:
 
     async def _run_headless(self):
         with silence_all_output():
-            self._mcp_task = asyncio.create_task(
-                self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
-            )
-
-            # Start configured servers and Playwright in headless mode
-            await self.manager.autostart_configured_servers()
-
             try:
+                self._mcp_task = asyncio.create_task(
+                    self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
+                )
+
+                # Give the MCP server a moment to start and check for immediate failures
+                await asyncio.sleep(0.1)
+                if self._mcp_task.done():
+                    # If the task completed immediately, it likely failed
+                    await self._mcp_task  # This will raise the exception
+
+                # Start configured servers and Playwright in headless mode
+                await self.manager.autostart_configured_servers()
+
                 # Keep the MCP server running
                 await self._mcp_task
             except (SystemExit, KeyboardInterrupt, asyncio.CancelledError):
                 pass
+            except OSError as e:
+                if e.errno == 48:  # Address already in use
+                    # Re-raise the port conflict error so it can be caught by main()
+                    raise
+                # Other network errors
+                raise
             except Exception:
                 pass
             finally:
                 await self._cleanup()
 
     async def _run_with_tui(self):
-        self._mcp_task = asyncio.create_task(
-            self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
-        )
-
-        mcp_url = f"http://localhost:{self.port}/mcp/"
-        app = DevServerTUI(self.manager, mcp_url)
-
         try:
-            await app.run_async()
-        except (SystemExit, KeyboardInterrupt, asyncio.CancelledError):
-            pass
-        except Exception:
-            pass
-        finally:
-            await self._cleanup()
+            self._mcp_task = asyncio.create_task(
+                self.mcp.run_async(transport="streamable-http", port=self.port, host="localhost")
+            )
+
+            # Give the MCP server a moment to start and check for immediate failures
+            await asyncio.sleep(0.1)
+            if self._mcp_task.done():
+                # If the task completed immediately, it likely failed
+                await self._mcp_task  # This will raise the exception
+
+            mcp_url = f"http://localhost:{self.port}/mcp/"
+            app = DevServerTUI(self.manager, mcp_url)
+
+            try:
+                await app.run_async()
+            except (SystemExit, KeyboardInterrupt, asyncio.CancelledError):
+                pass
+            except Exception:
+                pass
+            finally:
+                await self._cleanup()
+        except OSError as e:
+            if e.errno == 48:  # Address already in use
+                # Re-raise the port conflict error so it can be caught by main()
+                raise
+            # Other network errors
+            raise
 
     async def _cleanup(self):
         with silence_all_output():
@@ -114,13 +139,24 @@ def main(config, port):
         sys.exit(1)
 
     loop = asyncio.new_event_loop()
-    loop.set_exception_handler(no_op_exception_handler)
     asyncio.set_event_loop(loop)
 
     try:
         loop.run_until_complete(mcp_server.run())
     except KeyboardInterrupt:
         pass
+    except OSError as e:
+        if e.errno == 48:  # Address already in use
+            click.echo(f"Error: Port {port} is already in use.", err=True)
+            click.echo(
+                f"Please try a different port with --port option or stop the process using port {port}.", err=True
+            )
+        else:
+            click.echo(f"Network error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Unexpected error: {e}", err=True)
+        sys.exit(1)
     finally:
         _cleanup_loop(loop)
 
