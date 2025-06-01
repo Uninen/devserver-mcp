@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev --locked
 
+      - name: Ensure browsers are installed
+        run: uv run playwright install --with-deps
+
       - name: Test
         run: uv run pytest
 
