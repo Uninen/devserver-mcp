@@ -181,17 +181,25 @@ class DevServerManager:
             try:
                 await self._playwright_operator.initialize()
                 await self._notify_log("Playwright", "", "Browser started successfully")
+                # Notify UI that status has changed
+                self._notify_status_change()
             except Exception as e:
                 log_error_to_file(e, "Playwright autostart")
                 await self._notify_log("Playwright", "", f"Failed to start browser: {e}")
+                # Notify UI even when failed, so error state is reflected
+                self._notify_status_change()
 
     async def _shutdown_playwright(self):
         """Shutdown Playwright if running"""
         if self._playwright_operator:
             try:
                 await self._playwright_operator.close()
+                # Notify UI that Playwright has stopped
+                self._notify_status_change()
             except Exception as e:
                 log_error_to_file(e, "Playwright shutdown")
+                # Notify UI even when shutdown fails
+                self._notify_status_change()
 
     @property
     def playwright_enabled(self) -> bool:

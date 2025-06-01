@@ -321,3 +321,64 @@ async def test_playwright_mcp_commands_real_execution():
         
         # Cleanup
         await manager.shutdown_all()
+
+
+@pytest.mark.asyncio
+async def test_playwright_ui_status_synchronization():
+    """Test that TUI status matches actual Playwright state after autostart"""
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+    
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+        
+        config = load_config(f.name)
+        
+        # Mock the PlaywrightOperator to simulate successful initialization
+        with patch('devserver_mcp.playwright.PlaywrightOperator') as mock_playwright:
+            mock_instance = MagicMock()
+            mock_instance.is_initialized = False  # Initially not initialized
+            mock_playwright.return_value = mock_instance
+            
+            manager = DevServerManager(config)
+            
+            # Initially Playwright should be enabled but not running
+            assert manager.playwright_enabled
+            assert not manager.playwright_running
+            
+            # Mock successful initialization
+            async def mock_initialize():
+                mock_instance.is_initialized = True
+            
+            mock_instance.initialize = AsyncMock(side_effect=mock_initialize)
+            
+            # Track UI status change notifications
+            status_change_called = []
+            original_notify = manager._notify_status_change
+            def track_status_change():
+                status_change_called.append(True)
+                original_notify()
+            manager._notify_status_change = track_status_change
+            
+            # After autostart, Playwright should initialize successfully
+            await manager.autostart_configured_servers()
+            
+            # Verify Playwright initialized
+            assert mock_instance.initialize.called
+            assert manager._playwright_operator.is_initialized
+            assert manager.playwright_running
+            
+            # The bug: UI status change should be called after successful initialization
+            # This test will fail because _notify_status_change() is not called in _autostart_playwright()
+            assert len(status_change_called) > 0, "UI status change not triggered after Playwright startup - TUI will show STOPPED despite successful start"
+            
+            # Cleanup
+            await manager.shutdown_all()
