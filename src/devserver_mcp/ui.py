@@ -80,22 +80,29 @@ class ToolBox(Static):
         self.manager = manager
 
     def compose(self) -> ComposeResult:
-        yield Label(f"[b]{self.tool_name}[/b]", id="tool-name")
-        yield Label(self._format_status(), id="tool-status")
+        yield Label(self._format_tool_with_status(), id="tool-display")
 
-    def _format_status(self) -> str:
+    def _get_tool_emoji(self) -> str:
+        return "🔧"
+
+    def _format_status_indicator(self) -> str:
         if self.status == "running":
-            return "[#00ff80]● Running[/#00ff80]"
+            return "[#00ff80]●[/#00ff80]"
         elif self.status == "error":
-            return "[#ff0040]● Error[/#ff0040]"
+            return "[#ff0040]●[/#ff0040]"
         else:
-            return "[#8000ff]● Stopped[/#8000ff]"
+            return "[#8000ff]●[/#8000ff]"
+
+    def _format_tool_with_status(self) -> str:
+        emoji = self._get_tool_emoji()
+        status_indicator = self._format_status_indicator()
+        return f"{emoji} [b]{self.tool_name}[/b] {status_indicator}"
 
     def update_status(self, new_status: str):
         self.status = new_status
         try:
-            status_label = self.query_one("#tool-status", Label)
-            status_label.update(self._format_status())
+            tool_label = self.query_one("#tool-display", Label)
+            tool_label.update(self._format_tool_with_status())
         except Exception:
             pass
 
@@ -252,13 +259,9 @@ class DevServerTUI(App):
         color: #00ffff;
     }
     
-    #tool-name {
+    #tool-display {
         color: #ff8000;
         text-style: bold;
-    }
-    
-    #tool-status {
-        color: #00ffff;
     }
     """
 

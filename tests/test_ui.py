@@ -4,7 +4,7 @@ import pytest
 
 from devserver_mcp.manager import DevServerManager
 from devserver_mcp.types import Config, ServerConfig
-from devserver_mcp.ui import DevServerTUI, LogsWidget, ServerBox
+from devserver_mcp.ui import DevServerTUI, LogsWidget, ServerBox, ToolBox
 
 
 @pytest.fixture
@@ -157,3 +157,98 @@ async def test_dev_server_app_quit_action(manager):
 
     app.exit.assert_called_once_with(0)
     manager.shutdown_all.assert_called_once()
+
+
+async def test_tool_box_formatting_with_emoji():
+    manager = MagicMock()
+
+    tool_box = ToolBox("Playwright", "running", manager)
+    result = tool_box._format_tool_with_status()
+
+    assert "🔧" in result
+    assert "[b]Playwright[/b]" in result
+    assert "[#00ff80]●[/#00ff80]" in result
+
+    tool_box_stopped = ToolBox("Playwright", "stopped", manager)
+    result_stopped = tool_box_stopped._format_tool_with_status()
+
+    assert "🔧" in result_stopped
+    assert "[#8000ff]●[/#8000ff]" in result_stopped
+
+    tool_box_error = ToolBox("Playwright", "error", manager)
+    result_error = tool_box_error._format_tool_with_status()
+
+    assert "🔧" in result_error
+    assert "[#ff0040]●[/#ff0040]" in result_error
+
+
+async def test_tool_box_emoji_mapping():
+    manager = MagicMock()
+
+    playwright_box = ToolBox("Playwright", "running", manager)
+    assert playwright_box._get_tool_emoji() == "🔧"
+
+    other_box = ToolBox("SomeTool", "running", manager)
+    assert other_box._get_tool_emoji() == "🔧"
+
+
+async def test_tool_box_status_indicators():
+    manager = MagicMock()
+    tool_box = ToolBox("Playwright", "running", manager)
+
+    tool_box.status = "running"
+    assert tool_box._format_status_indicator() == "[#00ff80]●[/#00ff80]"
+
+    tool_box.status = "error"
+    assert tool_box._format_status_indicator() == "[#ff0040]●[/#ff0040]"
+
+    tool_box.status = "stopped"
+    assert tool_box._format_status_indicator() == "[#8000ff]●[/#8000ff]"
+
+
+async def test_tool_box_update_status():
+    manager = MagicMock()
+    tool_box = ToolBox("Playwright", "stopped", manager)
+
+    mock_label = MagicMock()
+    tool_box.query_one = MagicMock(return_value=mock_label)
+
+    tool_box.update_status("running")
+
+    assert tool_box.status == "running"
+
+    mock_label.update.assert_called_once()
+    updated_text = mock_label.update.call_args[0][0]
+    assert "🔧" in updated_text
+    assert "[#00ff80]●[/#00ff80]" in updated_text
+
+
+async def test_tool_box_compose():
+    manager = MagicMock()
+    tool_box = ToolBox("Playwright", "running", manager)
+
+    compose_result = list(tool_box.compose())
+
+    assert len(compose_result) == 1
+    label = compose_result[0]
+    assert hasattr(label, "id")
+    assert label.id == "tool-display"
+
+
+async def test_tool_box_visual_distinction_from_server_box():
+    manager = MagicMock()
+
+    tool_box = ToolBox("Playwright", "running", manager)
+    tool_format = tool_box._format_tool_with_status()
+
+    server = {"name": "test-server", "status": "running", "external_running": False}
+    server_box = ServerBox(server, manager)
+    server_format = server_box._format_status(server)
+
+    assert "🔧" in tool_format
+    assert "🔧" not in server_format
+
+    assert "[b]Playwright[/b]" in tool_format and "●" in tool_format
+
+    assert "Running" in server_format
+    assert "Running" not in tool_format
