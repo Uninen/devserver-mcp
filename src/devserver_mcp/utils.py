@@ -3,6 +3,8 @@ import contextlib
 import logging
 import os
 import sys
+from datetime import datetime
+from pathlib import Path
 
 
 @contextlib.contextmanager
@@ -60,3 +62,40 @@ def _cleanup_loop(loop):
             loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
 
         loop.close()
+
+
+def log_error_to_file(error: Exception, context: str = ""):
+    """Log errors to mcp-errors.log in the current working directory with detailed debug information"""
+    try:
+        import traceback
+        import os
+        
+        log_file = Path.cwd() / "mcp-errors.log"
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Get detailed traceback
+        tb_lines = traceback.format_exception(type(error), error, error.__traceback__)
+        traceback_str = "".join(tb_lines)
+        
+        # Get environment info
+        env_info = {
+            "python_version": os.sys.version,
+            "platform": os.sys.platform,
+            "cwd": str(Path.cwd()),
+            "context": context,
+        }
+
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"\n{'='*80}\n")
+            f.write(f"[{timestamp}] ERROR in context: {context}\n")
+            f.write(f"Error Type: {type(error).__name__}\n")
+            f.write(f"Error Message: {error}\n")
+            f.write(f"Environment Info:\n")
+            for key, value in env_info.items():
+                f.write(f"  {key}: {value}\n")
+            f.write(f"\nFull Traceback:\n{traceback_str}")
+            f.write(f"{'='*80}\n\n")
+    except Exception:
+        # If we can't write to the log file, silently continue
+        # to avoid breaking the main application
+        pass

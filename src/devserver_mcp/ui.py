@@ -72,6 +72,34 @@ class ServerBox(Static):
             pass
 
 
+class ToolBox(Static):
+    def __init__(self, tool_name: str, status: str, manager: DevServerManager):
+        super().__init__(classes="tool-box")
+        self.tool_name = tool_name
+        self.status = status
+        self.manager = manager
+
+    def compose(self) -> ComposeResult:
+        yield Label(f"[b]{self.tool_name}[/b]", id="tool-name")
+        yield Label(self._format_status(), id="tool-status")
+
+    def _format_status(self) -> str:
+        if self.status == "running":
+            return "[#00ff80]● Running[/#00ff80]"
+        elif self.status == "error":
+            return "[#ff0040]● Error[/#ff0040]"
+        else:
+            return "[#8000ff]● Stopped[/#8000ff]"
+
+    def update_status(self, new_status: str):
+        self.status = new_status
+        try:
+            status_label = self.query_one("#tool-status", Label)
+            status_label.update(self._format_status())
+        except Exception:
+            pass
+
+
 class ServerStatusWidget(Widget):
     def __init__(self, manager: DevServerManager):
         super().__init__()
@@ -83,6 +111,11 @@ class ServerStatusWidget(Widget):
         for server in servers:
             yield ServerBox(server, self.manager)
 
+        # Add Playwright tool box if enabled
+        if self.manager.playwright_enabled:
+            status = "running" if self.manager.playwright_running else "stopped"
+            yield ToolBox("Playwright", status, self.manager)
+
     def refresh_boxes(self):
         updated_servers_data = self.manager.get_all_servers()
         server_data_map = {s_data["name"]: s_data for s_data in updated_servers_data}
@@ -92,6 +125,12 @@ class ServerStatusWidget(Widget):
             if current_server_name in server_data_map:
                 server_box.server = server_data_map[current_server_name]
                 server_box._refresh_labels()
+
+        # Update Playwright tool box status
+        for tool_box in self.query(ToolBox):
+            if tool_box.tool_name == "Playwright":
+                new_status = "running" if self.manager.playwright_running else "stopped"
+                tool_box.update_status(new_status)
 
         self.refresh()
 
@@ -169,6 +208,14 @@ class DevServerTUI(App):
         border: round #DF7BFF;
     }
 
+    .tool-box {
+        margin-bottom: 0;
+        padding: 0 1;
+        color: #00ffff;
+        background: transparent;
+        border: round #333;
+    }
+
     #bottom-bar {
         color: #ff0080;
         height: 2;
@@ -204,6 +251,15 @@ class DevServerTUI(App):
     #server-status {
         color: #00ffff;
     }
+    
+    #tool-name {
+        color: #ff8000;
+        text-style: bold;
+    }
+    
+    #tool-status {
+        color: #00ffff;
+    }
     """
 
     BINDINGS = [
@@ -222,7 +278,10 @@ class DevServerTUI(App):
     def compose(self) -> ComposeResult:
         with Horizontal(id="main-split"):
             servers_panel = Vertical(id="servers-panel", classes="panel")
-            servers_panel.border_title = "Dev Servers"
+            if self.manager.playwright_enabled:
+                servers_panel.border_title = "Dev Servers & Tools"
+            else:
+                servers_panel.border_title = "Dev Servers"
             with servers_panel:
                 yield ServerStatusWidget(self.manager)
 
