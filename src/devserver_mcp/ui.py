@@ -307,7 +307,7 @@ class DevServerTUI(App):
         await self.manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
-            f"MCP Server started at {self.mcp_url} (streamable-http transport)",
+            f"MCP Server started at {self.mcp_url} ({self.transport} transport)",
         )
 
         await self.manager.autostart_configured_servers()

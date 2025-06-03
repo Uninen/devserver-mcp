@@ -13,7 +13,7 @@ from devserver_mcp.types import Config
 from devserver_mcp.ui import DevServerTUI
 from devserver_mcp.utils import _cleanup_loop, configure_silent_logging, no_op_exception_handler, silence_all_output
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 
 class DevServerMCP:
@@ -56,7 +56,11 @@ class DevServerMCP:
 
     async def _run_with_tui(self):
         self._mcp_task = asyncio.create_task(
-            self.mcp.run_async(transport=self.transport, port=self.port, host="localhost")
+            self.mcp.run_async(
+                transport=self.transport,  # type: ignore
+                port=self.port,
+                host="localhost",
+            )
         )
 
         if self.transport == "sse":
