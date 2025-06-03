@@ -25,7 +25,7 @@ The tests validate some of the functionality and the server is already useful if
 uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.2.0
 ```
 
-## Configuration
+## Quick Start
 
 Create a `devservers.yml` file in your project root:
 
@@ -51,10 +51,13 @@ experimental:
   playwright: true
 ```
 
-Add MCP configuration for your editor:
+## Configuration
+
+### VSCode (Roo Cline)
+
+Add to `.vscode/mcp.json`:
 
 ```json
-// .vscode/mcp.json
 {
   "servers": {
     "devserver": {
@@ -63,6 +66,14 @@ Add MCP configuration for your editor:
     }
   }
 }
+```
+
+### Claude Code
+
+Install the server (as SSE because Claude Code doesn't yet support streamable http 🤦‍♂️):
+
+```bash
+claude mcp add --transport sse devserver http://localhost:3001/sse/
 ```
 
 ## Usage

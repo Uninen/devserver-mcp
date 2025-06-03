@@ -1,5 +1,7 @@
 # AI Generated Changes
 
+- 2025-06-04: Fixed hardcoded "streamable-http transport" log message to correctly display actual transport type (SSE or streamable-http). (claude-opus-4-20250514)
+- 2025-06-04: Improved README with separate Configuration section including VSCode and Claude Code examples with SSE transport option. (claude-opus-4-20250514)
 - 2025-06-03: Added --sse flag to enable SSE transport for backwards compatibility with legacy MCP clients. (claude-opus-4-20250514)
 - 2025-06-01: Fixed Playwright logging in TUI to include proper timestamps and formatting like other server logs. (claude-sonnet-4-20250514)
 - 2025-06-01: Fixed Pylance errors in log_error_to_file function (incorrect os.sys usage) and added comprehensive tests for utils module functionality. (claude-3-5-sonnet-20241022)
