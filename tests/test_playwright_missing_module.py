@@ -9,7 +9,6 @@ from devserver_mcp.manager import DevServerManager
 
 
 def test_playwright_import_error_when_module_not_installed():
-    """Test that Playwright initialization handles missing module gracefully"""
     config_data = {
         "servers": {
             "test": {
@@ -43,7 +42,6 @@ def test_playwright_import_error_when_module_not_installed():
 
 @pytest.mark.asyncio
 async def test_playwright_commands_error_when_module_not_installed():
-    """Test that Playwright commands return proper error when module is not installed"""
     config_data = {
         "servers": {
             "test": {
@@ -84,7 +82,6 @@ async def test_playwright_commands_error_when_module_not_installed():
 
 @pytest.mark.asyncio
 async def test_ui_shows_error_state_when_playwright_module_missing():
-    """Test that UI shows error state when Playwright module is missing"""
     config_data = {
         "servers": {
             "test": {
