@@ -185,7 +185,6 @@ class DevServerManager:
     async def _autostart_playwright(self):
         if self._playwright_config_enabled:
             if self._playwright_init_error:
-                # Notify UI about initialization error
                 await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Failed to initialize: {self._playwright_init_error}")
                 self._notify_status_change()
             elif self._playwright_operator and not self._playwright_operator.is_initialized:
@@ -203,11 +202,9 @@ class DevServerManager:
         if self._playwright_operator:
             try:
                 await self._playwright_operator.close()
-                # Notify UI that Playwright has stopped
                 self._notify_status_change()
             except Exception as e:
                 log_error_to_file(e, "Playwright shutdown")
-                # Notify UI even when shutdown fails
                 self._notify_status_change()
 
     @property
