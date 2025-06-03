@@ -25,6 +25,18 @@ The tests validate some of the functionality and the server is already useful if
 uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.2.0
 ```
 
+### Playwright (Optional)
+
+If you want to use the experimental Playwright browser automation features, you must install Playwright manually:
+
+```bash
+# Install Playwright
+uv add playwright
+
+# Install browser drivers
+playwright install
+```
+
 ## Quick Start
 
 Create a `devservers.yml` file in your project root:
