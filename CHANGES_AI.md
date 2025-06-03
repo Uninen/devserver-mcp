@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-03: Added --sse flag to enable SSE transport for backwards compatibility with legacy MCP clients. (claude-opus-4-20250514)
 - 2025-06-01: Fixed Playwright logging in TUI to include proper timestamps and formatting like other server logs. (claude-sonnet-4-20250514)
 - 2025-06-01: Fixed Pylance errors in log_error_to_file function (incorrect os.sys usage) and added comprehensive tests for utils module functionality. (claude-3-5-sonnet-20241022)
 - 2025-06-01: Unified tool emoji usage across codebase with centralized get_tool_emoji() function, improved Playwright logging format and consistency. (claude-3-5-sonnet-20241022)

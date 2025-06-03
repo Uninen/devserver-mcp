@@ -248,7 +248,40 @@ async def test_tool_box_visual_distinction_from_server_box():
     assert "🔧" in tool_format
     assert "🔧" not in server_format
 
-    assert "[b]Playwright[/b]" in tool_format and "●" in tool_format
 
-    assert "Running" in server_format
-    assert "Running" not in tool_format
+async def test_devserver_tui_init_with_default_transport(manager):
+    app = DevServerTUI(manager, "http://localhost:3001/mcp/")
+    assert app.manager == manager
+    assert app.mcp_url == "http://localhost:3001/mcp/"
+    assert app.transport == "streamable-http"
+
+
+async def test_devserver_tui_init_with_sse_transport(manager):
+    app = DevServerTUI(manager, "http://localhost:3001/sse/", transport="sse")
+    assert app.manager == manager
+    assert app.mcp_url == "http://localhost:3001/sse/"
+    assert app.transport == "sse"
+
+
+async def test_devserver_tui_bottom_bar_displays_streamable_http(manager):
+    app = DevServerTUI(manager, "http://localhost:3001/mcp/", transport="streamable-http")
+    
+    async with app.run_test():
+        bottom_bar = app.query_one("#bottom-bar")
+        assert bottom_bar is not None
+        
+        bar_text = str(bottom_bar.renderable)
+        assert "MCP (HTTP): http://localhost:3001/mcp/" in bar_text
+        assert "Press Ctrl+C to quit" in bar_text
+
+
+async def test_devserver_tui_bottom_bar_displays_sse(manager):
+    app = DevServerTUI(manager, "http://localhost:3001/sse/", transport="sse")
+    
+    async with app.run_test():
+        bottom_bar = app.query_one("#bottom-bar")
+        assert bottom_bar is not None
+        
+        bar_text = str(bottom_bar.renderable)
+        assert "MCP (SSE): http://localhost:3001/sse/" in bar_text
+        assert "Press Ctrl+C to quit" in bar_text

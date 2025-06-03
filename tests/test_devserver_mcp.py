@@ -42,6 +42,7 @@ def test_init_with_config(simple_config):
 
         assert server.config == simple_config
         assert server.port == 8080
+        assert server.transport == "streamable-http"
         mock_manager_cls.assert_called_once_with(simple_config)
         mock_create_mcp.assert_called_once_with(mock_manager_cls.return_value)
 
@@ -61,6 +62,23 @@ def test_init_with_config_path():
 
         assert server.config == mock_config
         mock_load_config.assert_called_once_with("/path/to/config.yml")
+
+
+def test_init_with_sse_transport(simple_config):
+    with (
+        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
+        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
+    ):
+        mock_manager_cls.return_value = MagicMock()
+        mock_create_mcp.return_value = MagicMock()
+
+        server = DevServerMCP(config=simple_config, port=8080, transport="sse")
+
+        assert server.config == simple_config
+        assert server.port == 8080
+        assert server.transport == "sse"
+        mock_manager_cls.assert_called_once_with(simple_config)
+        mock_create_mcp.assert_called_once_with(mock_manager_cls.return_value)
 
 
 def test_init_with_neither_config_nor_path():
@@ -188,7 +206,36 @@ async def test_run_with_tui_success(simple_config):
             await server._run_with_tui()
 
             mock_mcp.run_async.assert_called_once_with(transport="streamable-http", port=8080, host="localhost")
-            mock_tui_cls.assert_called_once_with(mock_manager, "http://localhost:8080/mcp/")
+            mock_tui_cls.assert_called_once_with(mock_manager, "http://localhost:8080/mcp/", transport="streamable-http")
+            mock_tui.run_async.assert_called_once()
+            mock_cleanup.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_run_with_tui_sse_transport(simple_config):
+    with (
+        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
+        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
+        patch("devserver_mcp.DevServerTUI") as mock_tui_cls,
+    ):
+        mock_manager = MagicMock()
+        mock_manager_cls.return_value = mock_manager
+
+        mock_mcp = MagicMock()
+        mock_mcp.run_async = AsyncMock()
+        mock_create_mcp.return_value = mock_mcp
+
+        mock_tui = MagicMock()
+        mock_tui.run_async = AsyncMock()
+        mock_tui_cls.return_value = mock_tui
+
+        server = DevServerMCP(config=simple_config, port=8080, transport="sse")
+
+        with patch.object(server, "_cleanup") as mock_cleanup:
+            await server._run_with_tui()
+
+            mock_mcp.run_async.assert_called_once_with(transport="sse", port=8080, host="localhost")
+            mock_tui_cls.assert_called_once_with(mock_manager, "http://localhost:8080/sse/", transport="sse")
             mock_tui.run_async.assert_called_once()
             mock_cleanup.assert_called_once()
 

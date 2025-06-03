@@ -277,10 +277,11 @@ class DevServerTUI(App):
         await self.manager.shutdown_all()
         self.exit(0)
 
-    def __init__(self, manager: DevServerManager, mcp_url: str):
+    def __init__(self, manager: DevServerManager, mcp_url: str, transport: str = "streamable-http"):
         super().__init__()
         self.manager = manager
         self.mcp_url = mcp_url
+        self.transport = transport
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="main-split"):
@@ -296,7 +297,8 @@ class DevServerTUI(App):
             logs_panel.border_title = "Server Logs"
             with logs_panel:
                 yield LogsWidget(self.manager)
-        yield Static(f"MCP: {self.mcp_url} | Press Ctrl+C to quit", id="bottom-bar")
+        transport_display = "SSE" if self.transport == "sse" else "HTTP"
+        yield Static(f"MCP ({transport_display}): {self.mcp_url} | Press Ctrl+C to quit", id="bottom-bar")
 
     async def on_mount(self):
         self.title = "DevServer MCP"
