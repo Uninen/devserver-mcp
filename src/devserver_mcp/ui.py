@@ -119,9 +119,13 @@ class ServerStatusWidget(Widget):
         for server in servers:
             yield ServerBox(server, self.manager)
 
-        # Add Playwright tool box if enabled
         if self.manager.playwright_enabled:
-            status = "running" if self.manager.playwright_running else "stopped"
+            if self.manager._playwright_init_error:
+                status = "error"
+            elif self.manager.playwright_running:
+                status = "running"
+            else:
+                status = "stopped"
             yield ToolBox("Playwright", status, self.manager)
 
     def refresh_boxes(self):
@@ -134,10 +138,14 @@ class ServerStatusWidget(Widget):
                 server_box.server = server_data_map[current_server_name]
                 server_box._refresh_labels()
 
-        # Update Playwright tool box status
         for tool_box in self.query(ToolBox):
             if tool_box.tool_name == "Playwright":
-                new_status = "running" if self.manager.playwright_running else "stopped"
+                if self.manager._playwright_init_error:
+                    new_status = "error"
+                elif self.manager.playwright_running:
+                    new_status = "running"
+                else:
+                    new_status = "stopped"
                 tool_box.update_status(new_status)
 
         self.refresh()

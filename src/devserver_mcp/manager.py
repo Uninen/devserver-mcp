@@ -18,6 +18,8 @@ class DevServerManager:
         self._log_callbacks: list[LogCallback] = []
         self._status_callbacks: list = []
         self._playwright_operator = None
+        self._playwright_config_enabled = config.experimental and config.experimental.playwright
+        self._playwright_init_error = None
         self._assign_colors()
         self._init_playwright_if_enabled()
 
@@ -166,26 +168,35 @@ class DevServerManager:
                 return True
 
     def _init_playwright_if_enabled(self):
-        """Initialize Playwright operator if experimental feature is enabled"""
-        if self.config.experimental and self.config.experimental.playwright:
+        if self._playwright_config_enabled:
             try:
                 from devserver_mcp.playwright import PlaywrightOperator
 
                 self._playwright_operator = PlaywrightOperator(headless=True)
+            except ModuleNotFoundError as e:
+                self._playwright_init_error = "Playwright module not installed. Please run: pip install playwright && playwright install"
+                log_error_to_file(e, "Playwright initialization")
+                self._playwright_operator = None
             except Exception as e:
+                self._playwright_init_error = f"Failed to initialize Playwright: {str(e)}"
                 log_error_to_file(e, "Playwright initialization")
                 self._playwright_operator = None
 
     async def _autostart_playwright(self):
-        if self._playwright_operator and not self._playwright_operator.is_initialized:
-            try:
-                await self._playwright_operator.initialize()
-                await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), "Browser started successfully")
+        if self._playwright_config_enabled:
+            if self._playwright_init_error:
+                # Notify UI about initialization error
+                await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Failed to initialize: {self._playwright_init_error}")
                 self._notify_status_change()
-            except Exception as e:
-                log_error_to_file(e, "Playwright autostart")
-                await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Failed to start browser: {e}")
-                self._notify_status_change()
+            elif self._playwright_operator and not self._playwright_operator.is_initialized:
+                try:
+                    await self._playwright_operator.initialize()
+                    await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), "Browser started successfully")
+                    self._notify_status_change()
+                except Exception as e:
+                    log_error_to_file(e, "Playwright autostart")
+                    await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Failed to start browser: {e}")
+                    self._notify_status_change()
 
     async def _shutdown_playwright(self):
         """Shutdown Playwright if running"""
@@ -201,12 +212,10 @@ class DevServerManager:
 
     @property
     def playwright_enabled(self) -> bool:
-        """Check if Playwright is enabled and available"""
-        return self._playwright_operator is not None
+        return self._playwright_config_enabled
 
     @property
     def playwright_running(self) -> bool:
-        """Check if Playwright is running"""
         return self._playwright_operator is not None and self._playwright_operator.is_initialized
 
     async def playwright_navigate(
