@@ -57,7 +57,3 @@ After completing any action resulting in changes to the codebase, update the AI 
 - Format: `- YYYY-MM-DD: Brief explanation of the completed changes. ([your-specific-model-name-or-id])`
 - Example 1: `- 2025-05-23: Added GET /user/ endpoint. (gpt-4.1)`
 - Example 2: `- 2025-05-23: Added GET and POST /user/ endpoints. (gpt-4.1, Claude Sonnet 4)`
-
-## Finally
-
-To acknowledge that you have read and understood these instructions, always start your first message to the user with "I have read and understood the Claude Instructions and will follow them to the letter."
