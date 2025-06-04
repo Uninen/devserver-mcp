@@ -14,18 +14,18 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 - Tests:
   - In `tests/`
   - Run with: `uv run pytest`
+- Use Ruff for linting and formatting:
+  - `uv run ruff check --fix path/to/file.py` -- fix all fixable linting errors
+  - `uv run ruff format path/to/file.py` -- format
 - Test the server implementation using the test app (see details below): `uv run devservers`
 
 ## Coding Guidelines
 
-- **NO trivial comments**
+- Do not add any comments or doctsrings unless asked to
 - Python 3.13+, type hints, PEP 8
 - Follow OWASP security practices
 - Handle errors explicitly
-- Use Ruff for linting and formatting:
-  - `uv run ruff check --fix path/to/file.py` -- fix all fixable linting errors
-  - `uv run ruff format path/to/file.py` -- format
-- When you're done writing code, strip all comments and docstrings from the generated code, unless they're critical for understanding an especially complex piece
+- Make sure to lint and format all the code you write using Ruff
 
 ### Testing Guidelines
 

@@ -173,10 +173,6 @@ class DevServerManager:
                 from devserver_mcp.playwright import PlaywrightOperator
 
                 self._playwright_operator = PlaywrightOperator(headless=True)
-            except ModuleNotFoundError as e:
-                self._playwright_init_error = "Playwright module not installed. Please run: pip install playwright && playwright install"
-                log_error_to_file(e, "Playwright initialization")
-                self._playwright_operator = None
             except Exception as e:
                 self._playwright_init_error = f"Failed to initialize Playwright: {str(e)}"
                 log_error_to_file(e, "Playwright initialization")
@@ -185,20 +181,31 @@ class DevServerManager:
     async def _autostart_playwright(self):
         if self._playwright_config_enabled:
             if self._playwright_init_error:
-                await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Failed to initialize: {self._playwright_init_error}")
+                await self._notify_log(
+                    f"{get_tool_emoji()} Playwright",
+                    datetime.now().strftime("%H:%M:%S"),
+                    f"Failed to initialize: {self._playwright_init_error}",
+                )
                 self._notify_status_change()
             elif self._playwright_operator and not self._playwright_operator.is_initialized:
                 try:
                     await self._playwright_operator.initialize()
-                    await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), "Browser started successfully")
+                    await self._notify_log(
+                        f"{get_tool_emoji()} Playwright",
+                        datetime.now().strftime("%H:%M:%S"),
+                        "Browser started successfully",
+                    )
                     self._notify_status_change()
                 except Exception as e:
                     log_error_to_file(e, "Playwright autostart")
-                    await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Failed to start browser: {e}")
+                    await self._notify_log(
+                        f"{get_tool_emoji()} Playwright",
+                        datetime.now().strftime("%H:%M:%S"),
+                        f"Failed to start browser: {e}",
+                    )
                     self._notify_status_change()
 
     async def _shutdown_playwright(self):
-        """Shutdown Playwright if running"""
         if self._playwright_operator:
             try:
                 await self._playwright_operator.close()
@@ -209,7 +216,7 @@ class DevServerManager:
 
     @property
     def playwright_enabled(self) -> bool:
-        return self._playwright_config_enabled
+        return bool(self._playwright_config_enabled)
 
     @property
     def playwright_running(self) -> bool:
@@ -223,7 +230,9 @@ class DevServerManager:
 
         try:
             result = await self._playwright_operator.navigate(url, wait_until)
-            await self._notify_log(f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Navigated to {url}")
+            await self._notify_log(
+                f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Navigated to {url}"
+            )
             return result
         except Exception as e:
             log_error_to_file(e, "playwright_navigate")
@@ -237,7 +246,9 @@ class DevServerManager:
             result = await self._playwright_operator.snapshot()
             page_url = result.get("url", "unknown page")
             await self._notify_log(
-                f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Captured accessibility snapshot of {page_url}"
+                f"{get_tool_emoji()} Playwright",
+                datetime.now().strftime("%H:%M:%S"),
+                f"Captured accessibility snapshot of {page_url}",
             )
             return result
         except Exception as e:
@@ -253,7 +264,9 @@ class DevServerManager:
             message_count = len(messages)
             clear_text = " and cleared" if clear else ""
             await self._notify_log(
-                f"{get_tool_emoji()} Playwright", datetime.now().strftime("%H:%M:%S"), f"Retrieved {message_count} console messages{clear_text}"
+                f"{get_tool_emoji()} Playwright",
+                datetime.now().strftime("%H:%M:%S"),
+                f"Retrieved {message_count} console messages{clear_text}",
             )
             return {"status": "success", "messages": messages}
         except Exception as e:

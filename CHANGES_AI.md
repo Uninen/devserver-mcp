@@ -1,6 +1,6 @@
 # AI Generated Changes
 
-- 2025-06-04: Fixed Playwright initialization error handling to gracefully handle missing module and show error state in UI. (claude-opus-4-20250514)
+- 2025-06-04: Fixed Playwright missing module crash - app now exits early with clear error message instead of showing error in UI. (claude-opus-4-20250514)
 - 2025-06-04: Fixed hardcoded "streamable-http transport" log message to correctly display actual transport type (SSE or streamable-http). (claude-opus-4-20250514)
 - 2025-06-04: Improved README with separate Configuration section including VSCode and Claude Code examples with SSE transport option. (claude-opus-4-20250514)
 - 2025-06-03: Added --sse flag to enable SSE transport for backwards compatibility with legacy MCP clients. (claude-opus-4-20250514)
