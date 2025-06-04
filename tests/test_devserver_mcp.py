@@ -38,7 +38,7 @@ def test_init_with_config(simple_config):
         mock_manager_cls.return_value = MagicMock()
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config, port=8080)
+        server = DevServerMCP(config=simple_config, port=8080, _skip_port_check=True)
 
         assert server.config == simple_config
         assert server.port == 8080
@@ -58,7 +58,7 @@ def test_init_with_config_path():
         mock_manager_cls.return_value = MagicMock()
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config_path="/path/to/config.yml")
+        server = DevServerMCP(config_path="/path/to/config.yml", _skip_port_check=True)
 
         assert server.config == mock_config
         mock_load_config.assert_called_once_with("/path/to/config.yml")
@@ -72,7 +72,7 @@ def test_init_with_sse_transport(simple_config):
         mock_manager_cls.return_value = MagicMock()
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config, port=8080, transport="sse")
+        server = DevServerMCP(config=simple_config, port=8080, transport="sse", _skip_port_check=True)
 
         assert server.config == simple_config
         assert server.port == 8080
@@ -83,7 +83,7 @@ def test_init_with_sse_transport(simple_config):
 
 def test_init_with_neither_config_nor_path():
     with pytest.raises(ValueError, match="Either config_path or config must be provided"):
-        DevServerMCP()
+        DevServerMCP(_skip_port_check=True)
 
 
 def test_init_with_both_config_and_path_prefers_config(simple_config):
@@ -95,7 +95,7 @@ def test_init_with_both_config_and_path_prefers_config(simple_config):
         mock_manager_cls.return_value = MagicMock()
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config, config_path="/ignored/path")
+        server = DevServerMCP(config=simple_config, config_path="/ignored/path", _skip_port_check=True)
 
         assert server.config == simple_config
         mock_load_config.assert_not_called()
@@ -103,7 +103,7 @@ def test_init_with_both_config_and_path_prefers_config(simple_config):
 
 def test_is_interactive_terminal_true():
     with patch("devserver_mcp.DevServerManager"), patch("devserver_mcp.create_mcp_server"):
-        server = DevServerMCP(config=Config(servers={}))
+        server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
 
         with (
             patch.object(sys.stdout, "isatty", return_value=True),
@@ -114,7 +114,7 @@ def test_is_interactive_terminal_true():
 
 def test_is_interactive_terminal_false():
     with patch("devserver_mcp.DevServerManager"), patch("devserver_mcp.create_mcp_server"):
-        server = DevServerMCP(config=Config(servers={}))
+        server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
 
         with (
             patch.object(sys.stdout, "isatty", return_value=False),
@@ -134,7 +134,7 @@ async def test_run_headless_mode(simple_config):
         mock_manager_cls.return_value = MagicMock()
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config)
+        server = DevServerMCP(config=simple_config, _skip_port_check=True)
 
         with (
             patch.object(server, "_is_interactive_terminal", return_value=False),
@@ -156,7 +156,7 @@ async def test_run_tui_mode(simple_config):
         mock_manager_cls.return_value = MagicMock()
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config)
+        server = DevServerMCP(config=simple_config, _skip_port_check=True)
 
         with (
             patch.object(server, "_is_interactive_terminal", return_value=True),
@@ -175,7 +175,7 @@ async def test_run_headless():
         patch("devserver_mcp.create_mcp_server"),
         patch("devserver_mcp.silence_all_output") as mock_silence,
     ):
-        server = DevServerMCP(config=Config(servers={}))
+        server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
 
         await server._run_headless()
 
@@ -200,13 +200,15 @@ async def test_run_with_tui_success(simple_config):
         mock_tui.run_async = AsyncMock()
         mock_tui_cls.return_value = mock_tui
 
-        server = DevServerMCP(config=simple_config, port=8080)
+        server = DevServerMCP(config=simple_config, port=8080, _skip_port_check=True)
 
         with patch.object(server, "_cleanup") as mock_cleanup:
             await server._run_with_tui()
 
             mock_mcp.run_async.assert_called_once_with(transport="streamable-http", port=8080, host="localhost")
-            mock_tui_cls.assert_called_once_with(mock_manager, "http://localhost:8080/mcp/", transport="streamable-http")
+            mock_tui_cls.assert_called_once_with(
+                mock_manager, "http://localhost:8080/mcp/", transport="streamable-http"
+            )
             mock_tui.run_async.assert_called_once()
             mock_cleanup.assert_called_once()
 
@@ -229,7 +231,7 @@ async def test_run_with_tui_sse_transport(simple_config):
         mock_tui.run_async = AsyncMock()
         mock_tui_cls.return_value = mock_tui
 
-        server = DevServerMCP(config=simple_config, port=8080, transport="sse")
+        server = DevServerMCP(config=simple_config, port=8080, transport="sse", _skip_port_check=True)
 
         with patch.object(server, "_cleanup") as mock_cleanup:
             await server._run_with_tui()
@@ -257,7 +259,7 @@ async def test_run_with_tui_keyboard_interrupt(simple_config):
         mock_tui.run_async = AsyncMock(side_effect=KeyboardInterrupt())
         mock_tui_cls.return_value = mock_tui
 
-        server = DevServerMCP(config=simple_config)
+        server = DevServerMCP(config=simple_config, _skip_port_check=True)
 
         with patch.object(server, "_cleanup") as mock_cleanup:
             await server._run_with_tui()
@@ -281,7 +283,7 @@ async def test_run_with_tui_generic_exception(simple_config):
         mock_tui.run_async = AsyncMock(side_effect=RuntimeError("Test error"))
         mock_tui_cls.return_value = mock_tui
 
-        server = DevServerMCP(config=simple_config)
+        server = DevServerMCP(config=simple_config, _skip_port_check=True)
 
         with patch.object(server, "_cleanup") as mock_cleanup:
             await server._run_with_tui()
@@ -300,7 +302,7 @@ async def test_cleanup_with_mcp_task(simple_config):
         mock_manager_cls.return_value = mock_manager
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config)
+        server = DevServerMCP(config=simple_config, _skip_port_check=True)
 
         mock_task = MagicMock()
         mock_task.done.return_value = False
@@ -327,7 +329,7 @@ async def test_cleanup_with_done_mcp_task(simple_config):
         mock_manager_cls.return_value = mock_manager
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config)
+        server = DevServerMCP(config=simple_config, _skip_port_check=True)
 
         mock_task = MagicMock()
         mock_task.done.return_value = True
@@ -351,7 +353,7 @@ async def test_cleanup_without_mcp_task(simple_config):
         mock_manager_cls.return_value = mock_manager
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config)
+        server = DevServerMCP(config=simple_config, _skip_port_check=True)
         server._mcp_task = None
 
         await server._cleanup()
@@ -371,7 +373,7 @@ async def test_cleanup_with_timeout_error(simple_config):
         mock_manager_cls.return_value = mock_manager
         mock_create_mcp.return_value = MagicMock()
 
-        server = DevServerMCP(config=simple_config)
+        server = DevServerMCP(config=simple_config, _skip_port_check=True)
 
         mock_task = MagicMock()
         mock_task.done.return_value = False

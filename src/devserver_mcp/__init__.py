@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import socket
 import sys
 from pathlib import Path
 from typing import Literal
@@ -23,14 +24,17 @@ class DevServerMCP:
         config: Config | None = None,
         port: int = 3001,
         transport: Literal["streamable-http", "sse"] = "streamable-http",
+        _skip_port_check: bool = False,
     ):
         self.config = self._load_config(config_path, config)
         self.port = port
         self.transport = transport
 
-        # Check for Playwright availability early if enabled
         if self.config.experimental and self.config.experimental.playwright:
             self._check_playwright_availability()
+
+        if not _skip_port_check:
+            self._check_port_availability()
 
         self.manager = DevServerManager(self.config)
         self.mcp = create_mcp_server(self.manager)
@@ -47,13 +51,11 @@ class DevServerMCP:
         return sys.stdout.isatty() and sys.stderr.isatty()
 
     def _check_playwright_availability(self):
-        """Check if Playwright is available when enabled in config."""
         try:
             from devserver_mcp.playwright import PlaywrightOperator
 
             available, error_msg = PlaywrightOperator.check_availability()
             if not available:
-                # Print error message and exit
                 click.echo(f"Error: {error_msg}", err=True)
                 sys.exit(1)
         except ImportError:
@@ -61,6 +63,17 @@ class DevServerMCP:
                 "Error: Playwright tool is enabled but the playwright module is not installed.\n"
                 "Please install Playwright package (uv add playwright && playwright install)",
                 err=True,
+            )
+            sys.exit(1)
+
+    def _check_port_availability(self):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(("localhost", self.port))
+        except OSError:
+            click.echo(f"Error: Port {self.port} is already in use.", err=True)
+            click.echo(
+                "Please use a different port with the --port option or stop the service using that port.", err=True
             )
             sys.exit(1)
 
