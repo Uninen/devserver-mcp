@@ -13,7 +13,7 @@ from devserver_mcp.types import Config
 from devserver_mcp.ui import DevServerTUI
 from devserver_mcp.utils import _cleanup_loop, configure_silent_logging, no_op_exception_handler, silence_all_output
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 
 class DevServerMCP:
@@ -27,6 +27,11 @@ class DevServerMCP:
         self.config = self._load_config(config_path, config)
         self.port = port
         self.transport = transport
+
+        # Check for Playwright availability early if enabled
+        if self.config.experimental and self.config.experimental.playwright:
+            self._check_playwright_availability()
+
         self.manager = DevServerManager(self.config)
         self.mcp = create_mcp_server(self.manager)
         self._mcp_task = None
@@ -40,6 +45,24 @@ class DevServerMCP:
 
     def _is_interactive_terminal(self) -> bool:
         return sys.stdout.isatty() and sys.stderr.isatty()
+
+    def _check_playwright_availability(self):
+        """Check if Playwright is available when enabled in config."""
+        try:
+            from devserver_mcp.playwright import PlaywrightOperator
+
+            available, error_msg = PlaywrightOperator.check_availability()
+            if not available:
+                # Print error message and exit
+                click.echo(f"Error: {error_msg}", err=True)
+                sys.exit(1)
+        except ImportError:
+            click.echo(
+                "Error: Playwright tool is enabled but the playwright module is not installed.\n"
+                "Please install Playwright package (uv add playwright && playwright install)",
+                err=True,
+            )
+            sys.exit(1)
 
     async def run(self):
         configure_silent_logging()

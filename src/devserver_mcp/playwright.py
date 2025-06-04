@@ -1,37 +1,29 @@
-"""
-Playwright operator for MCP server functionality.
+from typing import TYPE_CHECKING, Any, Literal
 
-This module provides a PlaywrightOperator class that manages a Playwright instance
-for use within the MCP server, handling browser operations like navigation,
-snapshots, and console message collection.
-"""
+if TYPE_CHECKING:
+    from playwright.async_api import Browser, BrowserContext, Page, Playwright
 
-import asyncio
-from typing import Any, Literal
+try:
+    from playwright.async_api import async_playwright
 
-from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+    async_playwright = None
 
 
 class PlaywrightOperator:
-    """
-    A helper class to control a Playwright instance for MCP server operations.
-
-    Manages a single browser instance and provides methods for navigation,
-    accessibility snapshots, and console message collection.
-    """
+    @classmethod
+    def check_availability(cls) -> tuple[bool, str | None]:
+        if not PLAYWRIGHT_AVAILABLE:
+            return (
+                False,
+                "Playwright module not installed. Please install Playwright \
+                    package (uv add playwright && playwright install)",
+            )
+        return True, None
 
     def __init__(self, browser_type: str = "chromium", headless: bool = True, **browser_kwargs: Any) -> None:
-        """
-        Initialize the PlaywrightOperator.
-
-        Args:
-            browser_type: Browser type to use (chromium, firefox, webkit)
-            headless: Whether to run browser in headless mode
-            **browser_kwargs: Additional arguments to pass to browser.launch()
-
-        Raises:
-            RuntimeError: If Playwright fails to start or browser fails to launch
-        """
         self.browser_type = browser_type
         self.headless = headless
         self.browser_kwargs = browser_kwargs
@@ -42,15 +34,18 @@ class PlaywrightOperator:
         self._page: Page | None = None
         self._console_messages: list[dict[str, Any]] = []
 
-        # Initialize will be called later when we're in an async context
         self._initialized = False
 
     async def _initialize(self) -> None:
-        """Initialize Playwright, browser, context, and page."""
-        try:
-            self._playwright = await async_playwright().start()
+        if not PLAYWRIGHT_AVAILABLE:
+            raise RuntimeError(
+                "Playwright module not installed. Please run: pip install \
+                    playwright && playwright install"
+            )
 
-            # Get the browser launcher based on type
+        try:
+            self._playwright = await async_playwright().start()  # type: ignore
+
             if self.browser_type == "chromium":
                 launcher = self._playwright.chromium
             elif self.browser_type == "firefox":
@@ -60,16 +55,13 @@ class PlaywrightOperator:
             else:
                 raise ValueError(f"Unsupported browser type: {self.browser_type}")
 
-            # Launch browser
             self._browser = await launcher.launch(headless=self.headless, **self.browser_kwargs)
 
-            # Create context and page
             self._context = await self._browser.new_context()
             self._page = await self._context.new_page()
 
-            # Set up console message collection
             self._page.on("console", self._handle_console_message)
-            
+
             self._initialized = True
 
         except Exception as e:
@@ -77,7 +69,6 @@ class PlaywrightOperator:
             raise RuntimeError(f"Failed to initialize Playwright: {e}") from e
 
     def _handle_console_message(self, msg: Any) -> None:
-        """Handle console messages from the page."""
         self._console_messages.append(
             {
                 "type": msg.type,
@@ -96,19 +87,6 @@ class PlaywrightOperator:
         url: str,
         wait_until: Literal["commit", "domcontentloaded", "load", "networkidle"] | None = "networkidle",
     ) -> dict[str, Any]:
-        """
-        Navigate to a URL.
-
-        Args:
-            url: The URL to navigate to
-            wait_until: When to consider navigation complete
-
-        Returns:
-            Dictionary with navigation result information
-
-        Raises:
-            RuntimeError: If navigation fails or Playwright not initialized
-        """
         if not self._page:
             raise RuntimeError("Playwright not properly initialized")
 
@@ -125,15 +103,6 @@ class PlaywrightOperator:
             raise RuntimeError(f"Navigation to {url} failed: {e}") from e
 
     async def snapshot(self) -> dict[str, Any]:
-        """
-        Capture accessibility snapshot of the current page.
-
-        Returns:
-            Dictionary containing the accessibility tree snapshot
-
-        Raises:
-            RuntimeError: If snapshot fails or Playwright not initialized
-        """
         if not self._page:
             raise RuntimeError("Playwright not properly initialized")
 
@@ -149,15 +118,6 @@ class PlaywrightOperator:
             raise RuntimeError(f"Failed to capture accessibility snapshot: {e}") from e
 
     async def get_console_messages(self, clear: bool = False) -> list[dict[str, Any]]:
-        """
-        Get console messages from the current page.
-
-        Args:
-            clear: Whether to clear the message buffer after retrieving
-
-        Returns:
-            List of console message dictionaries
-        """
         messages = self._console_messages.copy()
 
         if clear:
@@ -166,7 +126,6 @@ class PlaywrightOperator:
         return messages
 
     async def close(self) -> None:
-        """Close the Playwright instance and clean up resources."""
         try:
             if self._page:
                 await self._page.close()
@@ -185,30 +144,24 @@ class PlaywrightOperator:
                 self._playwright = None
 
         except Exception:
-            # Ignore errors during cleanup
             pass
 
     @property
     def is_initialized(self) -> bool:
-        """Check if Playwright is properly initialized."""
         return self._initialized
 
     @property
     def current_url(self) -> str | None:
-        """Get the current page URL."""
         return self._page.url if self._page else None
 
     async def initialize(self) -> None:
-        """Public method to initialize Playwright"""
         if not self._initialized:
             await self._initialize()
 
     async def __aenter__(self):
-        """Async context manager entry."""
         if not self._initialized:
             await self._initialize()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
         await self.close()
