@@ -34,7 +34,7 @@ def test_app_exits_early_when_playwright_missing():
             call_args = mock_echo.call_args[0][0]
             assert "Error:" in call_args
             assert "playwright" in call_args.lower()
-            assert "pip install playwright" in call_args
+            assert "uv add playwright" in call_args
 
             mock_exit.assert_called_with(1)
 
