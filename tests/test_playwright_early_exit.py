@@ -28,7 +28,7 @@ def test_app_exits_early_when_playwright_missing():
             patch("sys.exit") as mock_exit,
         ):
             with contextlib.suppress(SystemExit):
-                DevServerMCP(config_path=f.name, port=3001)
+                DevServerMCP(config_path=f.name, port=3001, _skip_port_check=True)
 
             mock_echo.assert_called()
             call_args = mock_echo.call_args[0][0]
@@ -67,7 +67,7 @@ def test_app_exits_on_playwright_import_error():
             patch("sys.exit") as mock_exit,
         ):
             with contextlib.suppress(SystemExit):
-                DevServerMCP(config_path=f.name, port=3001)
+                DevServerMCP(config_path=f.name, port=3001, _skip_port_check=True)
 
             mock_echo.assert_called()
             assert mock_exit.called
@@ -91,7 +91,7 @@ def test_app_starts_normally_when_playwright_disabled():
             patch("devserver_mcp.playwright.PLAYWRIGHT_AVAILABLE", False),
             patch("sys.exit") as mock_exit,
         ):
-            mcp_server = DevServerMCP(config_path=f.name, port=3001)
+            mcp_server = DevServerMCP(config_path=f.name, port=3001, _skip_port_check=True)
 
             mock_exit.assert_not_called()
 
@@ -120,7 +120,7 @@ def test_error_message_format():
             patch("sys.exit"),
         ):
             with contextlib.suppress(SystemExit):
-                DevServerMCP(config_path=f.name, port=3001)
+                DevServerMCP(config_path=f.name, port=3001, _skip_port_check=True)
 
             _, kwargs = mock_echo.call_args
             assert kwargs.get("err") is True

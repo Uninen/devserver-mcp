@@ -1,5 +1,6 @@
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import yaml
 
@@ -9,7 +10,6 @@ from devserver_mcp.mcp_server import create_mcp_server
 
 
 def test_playwright_disabled_by_default():
-    """Test that Playwright is disabled when experimental config is not set"""
     config_data = {
         "servers": {
             "test": {
@@ -31,7 +31,6 @@ def test_playwright_disabled_by_default():
 
 
 def test_playwright_enabled_with_experimental_config():
-    """Test that Playwright is enabled when experimental config is set"""
     config_data = {
         "servers": {
             "test": {
@@ -59,7 +58,6 @@ def test_playwright_enabled_with_experimental_config():
 
 
 def test_playwright_disabled_when_experimental_false():
-    """Test that Playwright is disabled when experimental.playwright is False"""
     config_data = {
         "servers": {
             "test": {
@@ -83,7 +81,6 @@ def test_playwright_disabled_when_experimental_false():
 
 @pytest.mark.asyncio
 async def test_mcp_commands_added_when_playwright_enabled():
-    """Test that MCP commands are added when Playwright is enabled"""
     config_data = {
         "servers": {
             "test": {
@@ -107,7 +104,6 @@ async def test_mcp_commands_added_when_playwright_enabled():
             manager = DevServerManager(config)
             mcp = create_mcp_server(manager)
 
-            # Check that playwright commands are in the tool registry
             tools = await mcp.get_tools()
             tool_names = list(tools.keys())
             assert "browser_navigate" in tool_names
@@ -117,7 +113,6 @@ async def test_mcp_commands_added_when_playwright_enabled():
 
 @pytest.mark.asyncio
 async def test_mcp_commands_not_added_when_playwright_disabled():
-    """Test that MCP commands are not added when Playwright is disabled"""
     config_data = {
         "servers": {
             "test": {
@@ -135,7 +130,6 @@ async def test_mcp_commands_not_added_when_playwright_disabled():
         manager = DevServerManager(config)
         mcp = create_mcp_server(manager)
 
-        # Check that playwright commands are not in the tool registry
         tools = await mcp.get_tools()
         tool_names = list(tools.keys())
         assert "browser_navigate" not in tool_names
@@ -145,7 +139,6 @@ async def test_mcp_commands_not_added_when_playwright_disabled():
 
 @pytest.mark.asyncio
 async def test_playwright_navigate_error_handling():
-    """Test error handling in playwright_navigate method"""
     config_data = {
         "servers": {
             "test": {
@@ -176,7 +169,6 @@ async def test_playwright_navigate_error_handling():
 
 @pytest.mark.asyncio
 async def test_playwright_navigate_when_disabled():
-    """Test playwright_navigate when Playwright is disabled"""
     config_data = {
         "servers": {
             "test": {
@@ -200,7 +192,6 @@ async def test_playwright_navigate_when_disabled():
 
 @pytest.mark.asyncio
 async def test_playwright_shutdown():
-    """Test Playwright shutdown during manager shutdown"""
     config_data = {
         "servers": {
             "test": {
@@ -230,7 +221,6 @@ async def test_playwright_shutdown():
 
 @pytest.mark.asyncio
 async def test_playwright_autostart_integration():
-    """Test the actual autostart functionality without mocking"""
     config_data = {
         "servers": {
             "test": {
@@ -247,41 +237,31 @@ async def test_playwright_autostart_integration():
 
         config = load_config(f.name)
 
-        # Import the real application class
         from devserver_mcp import DevServerMCP
-        
-        # This should work exactly like the real app startup
+
         try:
-            # Create the real MCP server instance (like main() does)
-            mcp_server = DevServerMCP(config=config, port=3002)  # Use different port to avoid conflicts
-            
-            # Verify Playwright is enabled in the manager
+            mcp_server = DevServerMCP(config=config, port=3002, _skip_port_check=True)
+
             assert mcp_server.manager.playwright_enabled
-            
-            # Test the real autostart method (this is what fails in the actual app)
+
             await mcp_server.manager.autostart_configured_servers()
-            
-            # Verify Playwright integration in MCP server
+
             mcp = mcp_server.mcp
             tools = await mcp.get_tools()
             tool_names = list(tools.keys())
-            
-            # These commands should be available
+
             assert "browser_navigate" in tool_names
             assert "browser_snapshot" in tool_names
             assert "browser_console_messages" in tool_names
-            
-            # Cleanup
+
             await mcp_server.manager.shutdown_all()
-            
+
         except Exception as e:
-            # If this fails, the real app will fail too
             pytest.fail(f"Real application startup failed with Playwright enabled: {e}")
 
 
 @pytest.mark.asyncio
 async def test_playwright_mcp_commands_real_execution():
-    """Test that MCP commands actually work when called (not just registered)"""
     config_data = {
         "servers": {
             "test": {
@@ -291,41 +271,33 @@ async def test_playwright_mcp_commands_real_execution():
         },
         "experimental": {"playwright": True},
     }
-    
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(config_data, f)
         f.flush()
-        
+
         config = load_config(f.name)
-        
-        # Test with real manager, no mocks
+
         manager = DevServerManager(config)
-        
-        # This should not throw exceptions when Playwright is properly initialized
+
         result = await manager.playwright_navigate("https://example.com")
-        
-        # The result should be proper error message if Playwright can't start,
-        # not a crash due to event loop issues
+
         assert "status" in result
-        assert result["status"] in ["error", "success"]  # Either is fine, but should not crash
-        
-        # Test snapshot command
+        assert result["status"] in ["error", "success"]
+
         result = await manager.playwright_snapshot()
         assert "status" in result
         assert result["status"] in ["error", "success"]
-        
-        # Test console messages
+
         result = await manager.playwright_console_messages()
         assert "status" in result
         assert result["status"] in ["error", "success"]
-        
-        # Cleanup
+
         await manager.shutdown_all()
 
 
 @pytest.mark.asyncio
 async def test_playwright_ui_status_synchronization():
-    """Test that TUI status matches actual Playwright state after autostart"""
     config_data = {
         "servers": {
             "test": {
@@ -335,50 +307,46 @@ async def test_playwright_ui_status_synchronization():
         },
         "experimental": {"playwright": True},
     }
-    
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(config_data, f)
         f.flush()
-        
+
         config = load_config(f.name)
-        
-        # Mock the PlaywrightOperator to simulate successful initialization
-        with patch('devserver_mcp.playwright.PlaywrightOperator') as mock_playwright:
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
             mock_instance = MagicMock()
             mock_instance.is_initialized = False  # Initially not initialized
             mock_playwright.return_value = mock_instance
-            
+
             manager = DevServerManager(config)
-            
-            # Initially Playwright should be enabled but not running
+
             assert manager.playwright_enabled
             assert not manager.playwright_running
-            
-            # Mock successful initialization
+
             async def mock_initialize():
                 mock_instance.is_initialized = True
-            
+
             mock_instance.initialize = AsyncMock(side_effect=mock_initialize)
-            
-            # Track UI status change notifications
+
             status_change_called = []
             original_notify = manager._notify_status_change
+
             def track_status_change():
                 status_change_called.append(True)
                 original_notify()
+
             manager._notify_status_change = track_status_change
-            
-            # After autostart, Playwright should initialize successfully
+
             await manager.autostart_configured_servers()
-            
-            # Verify Playwright initialized
+
             assert mock_instance.initialize.called
-            assert manager._playwright_operator.is_initialized
+            assert manager._playwright_operator.is_initialized  # type: ignore
             assert manager.playwright_running
-            
-            # The bug: UI status change should be called after successful initialization
-            # This test will fail because _notify_status_change() is not called in _autostart_playwright()
-            assert len(status_change_called) > 0, "UI status change not triggered after Playwright startup - TUI will show STOPPED despite successful start"
-            
-            # Cleanup
+
+            assert len(status_change_called) > 0, (
+                "UI status change not triggered after Playwright startup - "
+                "TUI will show STOPPED despite successful start"
+            )
+
             await manager.shutdown_all()
