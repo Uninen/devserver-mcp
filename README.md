@@ -65,7 +65,7 @@ experimental:
 
 ## Configuration
 
-### VSCode (Roo Cline)
+### VS Code
 
 Add to `.vscode/mcp.json`:
 
@@ -80,6 +80,8 @@ Add to `.vscode/mcp.json`:
 }
 ```
 
+Run the TUI in a separate terminal: `devservers`
+
 ### Claude Code
 
 Install the server (as SSE because Claude Code doesn't yet support streamable http 🤦‍♂️):
@@ -88,11 +90,33 @@ Install the server (as SSE because Claude Code doesn't yet support streamable ht
 claude mcp add --transport sse devserver http://localhost:3001/sse/
 ```
 
+Run the TUI in a separate terminal in SSE mode: `devservers --sse`
+
+### Zed
+
+Zed doesn't yet support remote MCP servers natively so you need to use a proxy and SSE mode.
+
+You can either use the UI in Assistant Setting -> Context Server -> Add Custom Server, and add name "Devservers" and
+command `npx -y mcp-remote http://localhost:3001/sse/ --transport sse`, or, you can add this manually to Zed config:
+
+```json
+  "context_servers": {
+    "devservers": {
+      "command": {
+        "path": "npx",
+        "args": ["-y", "mcp-remote", "http://localhost:3001/sse/", "--transport", "sse"]
+      }
+    }
+  },
+```
+
+Run the TUI in a separate terminal in SSE mode: `devservers --sse`
+
 ## Usage
 
-### Running the MCP Server
+### Running the MCP Server TUI
 
-Start the TUI:
+Start the TUI in terminal:
 
 ```bash
 devservers
