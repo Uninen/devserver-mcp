@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-08: Refactored MCP server tools to use @mcp.tool decorator pattern instead of mcp.add_tool for FastMCP compatibility. (claude-opus-4-20250514)
 - 2025-06-04: Added port conflict detection with early error message and comprehensive tests for port availability checking. (claude-sonnet-4-20250514)
 - 2025-06-04: Fixed Playwright missing module crash - app now exits early with clear error message instead of showing error in UI. (claude-opus-4-20250514)
 - 2025-06-04: Fixed hardcoded "streamable-http transport" log message to correctly display actual transport type (SSE or streamable-http). (claude-opus-4-20250514)

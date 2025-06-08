@@ -22,7 +22,7 @@ The tests validate some of the functionality and the server is already useful if
 ## Installation
 
 ```bash
-uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.3.1
+uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.3.2
 ```
 
 ### Playwright (Optional)

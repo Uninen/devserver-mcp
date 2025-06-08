@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.2 (2025-06-08)
+
+- refactor: refactored the server to be compatible w the latest FastMCP
+- chore: bumped deps
+
 ## v0.3.1 (2025-06-04)
 
 - fix: exit with error message if trying to start on a reserved port (#11)
