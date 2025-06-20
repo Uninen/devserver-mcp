@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-20: Added browser_type tool to experimental Playwright features with support for typing text, optional submit and slow typing modes. (claude-opus-4-20250514)
 - 2025-06-20: Added browser_click tool to experimental Playwright features. (claude-opus-4-20250514)
 - 2025-06-20: Fixed all failing tests to adhere to testing standards and removed implementation detail checks. (claude-opus-4-20250514)
 - 2025-06-20: Applied ruff linting and formatting to all test files and fixed import/code style issues. (claude-opus-4-20250514)

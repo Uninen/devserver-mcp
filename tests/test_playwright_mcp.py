@@ -110,6 +110,7 @@ async def test_mcp_commands_added_when_playwright_enabled():
             assert "browser_snapshot" in tool_names
             assert "browser_console_messages" in tool_names
             assert "browser_click" in tool_names
+            assert "browser_type" in tool_names
 
 
 @pytest.mark.asyncio
@@ -255,6 +256,7 @@ async def test_playwright_autostart_integration():
             assert "browser_snapshot" in tool_names
             assert "browser_console_messages" in tool_names
             assert "browser_click" in tool_names
+            assert "browser_type" in tool_names
 
             await mcp_server.manager.shutdown_all()
 

@@ -140,6 +140,28 @@ class PlaywrightOperator:
         except Exception as e:
             raise RuntimeError(f"Failed to click element {ref}: {e}") from e
 
+    async def type(self, ref: str, text: str, submit: bool = False, slowly: bool = False) -> dict[str, Any]:
+        if not self._page:
+            raise RuntimeError("Playwright not properly initialized")
+
+        try:
+            if slowly:
+                await self._page.type(ref, text)
+            else:
+                await self._page.fill(ref, text)
+
+            if submit:
+                await self._page.press(ref, "Enter")
+
+            return {
+                "status": "success",
+                "message": f"Typed text into element: {ref}",
+                "text": text,
+                "url": self._page.url,
+            }
+        except Exception as e:
+            raise RuntimeError(f"Failed to type into element {ref}: {e}") from e
+
     async def close(self) -> None:
         try:
             if self._page:

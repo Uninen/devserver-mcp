@@ -106,3 +106,18 @@ def _add_playwright_commands(mcp: FastMCP, manager: DevServerManager) -> None:
         except Exception as e:
             log_error_to_file(e, "browser_click")
             return {"status": "error", "message": str(e)}
+
+    @mcp.tool
+    async def browser_type(ref: str, text: str, submit: bool = False, slowly: bool = False) -> dict[str, Any]:
+        text_preview = text[:20] + "..." if len(text) > 20 else text
+        params = f"{{'ref': {repr(ref)}, 'text': {repr(text_preview)}, 'submit': {submit}, 'slowly': {slowly}}}"
+        await manager._notify_log(
+            f"{get_tool_emoji()} Playwright",
+            datetime.now().strftime("%H:%M:%S"),
+            f"Tool 'browser_type' called with: {params}",
+        )
+        try:
+            return await manager.playwright_type(ref, text, submit, slowly)
+        except Exception as e:
+            log_error_to_file(e, "browser_type")
+            return {"status": "error", "message": str(e)}

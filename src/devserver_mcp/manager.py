@@ -297,3 +297,21 @@ class DevServerManager:
         except Exception as e:
             log_error_to_file(e, "playwright_click")
             return {"status": "error", "message": str(e)}
+
+    async def playwright_type(self, ref: str, text: str, submit: bool = False, slowly: bool = False) -> dict[str, Any]:
+        if not self._playwright_operator:
+            return {"status": "error", "message": "Playwright not available"}
+
+        try:
+            result = await self._playwright_operator.type(ref, text, submit, slowly)
+            submit_text = " and submitted" if submit else ""
+            slowly_text = " slowly" if slowly else ""
+            await self._notify_log(
+                f"{get_tool_emoji()} Playwright",
+                datetime.now().strftime("%H:%M:%S"),
+                f"Typed {len(text)} characters{slowly_text} into element: {ref}{submit_text}",
+            )
+            return result
+        except Exception as e:
+            log_error_to_file(e, "playwright_type")
+            return {"status": "error", "message": str(e)}

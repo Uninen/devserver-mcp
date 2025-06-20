@@ -143,6 +143,7 @@ When `experimental.playwright` is set in config:
 2. **browser_snapshot()** - Capture accessibility snapshot of current page
 3. **browser_console_messages(clear)** - Get console messages with optional clear
 4. **browser_click(ref)** - Click an element on the page using a CSS selector or element reference
+5. **browser_type(ref, text, submit, slowly)** - Type text into an element with optional submit (Enter key) and slow typing mode
 
 ## Developing
 
