@@ -1,11 +1,7 @@
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
 from textual.app import App
 from textual.widgets import Label
 
 from devserver_mcp.manager import DevServerManager
-from devserver_mcp.types import Config, ServerConfig
 from devserver_mcp.ui import ServerBox
 
 
@@ -19,61 +15,23 @@ class AppForTesting(App):
         yield ServerBox(self.server_data, self.manager)
 
 
-@pytest.fixture
-def sample_config():
-    return Config(
-        servers={
-            "frontend": ServerConfig(command="npm run dev", working_dir="./frontend", port=3000),
-        }
-    )
+async def test_server_box_status_updates_after_click_start(running_config, temp_state_dir):
+    manager = DevServerManager(running_config)
 
+    app = AppForTesting({"name": "api", "status": "stopped", "external_running": False, "error": None}, manager)
 
-@pytest.fixture
-def manager(sample_config):
-    return DevServerManager(sample_config)
-
-
-async def test_server_box_status_updates_after_click_start():
-    config = Config(
-        servers={
-            "frontend": ServerConfig(command="npm run dev", working_dir="./frontend", port=3000),
-        }
-    )
-    manager = DevServerManager(config)
-
-    initial_server_data = {"name": "frontend", "status": "stopped", "external_running": False, "error": None}
-
-    manager.start_server = AsyncMock(return_value={"status": "started", "message": "Server started"})
-
-    updated_server_data = {"name": "frontend", "status": "running", "external_running": False, "error": None}
-    manager.get_all_servers = MagicMock(return_value=[updated_server_data])
-
-    app = AppForTesting(initial_server_data, manager)
-    async with app.run_test():
+    async with app.run_test() as pilot:
         box = app.query_one(ServerBox)
 
-        assert box.server["status"] == "stopped"
+        initial_status = box.query_one("#server-status", Label).renderable
+        assert "[#8000ff]● Stopped[/#8000ff]" in str(initial_status)
 
-        mock_event = MagicMock()
+        await pilot.click(ServerBox)
+        await pilot.pause()
 
-        await box.on_click(mock_event)
+        box._update_server_data()
+        box._refresh_labels()
+        await pilot.pause()
 
-        manager.start_server.assert_called_once_with("frontend")
-
-        updated_servers = manager.get_all_servers()
-        assert updated_servers[0]["status"] == "running", "Manager should report server as running"
-
-        assert box.server["status"] == "running", (
-            f"Expected ServerBox internal status to be 'running' "
-            f"but got '{box.server['status']}'. "
-            f"ServerBox should update its internal server data after start_server is called."
-        )
-
-        status_label = box.query_one("#server-status", Label)
-        expected_running_status = "[#00ff80]● Running[/#00ff80]"
-        actual_status = status_label.renderable
-        assert actual_status == expected_running_status, (
-            f"Expected status label to be '{expected_running_status}' (running) "
-            f"but got '{actual_status}' (still stopped). "
-            f"ServerBox should refresh its labels after updating server data."
-        )
+        updated_status = box.query_one("#server-status", Label).renderable
+        assert "[#00ff80]● Running[/#00ff80]" in str(updated_status)

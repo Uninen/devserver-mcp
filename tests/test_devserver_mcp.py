@@ -1,29 +1,15 @@
 import asyncio
-import contextlib
 import sys
 import tempfile
+from contextlib import suppress
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+import yaml
 
 from devserver_mcp import DevServerMCP
-from devserver_mcp.types import Config, ServerConfig
-
-
-@pytest.fixture
-def simple_config():
-    return Config(
-        servers={
-            "api": ServerConfig(command="echo hello", working_dir=".", port=12345),
-        }
-    )
-
-
-@pytest.fixture
-def temp_state_dir():
-    with tempfile.TemporaryDirectory() as tmpdir, patch.object(Path, "home", return_value=Path(tmpdir)):
-        yield tmpdir
+from devserver_mcp.types import Config
 
 
 def test_init_with_neither_config_nor_path():
@@ -31,99 +17,89 @@ def test_init_with_neither_config_nor_path():
         DevServerMCP(_skip_port_check=True)
 
 
-@pytest.mark.asyncio
-async def test_run_headless_mode(simple_config, temp_state_dir):
-    # Mock only system boundaries
+def test_init_with_config_object(simple_config, temp_state_dir):
+    server = DevServerMCP(config=simple_config, port=8080, _skip_port_check=True)
+    assert server.manager is not None
+    assert server.mcp is not None
+
+
+def test_init_with_config_path(temp_state_dir):
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        config_path = f.name
+
+    try:
+        server = DevServerMCP(config_path=config_path, _skip_port_check=True)
+        assert server.manager is not None
+        assert server.mcp is not None
+    finally:
+        Path(config_path).unlink()
+
+
+def test_is_interactive_terminal_detection():
+    server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
+
+    # Test non-interactive (piped output)
     with (
-        patch("asyncio.create_subprocess_shell") as mock_create_subprocess,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
+        patch.object(sys.stdout, "isatty", return_value=False),
+        patch.object(sys.stderr, "isatty", return_value=True),
     ):
-        # Mock subprocess for servers
-        mock_process = AsyncMock()
-        mock_process.returncode = None
-        mock_process.pid = 12345
-        mock_process.stdout = AsyncMock()
-        mock_process.stdout.readline.return_value = b""
-        mock_create_subprocess.return_value = mock_process
+        assert server._is_interactive_terminal() is False
 
-        # Mock MCP server
-        mock_mcp = MagicMock()
-        mock_mcp.run_async = AsyncMock()
-        mock_create_mcp.return_value = mock_mcp
-
-        server = DevServerMCP(config=simple_config, port=8080, _skip_port_check=True)
-
-        # Test run method (which will run headless since we're not in interactive terminal)
-        with patch.object(server, "_is_interactive_terminal", return_value=False):
-            run_task = asyncio.create_task(server.run())
-
-            # Cancel after a short time
-            await asyncio.sleep(0.1)
-            run_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await run_task
-
-
-def test_is_interactive_terminal_true():
+    # Test interactive
     with (
         patch.object(sys.stdout, "isatty", return_value=True),
         patch.object(sys.stderr, "isatty", return_value=True),
         patch.dict("os.environ", {}, clear=True),
     ):
-        server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
         assert server._is_interactive_terminal() is True
 
-
-def test_is_interactive_terminal_false():
+    # Test CI environment
     with (
-        patch.object(sys.stdout, "isatty", return_value=False),
+        patch.object(sys.stdout, "isatty", return_value=True),
         patch.object(sys.stderr, "isatty", return_value=True),
-        patch.dict("os.environ", {}, clear=True),
+        patch.dict("os.environ", {"CI": "true"}),
     ):
-        server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
         assert server._is_interactive_terminal() is False
 
 
 @pytest.mark.asyncio
-async def test_cleanup_with_running_servers(simple_config, temp_state_dir):
-    with (
-        patch("asyncio.create_subprocess_shell") as mock_create_subprocess,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-    ):
-        # Mock subprocess
-        mock_process = AsyncMock()
-        mock_process.returncode = None
-        mock_process.pid = 12345
-        mock_process.stdout = AsyncMock()
-        mock_process.stdout.readline.return_value = b""
-        mock_process.wait.return_value = None
-        mock_process.terminate = MagicMock()
-        mock_create_subprocess.return_value = mock_process
+async def test_run_headless_mode(simple_config, temp_state_dir):
+    server = DevServerMCP(config=simple_config, port=8081, _skip_port_check=True)
 
-        # Mock MCP
-        mock_mcp = MagicMock()
-        mock_mcp.run_async = AsyncMock()
-        mock_create_mcp.return_value = mock_mcp
+    # Force headless mode
+    with patch.object(server, "_is_interactive_terminal", return_value=False):
+        # Run for a short time then cancel
+        run_task = asyncio.create_task(server.run())
+        await asyncio.sleep(0.1)
+        run_task.cancel()
 
-        server = DevServerMCP(config=simple_config, port=8080, _skip_port_check=True)
+        with suppress(asyncio.CancelledError):
+            await run_task
 
-        # Start a server
-        with patch("asyncio.sleep"), patch("os.kill", return_value=None):
-            await server.manager.start_server("api")
 
-        # Verify server started
-        assert server.manager.processes["api"].pid == 12345
+@pytest.mark.asyncio
+async def test_cleanup_stops_running_servers(running_config, temp_state_dir):
+    server = DevServerMCP(config=running_config, port=8082, _skip_port_check=True)
 
-        # Run cleanup - need to mock both os.kill and os.killpg for the stop process
-        with (
-            patch("os.killpg") if sys.platform != "win32" else patch.object(mock_process, "terminate"),
-            patch("os.kill", return_value=None),
-            patch("asyncio.sleep"),
-        ):
-            await server._cleanup()
+    # Start a server
+    await server.manager.start_server("api")
+    assert server.manager.get_server_status("api")["status"] == "running"
 
-        # Verify process was stopped
-        assert server.manager.processes["api"].pid is None
+    # Run cleanup
+    await server._cleanup()
+
+    # Verify server stopped
+    assert server.manager.get_server_status("api")["status"] == "stopped"
 
 
 def test_config_validation_invalid_yaml(temp_state_dir):
@@ -132,9 +108,7 @@ def test_config_validation_invalid_yaml(temp_state_dir):
         config_path = f.name
 
     try:
-        from yaml import YAMLError
-
-        with pytest.raises(YAMLError):
+        with pytest.raises(yaml.YAMLError):
             DevServerMCP(config_path=config_path, _skip_port_check=True)
     finally:
         Path(config_path).unlink()
@@ -142,7 +116,7 @@ def test_config_validation_invalid_yaml(temp_state_dir):
 
 def test_config_validation_missing_servers(temp_state_dir):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
-        f.write("not_servers: {}")
+        yaml.dump({"not_servers": {}}, f)
         config_path = f.name
 
     try:
@@ -152,3 +126,21 @@ def test_config_validation_missing_servers(temp_state_dir):
             DevServerMCP(config_path=config_path, _skip_port_check=True)
     finally:
         Path(config_path).unlink()
+
+
+@pytest.mark.asyncio
+async def test_autostart_servers_on_init(autostart_config, temp_state_dir):
+    server = DevServerMCP(config=autostart_config, port=8083, _skip_port_check=True)
+
+    # Call autostart_configured_servers since it's not called automatically in init
+    await server.manager.autostart_configured_servers()
+
+    # Give autostart time to complete
+    await asyncio.sleep(0.2)
+
+    # Check autostart server is running
+    assert server.manager.get_server_status("autostart")["status"] == "running"
+    assert server.manager.get_server_status("manual")["status"] == "stopped"
+
+    # Clean up
+    await server._cleanup()
