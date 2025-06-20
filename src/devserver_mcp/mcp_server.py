@@ -93,3 +93,16 @@ def _add_playwright_commands(mcp: FastMCP, manager: DevServerManager) -> None:
         except Exception as e:
             log_error_to_file(e, "browser_console_messages")
             return {"status": "error", "message": str(e)}
+
+    @mcp.tool
+    async def browser_click(ref: str) -> dict[str, Any]:
+        await manager._notify_log(
+            f"{get_tool_emoji()} Playwright",
+            datetime.now().strftime("%H:%M:%S"),
+            f"Tool 'browser_click' called with: {{'ref': {repr(ref)}}}",
+        )
+        try:
+            return await manager.playwright_click(ref)
+        except Exception as e:
+            log_error_to_file(e, "browser_click")
+            return {"status": "error", "message": str(e)}

@@ -125,6 +125,21 @@ class PlaywrightOperator:
 
         return messages
 
+    async def click(self, ref: str) -> dict[str, Any]:
+        if not self._page:
+            raise RuntimeError("Playwright not properly initialized")
+
+        try:
+            await self._page.click(ref)
+
+            return {
+                "status": "success",
+                "message": f"Clicked element: {ref}",
+                "url": self._page.url,
+            }
+        except Exception as e:
+            raise RuntimeError(f"Failed to click element {ref}: {e}") from e
+
     async def close(self) -> None:
         try:
             if self._page:

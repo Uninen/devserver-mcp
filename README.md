@@ -142,6 +142,7 @@ When `experimental.playwright` is set in config:
 1. **browser_navigate(url, wait_until)** - Navigate browser to URL with wait conditions
 2. **browser_snapshot()** - Capture accessibility snapshot of current page
 3. **browser_console_messages(clear)** - Get console messages with optional clear
+4. **browser_click(ref)** - Click an element on the page using a CSS selector or element reference
 
 ## Developing
 

@@ -281,3 +281,19 @@ class DevServerManager:
         except Exception as e:
             log_error_to_file(e, "playwright_console_messages")
             return {"status": "error", "message": str(e)}
+
+    async def playwright_click(self, ref: str) -> dict[str, Any]:
+        if not self._playwright_operator:
+            return {"status": "error", "message": "Playwright not available"}
+
+        try:
+            result = await self._playwright_operator.click(ref)
+            await self._notify_log(
+                f"{get_tool_emoji()} Playwright",
+                datetime.now().strftime("%H:%M:%S"),
+                f"Clicked element: {ref}",
+            )
+            return result
+        except Exception as e:
+            log_error_to_file(e, "playwright_click")
+            return {"status": "error", "message": str(e)}
