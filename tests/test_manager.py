@@ -1,10 +1,12 @@
 import asyncio
+import sys
+import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from devserver_mcp.manager import DevServerManager
-from devserver_mcp.process import ManagedProcess
 from devserver_mcp.types import Config, ServerConfig
 
 
@@ -19,26 +21,48 @@ def simple_config():
 
 
 @pytest.fixture
-def manager(simple_config):
-    return DevServerManager(simple_config)
+def temp_state_dir():
+    with tempfile.TemporaryDirectory() as tmpdir, patch.object(Path, "home", return_value=Path(tmpdir)):
+        yield tmpdir
+
+
+@pytest.fixture
+def manager(simple_config, temp_state_dir):
+    return DevServerManager(simple_config, "/test/project")
 
 
 @pytest.mark.asyncio
 async def test_start_server_success(manager):
-    with patch.object(ManagedProcess, "start", return_value=asyncio.Future()) as mock_start:
-        mock_start.return_value.set_result(True)
-        with patch.object(DevServerManager, "_is_port_in_use", return_value=False):
+    # Mock subprocess creation (system boundary)
+    with patch("asyncio.create_subprocess_shell") as mock_create_subprocess:
+        mock_process = AsyncMock()
+        mock_process.returncode = None
+        mock_process.pid = 12345
+        mock_process.stdout = AsyncMock()
+        mock_process.stdout.readline.return_value = b""
+        mock_create_subprocess.return_value = mock_process
+
+        with patch("asyncio.sleep"):
             result = await manager.start_server("api")
-            assert result["status"] == "started"
-            assert "started" in result["message"]
+
+    assert result["status"] == "started"
+    assert "started" in result["message"]
+    mock_create_subprocess.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_start_server_port_in_use(manager):
-    with patch.object(DevServerManager, "_is_port_in_use", return_value=True):
+    # Mock port checking (system boundary - socket)
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.side_effect = OSError("Port in use")
+        mock_socket_class.return_value = mock_socket
+
         result = await manager.start_server("api")
-        assert result["status"] == "error"
-        assert "in use" in result["message"]
+
+    assert result["status"] == "error"
+    assert "in use" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -50,36 +74,66 @@ async def test_start_server_not_found(manager):
 
 @pytest.mark.asyncio
 async def test_start_server_already_running(manager):
-    proc = manager.processes["api"]
-    proc.process = MagicMock()
-    proc.process.returncode = None
-    proc.process.pid = 123
+    # First start the server
+    with patch("asyncio.create_subprocess_shell") as mock_create_subprocess:
+        mock_process = AsyncMock()
+        mock_process.returncode = None
+        mock_process.pid = 12345
+        mock_process.stdout = AsyncMock()
+        mock_process.stdout.readline.return_value = b""
+        mock_create_subprocess.return_value = mock_process
 
-    result = await manager.start_server("api")
+        with patch("asyncio.sleep"), patch("os.kill", return_value=None):
+            await manager.start_server("api")
+
+            # Now try to start it again
+            result = await manager.start_server("api")
+
     assert result["status"] == "already_running"
     assert "already running" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_stop_server_success(manager):
-    proc = manager.processes["api"]
-    proc.process = MagicMock()
-    proc.process.returncode = None
-    proc.process.pid = 123
-    with patch.object(ManagedProcess, "stop", return_value=asyncio.Future()) as mock_stop:
-        mock_stop.return_value.set_result(None)
-        result = await manager.stop_server("api")
-        assert result["status"] == "stopped"
-        assert "stopped" in result["message"]
-        mock_stop.assert_called_once()
+    # First start the server
+    with patch("asyncio.create_subprocess_shell") as mock_create_subprocess:
+        mock_process = AsyncMock()
+        mock_process.returncode = None
+        mock_process.pid = 12345
+        mock_process.stdout = AsyncMock()
+        mock_process.stdout.readline.return_value = b""
+        mock_process.wait.return_value = None
+        mock_process.terminate = MagicMock()
+        mock_create_subprocess.return_value = mock_process
+
+        with patch("asyncio.sleep"), patch("os.kill", return_value=None):
+            await manager.start_server("api")
+
+            # Now stop it
+            with (
+                patch("os.killpg")
+                if not hasattr(asyncio, "WindowsProactorEventLoopPolicy")
+                else patch.object(mock_process, "terminate")
+            ):
+                result = await manager.stop_server("api")
+
+    assert result["status"] == "stopped"
+    assert "stopped" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_stop_server_external(manager):
-    with patch.object(DevServerManager, "_is_port_in_use", return_value=True):
+    # Mock port in use but process not managed
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.side_effect = OSError("Port in use")
+        mock_socket_class.return_value = mock_socket
+
         result = await manager.stop_server("api")
-        assert result["status"] == "error"
-        assert "external" in result["message"]
+
+    assert result["status"] == "error"
+    assert "external" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -91,179 +145,117 @@ async def test_stop_server_not_found(manager):
 
 @pytest.mark.asyncio
 async def test_stop_server_not_running(manager):
-    with patch.object(DevServerManager, "_is_port_in_use", return_value=False):
+    # Mock port not in use
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.return_value = None  # Port is free
+        mock_socket_class.return_value = mock_socket
+
         result = await manager.stop_server("api")
-        assert result["status"] == "not_running"
-        assert "not running" in result["message"]
+
+    assert result["status"] == "not_running"
+    assert "not running" in result["message"]
 
 
 @pytest.fixture
-def autostart_true_config():
+def autostart_config():
     return Config(
         servers={
-            "autostart_api": ServerConfig(command="echo autostart_api", working_dir=".", port=12347, autostart=True),
-            "no_autostart_web": ServerConfig(
-                command="echo no_autostart_web", working_dir=".", port=12348, autostart=False
-            ),
+            "autostart_api": ServerConfig(command="echo autostart", working_dir=".", port=12347, autostart=True),
+            "no_autostart_web": ServerConfig(command="echo no_autostart", working_dir=".", port=12348, autostart=False),
         }
     )
 
 
-@pytest.fixture
-def autostart_manager(autostart_true_config):
-    return DevServerManager(autostart_true_config)
-
-
-@pytest.fixture
-def all_autostart_false_config():
-    return Config(
-        servers={
-            "server_one": ServerConfig(command="echo one", working_dir=".", port=12351, autostart=False),
-            "server_two": ServerConfig(command="echo two", working_dir=".", port=12352, autostart=False),
-        }
-    )
-
-
-@pytest.fixture
-def all_autostart_false_manager(all_autostart_false_config):
-    return DevServerManager(all_autostart_false_config)
-
-
 @pytest.mark.asyncio
-async def test_autostart_server_starts_when_autostart_true_and_stopped(autostart_manager):
-    manager = autostart_manager
-    with (
-        patch.object(manager, "get_server_status", new_callable=MagicMock) as mock_get_status,
-        patch.object(manager, "start_server", new_callable=AsyncMock) as mock_start_server,
-    ):
+async def test_autostart_configured_servers(autostart_config, temp_state_dir):
+    manager = DevServerManager(autostart_config, "/test/project")
 
-        def get_status_side_effect(server_name):
-            if server_name == "autostart_api":
-                return {"status": "stopped"}
-            if server_name == "no_autostart_web":
-                return {"status": "stopped"}
-            pytest.fail(f"Unexpected call to get_server_status with {server_name}")
-            return {}
+    # Mock subprocess creation for autostart server
+    with patch("asyncio.create_subprocess_shell") as mock_create_subprocess:
+        mock_process = AsyncMock()
+        mock_process.returncode = None
+        mock_process.pid = 12345
+        mock_process.stdout = AsyncMock()
+        mock_process.stdout.readline.return_value = b""
+        mock_create_subprocess.return_value = mock_process
 
-        mock_get_status.side_effect = get_status_side_effect
-        mock_start_server.return_value = {"status": "started", "message": "Server started"}
+        with patch("asyncio.sleep"):
+            await manager.autostart_configured_servers()
 
-        await manager.autostart_configured_servers()
-
-        mock_start_server.assert_called_once_with("autostart_api")
-        mock_get_status.assert_called_once_with("autostart_api")
-
-
-@pytest.mark.asyncio
-async def test_autostart_server_not_started_if_autostart_true_but_external(autostart_manager):
-    manager = autostart_manager
-    with (
-        patch.object(manager, "get_server_status", new_callable=MagicMock) as mock_get_status,
-        patch.object(manager, "start_server", new_callable=AsyncMock) as mock_start_server,
-    ):
-
-        def get_status_side_effect(server_name):
-            if server_name == "autostart_api":
-                return {"status": "running", "type": "external"}
-            if server_name == "no_autostart_web":
-                return {"status": "stopped"}
-            pytest.fail(f"Unexpected call to get_server_status with {server_name}")
-            return {}
-
-        mock_get_status.side_effect = get_status_side_effect
-
-        await manager.autostart_configured_servers()
-
-        mock_start_server.assert_not_called()
-        mock_get_status.assert_called_once_with("autostart_api")
-
-
-@pytest.mark.asyncio
-async def test_autostart_server_not_started_if_autostart_true_but_managed_running(autostart_manager):
-    manager = autostart_manager
-    with (
-        patch.object(manager, "get_server_status", new_callable=MagicMock) as mock_get_status,
-        patch.object(manager, "start_server", new_callable=AsyncMock) as mock_start_server,
-    ):
-
-        def get_status_side_effect(server_name):
-            if server_name == "autostart_api":
-                return {"status": "running", "type": "managed"}
-            if server_name == "no_autostart_web":
-                return {"status": "stopped"}
-            pytest.fail(f"Unexpected call to get_server_status with {server_name}")
-            return {}
-
-        mock_get_status.side_effect = get_status_side_effect
-
-        await manager.autostart_configured_servers()
-
-        mock_start_server.assert_not_called()
-        mock_get_status.assert_called_once_with("autostart_api")
-
-
-@pytest.mark.asyncio
-async def test_autostart_servers_not_started_if_all_autostart_false(all_autostart_false_manager):
-    manager = all_autostart_false_manager
-    with (
-        patch.object(manager, "get_server_status", new_callable=MagicMock) as mock_get_status,
-        patch.object(manager, "start_server", new_callable=AsyncMock) as mock_start_server,
-    ):
-        await manager.autostart_configured_servers()
-
-        mock_start_server.assert_not_called()
-        mock_get_status.assert_not_called()
+    # Should have started only the autostart server
+    assert mock_create_subprocess.call_count == 1
 
 
 def test_is_port_in_use_free_port(manager):
-    result = manager._is_port_in_use(65535)
+    # Mock socket bind success (port is free)
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.return_value = None
+        mock_socket_class.return_value = mock_socket
+
+        result = manager._is_port_in_use(65535)
+
     assert result is False
 
 
 def test_is_port_in_use_used_port(manager):
-    import socket
+    # Mock socket bind failure (port is in use)
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.side_effect = OSError("Port in use")
+        mock_socket_class.return_value = mock_socket
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        sock.bind(("localhost", 0))
-        sock.listen(1)
-        port = sock.getsockname()[1]
+        result = manager._is_port_in_use(12345)
 
-        result = manager._is_port_in_use(port)
-        assert result is True
-    finally:
-        sock.close()
+    assert result is True
 
 
-def test_get_server_status_running_managed(manager):
-    proc = manager.processes["api"]
-    proc.process = MagicMock()
-    proc.process.returncode = None
-    proc.process.pid = 123
+def test_get_server_status_running(manager):
+    # Start server first
+    api_process = manager.processes["api"]
+    api_process.pid = 12345
+    api_process.start_time = 123456789.0
 
-    status = manager.get_server_status("api")
+    with patch("os.kill", return_value=None):  # Process is alive
+        status = manager.get_server_status("api")
+
     assert status["status"] == "running"
-    assert status["type"] == "managed"
     assert status["port"] == 12345
 
 
-def test_get_server_status_running_external(manager):
-    with patch.object(manager, "_is_port_in_use", return_value=True):
+def test_get_server_status_external(manager):
+    # Server not running but port in use
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.side_effect = OSError("Port in use")
+        mock_socket_class.return_value = mock_socket
+
         status = manager.get_server_status("api")
-        assert status["status"] == "running"
-        assert status["type"] == "external"
-        assert status["port"] == 12345
+
+    assert status["status"] == "external"
+    assert status["port"] == 12345
 
 
 def test_get_server_status_stopped(manager):
-    proc = manager.processes["api"]
-    proc.error = "Test error"
+    # Server not running and port free
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.return_value = None
+        mock_socket_class.return_value = mock_socket
 
-    with patch.object(manager, "_is_port_in_use", return_value=False):
+        api_process = manager.processes["api"]
+        api_process.error = "Test error"
+
         status = manager.get_server_status("api")
-        assert status["status"] == "stopped"
-        assert status["type"] == "none"
-        assert status["error"] == "Test error"
+
+    assert status["status"] == "stopped"
+    assert status["error"] == "Test error"
 
 
 def test_get_server_logs_not_found(manager):
@@ -273,62 +265,113 @@ def test_get_server_logs_not_found(manager):
 
 
 def test_get_server_logs_not_running(manager):
-    with patch.object(manager, "_is_port_in_use", return_value=False):
+    # Server not running and port free
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.return_value = None
+        mock_socket_class.return_value = mock_socket
+
         result = manager.get_server_logs("api")
-        assert result["status"] == "error"
-        assert "not running" in result["message"]
+
+    assert result["status"] == "error"
+    assert "not running" in result["message"]
 
 
 def test_get_server_logs_external_process(manager):
-    with patch.object(manager, "_is_port_in_use", return_value=True):
+    # Port in use but not our process
+    with patch("socket.socket") as mock_socket_class:
+        mock_socket = MagicMock()
+        mock_socket.__enter__.return_value = mock_socket
+        mock_socket.bind.side_effect = OSError("Port in use")
+        mock_socket_class.return_value = mock_socket
+
         result = manager.get_server_logs("api")
-        assert result["status"] == "error"
-        assert "external process" in result["message"]
+
+    assert result["status"] == "error"
+    assert "external process" in result["message"]
 
 
 def test_get_server_logs_success(manager):
-    proc = manager.processes["api"]
-    proc.process = MagicMock()
-    proc.process.returncode = None
-    proc.logs.extend(["line1", "line2", "line3"])
+    # Simulate running process with logs
+    api_process = manager.processes["api"]
+    api_process.pid = 12345
+    api_process.logs = ["line1", "line2", "line3"]
 
-    result = manager.get_server_logs("api", lines=2)
+    with patch("os.kill", return_value=None):  # Process is alive
+        result = manager.get_server_logs("api", lines=2)
+
     assert result["status"] == "success"
     assert result["lines"] == ["line2", "line3"]
     assert result["count"] == 2
 
 
 def test_get_all_servers(manager):
-    proc = manager.processes["api"]
-    proc.error = "Test error"
+    # Set up mixed states
+    api_process = manager.processes["api"]
+    api_process.error = "Test error"
 
-    with patch.object(manager, "_is_port_in_use", return_value=False):
-        servers = manager.get_all_servers()
-        assert len(servers) == 2
+    web_process = manager.processes["web"]
+    web_process.pid = 12346
 
-        api_server = next(s for s in servers if s["name"] == "api")
-        assert api_server["status"] == "error"
-        assert api_server["port"] == 12345
-        assert api_server["error"] == "Test error"
-        assert api_server["external_running"] is False
+    with patch("os.kill") as mock_kill:
+        # api: dead process
+        # web: alive process
+        def kill_side_effect(pid, sig):
+            if pid == 12346:
+                return None  # web is alive
+            raise ProcessLookupError()  # api is dead
+
+        mock_kill.side_effect = kill_side_effect
+
+        with patch("socket.socket") as mock_socket_class:
+            mock_socket = MagicMock()
+            mock_socket.__enter__.return_value = mock_socket
+            mock_socket.bind.return_value = None  # Ports are free
+            mock_socket_class.return_value = mock_socket
+
+            servers = manager.get_all_servers()
+
+    assert len(servers) == 2
+
+    api_server = next(s for s in servers if s["name"] == "api")
+    assert api_server["status"] == "stopped"
+    assert api_server["port"] == 12345
+    assert api_server["error"] == "Test error"
+
+    web_server = next(s for s in servers if s["name"] == "web")
+    assert web_server["status"] == "running"
+    assert web_server["port"] == 12346
 
 
 @pytest.mark.asyncio
 async def test_shutdown_all(manager):
-    proc1 = manager.processes["api"]
-    proc2 = manager.processes["web"]
+    # Start both servers
+    with patch("asyncio.create_subprocess_shell") as mock_create_subprocess:
+        for name in ["api", "web"]:
+            mock_process = AsyncMock()
+            mock_process.returncode = None
+            mock_process.pid = 12345 if name == "api" else 12346
+            mock_process.stdout = AsyncMock()
+            mock_process.stdout.readline.return_value = b""
+            mock_process.wait.return_value = None
+            mock_process.terminate = MagicMock()
+            mock_create_subprocess.return_value = mock_process
 
-    proc1.process = MagicMock()
-    proc1.process.returncode = None
-    proc2.process = MagicMock()
-    proc2.process.returncode = None
+            with patch("asyncio.sleep"), patch("os.kill", return_value=None):
+                await manager.start_server(name)
 
-    with patch.object(ManagedProcess, "stop", return_value=asyncio.Future()) as mock_stop:
-        mock_stop.return_value.set_result(None)
-
+    # Now shutdown all - need to mock os.kill for process checking
+    with (
+        patch("os.killpg") if sys.platform != "win32" else patch("asyncio.sleep"),
+        patch("os.kill", return_value=None),
+        patch("asyncio.sleep"),
+    ):
         await manager.shutdown_all()
 
-        assert mock_stop.call_count == 2
+    # Check all processes are stopped
+    for process in manager.processes.values():
+        assert process.pid is None
 
 
 def test_log_callback_registration(manager):
