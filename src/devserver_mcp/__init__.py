@@ -36,7 +36,8 @@ class DevServerMCP:
         if not _skip_port_check:
             self._check_port_availability()
 
-        self.manager = DevServerManager(self.config)
+        project_path = str(Path(config_path).parent) if config_path else None
+        self.manager = DevServerManager(self.config, project_path)
         self.mcp = create_mcp_server(self.manager)
         self._mcp_task = None
 
