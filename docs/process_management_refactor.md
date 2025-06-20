@@ -20,7 +20,7 @@ Replace port-based process tracking with PID-based tracking that persists across
 
 ### 1. Add State Persistence (`state.py`)
 - Create `StateManager` class
-- Store PIDs in `~/.devserver-mcp/state/{project_hash}/processes.json`
+- Store PIDs in `~/.devserver-mcp/{project_hash}_processes.json`
 - Methods: `save_pid()`, `get_pid()`, `clear_pid()`, `cleanup_dead()`
 
 ### 2. Refactor Process Tracking (`process.py`)
