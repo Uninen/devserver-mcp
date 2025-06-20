@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-20: Fixed UI to work with PID-based process management - updated status display to use simplified states and removed external process checks from click handlers. (claude-sonnet-4-20250514)
 - 2025-06-20: Simplified status logic in DevServerManager - replaced complex status checks with Running/External/Stopped states and removed 'managed' terminology from user-facing APIs. (claude-sonnet-4-20250514)
 - 2025-06-20: Refactored ManagedProcess to use PID-based tracking with process reclaim, process group management, and StateManager integration. (claude-opus-4-20250514)
 - 2025-06-08: Refactored MCP server tools to use @mcp.tool decorator pattern instead of mcp.add_tool for FastMCP compatibility. (claude-opus-4-20250514)
