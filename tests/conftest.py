@@ -11,7 +11,6 @@ from devserver_mcp.types import Config, ServerConfig
 @pytest.fixture
 def long_running_command():
     """Command that runs until killed."""
-    # Simple command that keeps running and can be tested quickly
     return "tail -f /dev/null"
 
 

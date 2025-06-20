@@ -33,13 +33,12 @@ def mcp_server(manager):
 
 def _parse_tool_result(result):
     content = result[0]
-    # Try different ways to extract the text content
+
     if hasattr(content, "text"):
         return json.loads(content.text)
     elif hasattr(content, "content"):
         return json.loads(content.content)
     else:
-        # Fallback to string conversion
         return json.loads(str(content))
 
 
@@ -55,7 +54,7 @@ async def test_get_server_status_tool(mcp_server):
         assert "status" in response
         assert "port" in response
         assert response["port"] == 8000
-        # Server should be stopped initially, or running if port is externally occupied
+
         if response["status"] == "running":
             assert response.get("type") == "external", (
                 "If status is 'running' before start, it must be an external process"
@@ -104,12 +103,10 @@ async def test_stop_server_tool_not_running(mcp_server):
         assert "status" in response
         assert "message" in response
         if response["status"] == "error":
-            # This can happen if the port is in use by an external process
             assert "Failed to kill external process" in response["message"]
         elif response["status"] == "not_running":
             assert "not running" in response["message"]
         else:
-            # Fail if the status is unexpected for a server that wasn't started by this test
             pytest.fail(
                 f"Unexpected status '{response['status']}' for a server not started by the test. \
                 Message: '{response['message']}'"
@@ -122,7 +119,6 @@ async def test_stop_server_tool_running_process(mcp_server, manager):
         start_result = await client.call_tool("start_server", {"name": "test-server"})
         start_response = _parse_tool_result(start_result)
 
-        # Only proceed if start was successful
         if start_response["status"] == "started":
             stop_result = await client.call_tool("stop_server", {"name": "test-server"})
 
@@ -146,7 +142,7 @@ async def test_get_server_logs_tool(mcp_server):
         response = _parse_tool_result(result)
 
         assert "status" in response
-        # Should be error since server is not running
+
         assert response["status"] == "error"
         assert "not running" in response["message"]
 

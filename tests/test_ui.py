@@ -47,7 +47,6 @@ async def test_server_box_no_action_on_external_server(manager):
     server = {"name": "external", "status": "running", "external_running": True, "error": None}
     box = ServerBox(server, manager)
 
-    # Simulate click - should do nothing
     event = type("MockEvent", (), {"stop": lambda: None})()
     await box.on_click(event)
 
@@ -76,7 +75,6 @@ async def test_dev_server_tui_initialization(manager):
     assert app.mcp_url == mcp_url
     assert app.transport == "streamable-http"
 
-    # Test with SSE transport
     app_sse = DevServerTUI(manager, mcp_url, transport="sse")
     assert app_sse.transport == "sse"
 
@@ -86,7 +84,6 @@ async def test_dev_server_tui_runs_without_crash(manager):
 
     try:
         async with app.run_test():
-            # Just verify app starts without crashing
             pass
     except Exception as e:
         pytest.fail(f"App failed to start: {e}")
@@ -95,16 +92,13 @@ async def test_dev_server_tui_runs_without_crash(manager):
 async def test_dev_server_tui_quit_action(manager):
     app = DevServerTUI(manager, "http://localhost:3001/mcp/")
 
-    # Start some servers
     await manager.start_server("api")
     await manager.start_server("web")
 
-    # Call quit action
     with patch.object(app, "exit") as mock_exit:
         await app.action_quit()
         mock_exit.assert_called_once_with(0)
 
-    # Verify all servers are stopped
     assert manager.get_server_status("api")["status"] == "stopped"
     assert manager.get_server_status("web")["status"] == "stopped"
 
@@ -112,7 +106,6 @@ async def test_dev_server_tui_quit_action(manager):
 def test_tool_box_status_formatting():
     manager = type("MockManager", (), {})()
 
-    # Test different statuses
     tool_box_running = ToolBox("Playwright", "running", manager)
     assert tool_box_running._format_status_indicator() == "[#00ff80]●[/#00ff80]"
 

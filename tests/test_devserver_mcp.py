@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from devserver_mcp import DevServerMCP
 from devserver_mcp.types import Config
@@ -48,14 +49,12 @@ def test_init_with_config_path(temp_state_dir):
 def test_is_interactive_terminal_detection():
     server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
 
-    # Test non-interactive (piped output)
     with (
         patch.object(sys.stdout, "isatty", return_value=False),
         patch.object(sys.stderr, "isatty", return_value=True),
     ):
         assert server._is_interactive_terminal() is False
 
-    # Test interactive
     with (
         patch.object(sys.stdout, "isatty", return_value=True),
         patch.object(sys.stderr, "isatty", return_value=True),
@@ -63,7 +62,6 @@ def test_is_interactive_terminal_detection():
     ):
         assert server._is_interactive_terminal() is True
 
-    # Test CI environment
     with (
         patch.object(sys.stdout, "isatty", return_value=True),
         patch.object(sys.stderr, "isatty", return_value=True),
@@ -76,9 +74,7 @@ def test_is_interactive_terminal_detection():
 async def test_run_headless_mode(simple_config, temp_state_dir):
     server = DevServerMCP(config=simple_config, port=8081, _skip_port_check=True)
 
-    # Force headless mode
     with patch.object(server, "_is_interactive_terminal", return_value=False):
-        # Run for a short time then cancel
         run_task = asyncio.create_task(server.run())
         await asyncio.sleep(0.1)
         run_task.cancel()
@@ -91,14 +87,11 @@ async def test_run_headless_mode(simple_config, temp_state_dir):
 async def test_cleanup_stops_running_servers(running_config, temp_state_dir):
     server = DevServerMCP(config=running_config, port=8082, _skip_port_check=True)
 
-    # Start a server
     await server.manager.start_server("api")
     assert server.manager.get_server_status("api")["status"] == "running"
 
-    # Run cleanup
     await server._cleanup()
 
-    # Verify server stopped
     assert server.manager.get_server_status("api")["status"] == "stopped"
 
 
@@ -120,8 +113,6 @@ def test_config_validation_missing_servers(temp_state_dir):
         config_path = f.name
 
     try:
-        from pydantic import ValidationError
-
         with pytest.raises(ValidationError):
             DevServerMCP(config_path=config_path, _skip_port_check=True)
     finally:
@@ -132,15 +123,11 @@ def test_config_validation_missing_servers(temp_state_dir):
 async def test_autostart_servers_on_init(autostart_config, temp_state_dir):
     server = DevServerMCP(config=autostart_config, port=8083, _skip_port_check=True)
 
-    # Call autostart_configured_servers since it's not called automatically in init
     await server.manager.autostart_configured_servers()
 
-    # Give autostart time to complete
     await asyncio.sleep(0.2)
 
-    # Check autostart server is running
     assert server.manager.get_server_status("autostart")["status"] == "running"
     assert server.manager.get_server_status("manual")["status"] == "stopped"
 
-    # Clean up
     await server._cleanup()
