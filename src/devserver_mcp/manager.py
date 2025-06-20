@@ -2,9 +2,11 @@ import asyncio
 import contextlib
 import socket
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Literal
 
 from devserver_mcp.process import ManagedProcess
+from devserver_mcp.state import StateManager
 from devserver_mcp.types import Config, LogCallback
 from devserver_mcp.utils import get_tool_emoji, log_error_to_file
 
@@ -12,7 +14,7 @@ SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cy
 
 
 class DevServerManager:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, project_path: str | None = None):
         self.config = config
         self.processes: dict[str, ManagedProcess] = {}
         self._log_callbacks: list[LogCallback] = []
@@ -20,6 +22,11 @@ class DevServerManager:
         self._playwright_operator = None
         self._playwright_config_enabled = config.experimental and config.experimental.playwright
         self._playwright_init_error = None
+
+        project_path = project_path or str(Path.cwd())
+        self.state_manager = StateManager(project_path)
+        self.state_manager.cleanup_dead()
+
         self._assign_colors()
         self._init_playwright_if_enabled()
 
@@ -27,7 +34,7 @@ class DevServerManager:
         for name, process in self.processes.items():
             if process.config.autostart:
                 server_status = self.get_server_status(name)
-                if server_status["status"] == "stopped":  # It implies not managed running and port not in use
+                if server_status["status"] == "stopped":  # Server is not running and port is not in use
                     await self.start_server(name)
 
         # Auto-start Playwright if enabled
@@ -37,7 +44,7 @@ class DevServerManager:
         for i, name in enumerate(self.config.servers.keys()):
             color = SERVER_COLORS[i % len(SERVER_COLORS)]
             config = self.config.servers[name]
-            self.processes[name.lower()] = ManagedProcess(name, config, color)
+            self.processes[name.lower()] = ManagedProcess(name, config, color, self.state_manager)
 
     def add_log_callback(self, callback: LogCallback):
         self._log_callbacks.append(callback)
@@ -99,20 +106,18 @@ class DevServerManager:
         if process.is_running:
             return {
                 "status": "running",
-                "type": "managed",
                 "port": process.config.port,
                 "command": process.config.command,
                 "working_dir": process.config.working_dir,
             }
         elif self._is_port_in_use(process.config.port):
             return {
-                "status": "running",
-                "type": "external",
+                "status": "external",
                 "port": process.config.port,
                 "message": "External process on port",
             }
         else:
-            return {"status": "stopped", "type": "none", "port": process.config.port, "error": process.error}
+            return {"status": "stopped", "port": process.config.port, "error": process.error}
 
     def get_server_logs(self, name: str, lines: int = 500) -> dict:
         process = self.processes.get(name.lower())
@@ -131,15 +136,19 @@ class DevServerManager:
     def get_all_servers(self) -> list[dict]:
         servers = []
         for _name, process in self.processes.items():
-            external_running = not process.is_running and self._is_port_in_use(process.config.port)
+            if process.is_running:
+                status = "running"
+            elif self._is_port_in_use(process.config.port):
+                status = "external"
+            else:
+                status = "stopped"
 
             servers.append(
                 {
                     "name": process.name,
-                    "status": process.status,
+                    "status": status,
                     "port": process.config.port,
                     "error": process.error,
-                    "external_running": external_running,
                     "color": process.color,
                 }
             )

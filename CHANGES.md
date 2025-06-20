@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.0 (2025-06-20)
+
+- refactor: refactored process management (#13)
+- chore: bumped deps
+
 ## v0.3.2 (2025-06-08)
 
 - refactor: refactored the server to be compatible w the latest FastMCP

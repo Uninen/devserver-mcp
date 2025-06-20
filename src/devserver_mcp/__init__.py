@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import os
 import socket
 import sys
 from pathlib import Path
@@ -14,7 +15,7 @@ from devserver_mcp.types import Config
 from devserver_mcp.ui import DevServerTUI
 from devserver_mcp.utils import _cleanup_loop, configure_silent_logging, no_op_exception_handler, silence_all_output
 
-__version__ = "0.3.2"
+__version__ = "0.4"
 
 
 class DevServerMCP:
@@ -36,7 +37,8 @@ class DevServerMCP:
         if not _skip_port_check:
             self._check_port_availability()
 
-        self.manager = DevServerManager(self.config)
+        project_path = str(Path(config_path).parent) if config_path else None
+        self.manager = DevServerManager(self.config, project_path)
         self.mcp = create_mcp_server(self.manager)
         self._mcp_task = None
 
@@ -48,6 +50,8 @@ class DevServerMCP:
         raise ValueError("Either config_path or config must be provided")
 
     def _is_interactive_terminal(self) -> bool:
+        if os.environ.get("CI"):
+            return False
         return sys.stdout.isatty() and sys.stderr.isatty()
 
     def _check_playwright_availability(self):

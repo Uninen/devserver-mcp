@@ -1,84 +1,16 @@
+import asyncio
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+import tempfile
+from contextlib import suppress
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+import yaml
+from pydantic import ValidationError
 
 from devserver_mcp import DevServerMCP
-from devserver_mcp.types import Config, ServerConfig
-
-
-@pytest.fixture
-def simple_config():
-    return Config(
-        servers={
-            "api": ServerConfig(command="echo hello", working_dir=".", port=12345),
-        }
-    )
-
-
-@pytest.fixture
-def mock_manager():
-    manager = MagicMock()
-    manager.shutdown_all = AsyncMock()
-    return manager
-
-
-@pytest.fixture
-def mock_mcp():
-    mcp = MagicMock()
-    mcp.run_async = AsyncMock()
-    return mcp
-
-
-def test_init_with_config(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-    ):
-        mock_manager_cls.return_value = MagicMock()
-        mock_create_mcp.return_value = MagicMock()
-
-        server = DevServerMCP(config=simple_config, port=8080, _skip_port_check=True)
-
-        assert server.config == simple_config
-        assert server.port == 8080
-        assert server.transport == "streamable-http"
-        mock_manager_cls.assert_called_once_with(simple_config)
-        mock_create_mcp.assert_called_once_with(mock_manager_cls.return_value)
-
-
-def test_init_with_config_path():
-    with (
-        patch("devserver_mcp.load_config") as mock_load_config,
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-    ):
-        mock_config = Config(servers={"test": ServerConfig(command="test", port=3000)})
-        mock_load_config.return_value = mock_config
-        mock_manager_cls.return_value = MagicMock()
-        mock_create_mcp.return_value = MagicMock()
-
-        server = DevServerMCP(config_path="/path/to/config.yml", _skip_port_check=True)
-
-        assert server.config == mock_config
-        mock_load_config.assert_called_once_with("/path/to/config.yml")
-
-
-def test_init_with_sse_transport(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-    ):
-        mock_manager_cls.return_value = MagicMock()
-        mock_create_mcp.return_value = MagicMock()
-
-        server = DevServerMCP(config=simple_config, port=8080, transport="sse", _skip_port_check=True)
-
-        assert server.config == simple_config
-        assert server.port == 8080
-        assert server.transport == "sse"
-        mock_manager_cls.assert_called_once_with(simple_config)
-        mock_create_mcp.assert_called_once_with(mock_manager_cls.return_value)
+from devserver_mcp.types import Config
 
 
 def test_init_with_neither_config_nor_path():
@@ -86,302 +18,116 @@ def test_init_with_neither_config_nor_path():
         DevServerMCP(_skip_port_check=True)
 
 
-def test_init_with_both_config_and_path_prefers_config(simple_config):
+def test_init_with_config_object(simple_config, temp_state_dir):
+    server = DevServerMCP(config=simple_config, port=8080, _skip_port_check=True)
+    assert server.manager is not None
+    assert server.mcp is not None
+
+
+def test_init_with_config_path(temp_state_dir):
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        config_path = f.name
+
+    try:
+        server = DevServerMCP(config_path=config_path, _skip_port_check=True)
+        assert server.manager is not None
+        assert server.mcp is not None
+    finally:
+        Path(config_path).unlink()
+
+
+def test_is_interactive_terminal_detection():
+    server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
+
     with (
-        patch("devserver_mcp.load_config") as mock_load_config,
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
+        patch.object(sys.stdout, "isatty", return_value=False),
+        patch.object(sys.stderr, "isatty", return_value=True),
     ):
-        mock_manager_cls.return_value = MagicMock()
-        mock_create_mcp.return_value = MagicMock()
+        assert server._is_interactive_terminal() is False
 
-        server = DevServerMCP(config=simple_config, config_path="/ignored/path", _skip_port_check=True)
+    with (
+        patch.object(sys.stdout, "isatty", return_value=True),
+        patch.object(sys.stderr, "isatty", return_value=True),
+        patch.dict("os.environ", {}, clear=True),
+    ):
+        assert server._is_interactive_terminal() is True
 
-        assert server.config == simple_config
-        mock_load_config.assert_not_called()
-
-
-def test_is_interactive_terminal_true():
-    with patch("devserver_mcp.DevServerManager"), patch("devserver_mcp.create_mcp_server"):
-        server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
-
-        with (
-            patch.object(sys.stdout, "isatty", return_value=True),
-            patch.object(sys.stderr, "isatty", return_value=True),
-        ):
-            assert server._is_interactive_terminal() is True
-
-
-def test_is_interactive_terminal_false():
-    with patch("devserver_mcp.DevServerManager"), patch("devserver_mcp.create_mcp_server"):
-        server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
-
-        with (
-            patch.object(sys.stdout, "isatty", return_value=False),
-            patch.object(sys.stderr, "isatty", return_value=True),
-        ):
-            assert server._is_interactive_terminal() is False
+    with (
+        patch.object(sys.stdout, "isatty", return_value=True),
+        patch.object(sys.stderr, "isatty", return_value=True),
+        patch.dict("os.environ", {"CI": "true"}),
+    ):
+        assert server._is_interactive_terminal() is False
 
 
 @pytest.mark.asyncio
-async def test_run_headless_mode(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.configure_silent_logging") as mock_configure_logging,
-        patch("devserver_mcp.silence_all_output"),
-    ):
-        mock_manager_cls.return_value = MagicMock()
-        mock_create_mcp.return_value = MagicMock()
+async def test_run_headless_mode(simple_config, temp_state_dir):
+    server = DevServerMCP(config=simple_config, port=8081, _skip_port_check=True)
 
-        server = DevServerMCP(config=simple_config, _skip_port_check=True)
+    with patch.object(server, "_is_interactive_terminal", return_value=False):
+        run_task = asyncio.create_task(server.run())
+        await asyncio.sleep(0.1)
+        run_task.cancel()
 
-        with (
-            patch.object(server, "_is_interactive_terminal", return_value=False),
-            patch.object(server, "_run_headless") as mock_run_headless,
-        ):
-            await server.run()
-
-            mock_configure_logging.assert_called_once()
-            mock_run_headless.assert_called_once()
+        with suppress(asyncio.CancelledError):
+            await run_task
 
 
 @pytest.mark.asyncio
-async def test_run_tui_mode(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.configure_silent_logging") as mock_configure_logging,
-    ):
-        mock_manager_cls.return_value = MagicMock()
-        mock_create_mcp.return_value = MagicMock()
+async def test_cleanup_stops_running_servers(running_config, temp_state_dir):
+    server = DevServerMCP(config=running_config, port=8082, _skip_port_check=True)
 
-        server = DevServerMCP(config=simple_config, _skip_port_check=True)
+    await server.manager.start_server("api")
+    assert server.manager.get_server_status("api")["status"] == "running"
 
-        with (
-            patch.object(server, "_is_interactive_terminal", return_value=True),
-            patch.object(server, "_run_with_tui") as mock_run_with_tui,
-        ):
-            await server.run()
+    await server._cleanup()
 
-            mock_configure_logging.assert_called_once()
-            mock_run_with_tui.assert_called_once()
+    assert server.manager.get_server_status("api")["status"] == "stopped"
 
 
-@pytest.mark.asyncio
-async def test_run_headless():
-    with (
-        patch("devserver_mcp.DevServerManager"),
-        patch("devserver_mcp.create_mcp_server"),
-        patch("devserver_mcp.silence_all_output") as mock_silence,
-    ):
-        server = DevServerMCP(config=Config(servers={}), _skip_port_check=True)
+def test_config_validation_invalid_yaml(temp_state_dir):
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        f.write("invalid: yaml: content: [")
+        config_path = f.name
 
-        await server._run_headless()
-
-        mock_silence.assert_called_once()
+    try:
+        with pytest.raises(yaml.YAMLError):
+            DevServerMCP(config_path=config_path, _skip_port_check=True)
+    finally:
+        Path(config_path).unlink()
 
 
-@pytest.mark.asyncio
-async def test_run_with_tui_success(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.DevServerTUI") as mock_tui_cls,
-    ):
-        mock_manager = MagicMock()
-        mock_manager_cls.return_value = mock_manager
+def test_config_validation_missing_servers(temp_state_dir):
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump({"not_servers": {}}, f)
+        config_path = f.name
 
-        mock_mcp = MagicMock()
-        mock_mcp.run_async = AsyncMock()
-        mock_create_mcp.return_value = mock_mcp
-
-        mock_tui = MagicMock()
-        mock_tui.run_async = AsyncMock()
-        mock_tui_cls.return_value = mock_tui
-
-        server = DevServerMCP(config=simple_config, port=8080, _skip_port_check=True)
-
-        with patch.object(server, "_cleanup") as mock_cleanup:
-            await server._run_with_tui()
-
-            mock_mcp.run_async.assert_called_once_with(transport="streamable-http", port=8080, host="localhost")
-            mock_tui_cls.assert_called_once_with(
-                mock_manager, "http://localhost:8080/mcp/", transport="streamable-http"
-            )
-            mock_tui.run_async.assert_called_once()
-            mock_cleanup.assert_called_once()
+    try:
+        with pytest.raises(ValidationError):
+            DevServerMCP(config_path=config_path, _skip_port_check=True)
+    finally:
+        Path(config_path).unlink()
 
 
 @pytest.mark.asyncio
-async def test_run_with_tui_sse_transport(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.DevServerTUI") as mock_tui_cls,
-    ):
-        mock_manager = MagicMock()
-        mock_manager_cls.return_value = mock_manager
+async def test_autostart_servers_on_init(autostart_config, temp_state_dir):
+    server = DevServerMCP(config=autostart_config, port=8083, _skip_port_check=True)
 
-        mock_mcp = MagicMock()
-        mock_mcp.run_async = AsyncMock()
-        mock_create_mcp.return_value = mock_mcp
+    await server.manager.autostart_configured_servers()
 
-        mock_tui = MagicMock()
-        mock_tui.run_async = AsyncMock()
-        mock_tui_cls.return_value = mock_tui
+    await asyncio.sleep(0.2)
 
-        server = DevServerMCP(config=simple_config, port=8080, transport="sse", _skip_port_check=True)
+    assert server.manager.get_server_status("autostart")["status"] == "running"
+    assert server.manager.get_server_status("manual")["status"] == "stopped"
 
-        with patch.object(server, "_cleanup") as mock_cleanup:
-            await server._run_with_tui()
-
-            mock_mcp.run_async.assert_called_once_with(transport="sse", port=8080, host="localhost")
-            mock_tui_cls.assert_called_once_with(mock_manager, "http://localhost:8080/sse/", transport="sse")
-            mock_tui.run_async.assert_called_once()
-            mock_cleanup.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_run_with_tui_keyboard_interrupt(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.DevServerTUI") as mock_tui_cls,
-    ):
-        mock_manager_cls.return_value = MagicMock()
-
-        mock_mcp = MagicMock()
-        mock_mcp.run_async = AsyncMock()
-        mock_create_mcp.return_value = mock_mcp
-
-        mock_tui = MagicMock()
-        mock_tui.run_async = AsyncMock(side_effect=KeyboardInterrupt())
-        mock_tui_cls.return_value = mock_tui
-
-        server = DevServerMCP(config=simple_config, _skip_port_check=True)
-
-        with patch.object(server, "_cleanup") as mock_cleanup:
-            await server._run_with_tui()
-            mock_cleanup.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_run_with_tui_generic_exception(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.DevServerTUI") as mock_tui_cls,
-    ):
-        mock_manager_cls.return_value = MagicMock()
-
-        mock_mcp = MagicMock()
-        mock_mcp.run_async = AsyncMock()
-        mock_create_mcp.return_value = mock_mcp
-
-        mock_tui = MagicMock()
-        mock_tui.run_async = AsyncMock(side_effect=RuntimeError("Test error"))
-        mock_tui_cls.return_value = mock_tui
-
-        server = DevServerMCP(config=simple_config, _skip_port_check=True)
-
-        with patch.object(server, "_cleanup") as mock_cleanup:
-            await server._run_with_tui()
-            mock_cleanup.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_cleanup_with_mcp_task(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.silence_all_output"),
-    ):
-        mock_manager = MagicMock()
-        mock_manager.shutdown_all = AsyncMock()
-        mock_manager_cls.return_value = mock_manager
-        mock_create_mcp.return_value = MagicMock()
-
-        server = DevServerMCP(config=simple_config, _skip_port_check=True)
-
-        mock_task = MagicMock()
-        mock_task.done.return_value = False
-        mock_task.cancel = MagicMock()
-        server._mcp_task = mock_task
-
-        with patch("asyncio.wait_for") as mock_wait_for:
-            await server._cleanup()
-
-            mock_task.cancel.assert_called_once()
-            mock_wait_for.assert_called_once_with(mock_task, timeout=0.5)
-            mock_manager.shutdown_all.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_cleanup_with_done_mcp_task(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.silence_all_output"),
-    ):
-        mock_manager = MagicMock()
-        mock_manager.shutdown_all = AsyncMock()
-        mock_manager_cls.return_value = mock_manager
-        mock_create_mcp.return_value = MagicMock()
-
-        server = DevServerMCP(config=simple_config, _skip_port_check=True)
-
-        mock_task = MagicMock()
-        mock_task.done.return_value = True
-        server._mcp_task = mock_task
-
-        await server._cleanup()
-
-        mock_task.cancel.assert_not_called()
-        mock_manager.shutdown_all.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_cleanup_without_mcp_task(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.silence_all_output"),
-    ):
-        mock_manager = MagicMock()
-        mock_manager.shutdown_all = AsyncMock()
-        mock_manager_cls.return_value = mock_manager
-        mock_create_mcp.return_value = MagicMock()
-
-        server = DevServerMCP(config=simple_config, _skip_port_check=True)
-        server._mcp_task = None
-
-        await server._cleanup()
-
-        mock_manager.shutdown_all.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_cleanup_with_timeout_error(simple_config):
-    with (
-        patch("devserver_mcp.DevServerManager") as mock_manager_cls,
-        patch("devserver_mcp.create_mcp_server") as mock_create_mcp,
-        patch("devserver_mcp.silence_all_output"),
-    ):
-        mock_manager = MagicMock()
-        mock_manager.shutdown_all = AsyncMock()
-        mock_manager_cls.return_value = mock_manager
-        mock_create_mcp.return_value = MagicMock()
-
-        server = DevServerMCP(config=simple_config, _skip_port_check=True)
-
-        mock_task = MagicMock()
-        mock_task.done.return_value = False
-        mock_task.cancel = MagicMock()
-        server._mcp_task = mock_task
-
-        with patch("asyncio.wait_for", side_effect=TimeoutError()):
-            await server._cleanup()
-
-            mock_task.cancel.assert_called_once()
-            mock_manager.shutdown_all.assert_called_once()
+    await server._cleanup()

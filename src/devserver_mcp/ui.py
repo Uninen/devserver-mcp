@@ -26,7 +26,7 @@ class ServerBox(Static):
     def _format_status(self, server: dict) -> str:
         if server["status"] == "running":
             return "[#00ff80]● Running[/#00ff80]"
-        elif server["external_running"]:
+        elif server["status"] == "external":
             return "[#00ffff]● External[/#00ffff]"
         elif server["status"] == "error":
             return "[#ff0040]● Error[/#ff0040]"
@@ -40,7 +40,7 @@ class ServerBox(Static):
         if self.server["status"] == "stopped":
             await self.manager.start_server(server_name)
             action_taken = True
-        elif self.server["status"] == "running" and not self.server["external_running"]:
+        elif self.server["status"] == "running":
             await self.manager.stop_server(server_name)
             # Add small delay to allow port to be released
             await asyncio.sleep(0.1)

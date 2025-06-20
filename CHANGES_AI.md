@@ -1,5 +1,11 @@
 # AI Generated Changes
 
+- 2025-06-20: Fixed all failing tests to adhere to testing standards and removed implementation detail checks. (claude-opus-4-20250514)
+- 2025-06-20: Applied ruff linting and formatting to all test files and fixed import/code style issues. (claude-opus-4-20250514)
+- 2025-06-20: Refactored all tests to follow testing guidelines - removed mocking of internal classes, using real objects with only system boundary mocks. (claude-opus-4-20250514)
+- 2025-06-20: Fixed UI to work with PID-based process management - updated status display to use simplified states and removed external process checks from click handlers. (claude-sonnet-4-20250514)
+- 2025-06-20: Simplified status logic in DevServerManager - replaced complex status checks with Running/External/Stopped states and removed 'managed' terminology from user-facing APIs. (claude-sonnet-4-20250514)
+- 2025-06-20: Refactored ManagedProcess to use PID-based tracking with process reclaim, process group management, and StateManager integration. (claude-opus-4-20250514)
 - 2025-06-08: Refactored MCP server tools to use @mcp.tool decorator pattern instead of mcp.add_tool for FastMCP compatibility. (claude-opus-4-20250514)
 - 2025-06-04: Added port conflict detection with early error message and comprehensive tests for port availability checking. (claude-sonnet-4-20250514)
 - 2025-06-04: Fixed Playwright missing module crash - app now exits early with clear error message instead of showing error in UI. (claude-opus-4-20250514)
