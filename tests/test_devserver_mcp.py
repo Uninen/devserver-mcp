@@ -1,7 +1,6 @@
 import asyncio
 import sys
 import tempfile
-from contextlib import suppress
 from pathlib import Path
 from unittest.mock import patch
 
@@ -68,19 +67,6 @@ def test_is_interactive_terminal_detection():
         patch.dict("os.environ", {"CI": "true"}),
     ):
         assert server._is_interactive_terminal() is False
-
-
-@pytest.mark.asyncio
-async def test_run_headless_mode(simple_config, temp_state_dir):
-    server = DevServerMCP(config=simple_config, port=8081, _skip_port_check=True)
-
-    with patch.object(server, "_is_interactive_terminal", return_value=False):
-        run_task = asyncio.create_task(server.run())
-        await asyncio.sleep(0.1)
-        run_task.cancel()
-
-        with suppress(asyncio.CancelledError):
-            await run_task
 
 
 @pytest.mark.asyncio

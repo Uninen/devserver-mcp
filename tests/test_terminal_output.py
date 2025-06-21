@@ -9,38 +9,6 @@ from pathlib import Path
 import yaml
 
 
-def test_app_startup_has_no_output():
-    config_data = {
-        "servers": {
-            "test": {
-                "command": "echo test",
-                "port": 8000,
-            }
-        }
-    }
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
-        yaml.dump(config_data, f)
-        f.flush()
-
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("", 0))
-            free_port = s.getsockname()[1]
-
-        result = subprocess.run(
-            [sys.executable, "src/devserver_mcp/__init__.py", "--config", f.name, "--port", str(free_port)],
-            cwd=Path.cwd(),
-            capture_output=True,
-            text=True,
-            timeout=3,
-            input="\x03",
-        )
-
-    assert result.stdout == "", f"App should not output to stdout, but got: {repr(result.stdout)}"
-    assert result.stderr == "", f"App should not output to stderr, but got: {repr(result.stderr)}"
-    assert result.returncode == 0, f"App should exit cleanly with code 0, but got: {result.returncode}"
-
-
 def test_port_conflict_shows_error_message():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("", 0))

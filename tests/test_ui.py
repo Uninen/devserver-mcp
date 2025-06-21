@@ -73,10 +73,6 @@ async def test_dev_server_tui_initialization(manager):
 
     assert app.manager == manager
     assert app.mcp_url == mcp_url
-    assert app.transport == "streamable-http"
-
-    app_sse = DevServerTUI(manager, mcp_url, transport="sse")
-    assert app_sse.transport == "sse"
 
 
 async def test_dev_server_tui_runs_without_crash(manager):
@@ -123,19 +119,10 @@ def test_tool_box_emoji():
     assert tool_box._get_tool_emoji() == "🔧"
 
 
-async def test_dev_server_tui_bottom_bar_displays_transport(manager):
-    # Test HTTP transport
-    app_http = DevServerTUI(manager, "http://localhost:3001/mcp/", transport="streamable-http")
-    async with app_http.run_test():
-        bottom_bar = app_http.query_one("#bottom-bar")
+async def test_dev_server_tui_bottom_bar_displays_url(manager):
+    app = DevServerTUI(manager, "http://localhost:3001/mcp/")
+    async with app.run_test():
+        bottom_bar = app.query_one("#bottom-bar")
         assert bottom_bar is not None
         bar_text = str(bottom_bar.renderable)
-        assert "MCP (HTTP): http://localhost:3001/mcp/" in bar_text
-
-    # Test SSE transport
-    app_sse = DevServerTUI(manager, "http://localhost:3001/sse/", transport="sse")
-    async with app_sse.run_test():
-        bottom_bar = app_sse.query_one("#bottom-bar")
-        assert bottom_bar is not None
-        bar_text = str(bottom_bar.renderable)
-        assert "MCP (SSE): http://localhost:3001/sse/" in bar_text
+        assert "MCP: http://localhost:3001/mcp/" in bar_text

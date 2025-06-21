@@ -1,5 +1,11 @@
 # Changelog
 
+## Next
+
+- feat: added `browser_click` and `browser_type` tools for Playwright
+- refactor: removed sse-transport (http-only now 🎉)
+- docs: documented configuration using http-transport only
+
 ## v0.4.0 (2025-06-20)
 
 - refactor: refactored process management (#13)

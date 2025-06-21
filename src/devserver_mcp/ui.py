@@ -285,11 +285,10 @@ class DevServerTUI(App):
         await self.manager.shutdown_all()
         self.exit(0)
 
-    def __init__(self, manager: DevServerManager, mcp_url: str, transport: str = "streamable-http"):
+    def __init__(self, manager: DevServerManager, mcp_url: str):
         super().__init__()
         self.manager = manager
         self.mcp_url = mcp_url
-        self.transport = transport
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="main-split"):
@@ -305,8 +304,7 @@ class DevServerTUI(App):
             logs_panel.border_title = "Server Logs"
             with logs_panel:
                 yield LogsWidget(self.manager)
-        transport_display = "SSE" if self.transport == "sse" else "HTTP"
-        yield Static(f"MCP ({transport_display}): {self.mcp_url} | Press Ctrl+C to quit", id="bottom-bar")
+        yield Static(f"MCP: {self.mcp_url} | Press Ctrl+C to quit", id="bottom-bar")
 
     async def on_mount(self):
         self.title = "DevServer MCP"
@@ -315,7 +313,7 @@ class DevServerTUI(App):
         await self.manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
-            f"MCP Server started at {self.mcp_url} ({self.transport} transport)",
+            f"MCP Server started at {self.mcp_url}",
         )
 
         await self.manager.autostart_configured_servers()

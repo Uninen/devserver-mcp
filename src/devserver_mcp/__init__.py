@@ -4,7 +4,6 @@ import os
 import socket
 import sys
 from pathlib import Path
-from typing import Literal
 
 import click
 
@@ -24,12 +23,10 @@ class DevServerMCP:
         config_path: str | None = None,
         config: Config | None = None,
         port: int = 3001,
-        transport: Literal["streamable-http", "sse"] = "streamable-http",
         _skip_port_check: bool = False,
     ):
         self.config = self._load_config(config_path, config)
         self.port = port
-        self.transport = transport
 
         if self.config.experimental and self.config.experimental.playwright:
             self._check_playwright_availability()
@@ -83,31 +80,19 @@ class DevServerMCP:
 
     async def run(self):
         configure_silent_logging()
-
-        if not self._is_interactive_terminal():
-            await self._run_headless()
-            return
-
         await self._run_with_tui()
-
-    async def _run_headless(self):
-        with silence_all_output():
-            await asyncio.sleep(0.1)
 
     async def _run_with_tui(self):
         self._mcp_task = asyncio.create_task(
             self.mcp.run_async(
-                transport=self.transport,  # type: ignore
+                transport="streamable-http",
                 port=self.port,
                 host="localhost",
             )
         )
 
-        if self.transport == "sse":
-            mcp_url = f"http://localhost:{self.port}/sse/"
-        else:
-            mcp_url = f"http://localhost:{self.port}/mcp/"
-        app = DevServerTUI(self.manager, mcp_url, transport=self.transport)
+        mcp_url = f"http://localhost:{self.port}/mcp/"
+        app = DevServerTUI(self.manager, mcp_url)
 
         try:
             await app.run_async()
@@ -133,15 +118,13 @@ class DevServerMCP:
 @click.option(
     "--config", "-c", default="devservers.yml", help="Path to configuration file", type=click.Path(exists=False)
 )
-@click.option("--port", "-p", default=3001, type=int, help="Port for HTTP transport")
-@click.option("--sse", is_flag=True, help="Use SSE transport instead of streamable-http")
-def main(config, port, sse):
+@click.option("--port", "-p", default=3001, type=int, help="Port for server")
+def main(config, port):
     configure_silent_logging()
     config = resolve_config_path(config)
 
     try:
-        transport = "sse" if sse else "streamable-http"
-        mcp_server = DevServerMCP(config_path=config, port=port, transport=transport)
+        mcp_server = DevServerMCP(config_path=config, port=port)
     except FileNotFoundError:
         click.echo(f"Error: Config file not found: {config}", err=True)
         click.echo(f"Looked for '{Path(config).name}' in current directory and parent directories.", err=True)
