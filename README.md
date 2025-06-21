@@ -22,7 +22,7 @@ The tests validate some of the functionality and the server is already useful if
 ## Installation
 
 ```bash
-uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.3.2
+uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.4.0
 ```
 
 ### Playwright (Optional)
@@ -84,33 +84,33 @@ Run the TUI in a separate terminal: `devservers`
 
 ### Claude Code
 
-Install the server (as SSE because Claude Code doesn't yet support streamable http 🤦‍♂️):
+Install the server:
 
 ```bash
-claude mcp add --transport sse devserver http://localhost:3001/sse/
+claude mcp add --transport http devserver http://localhost:3001/mcp/
 ```
 
-Run the TUI in a separate terminal in SSE mode: `devservers --sse`
+Run the TUI in a separate terminal: `devservers`
 
 ### Zed
 
-Zed doesn't yet support remote MCP servers natively so you need to use a proxy and SSE mode.
+Zed doesn't yet support remote MCP servers natively so you need to use a proxy like [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy).
 
 You can either use the UI in Assistant Setting -> Context Server -> Add Custom Server, and add name "Devservers" and
-command `npx -y mcp-remote http://localhost:3001/sse/ --transport sse`, or, you can add this manually to Zed config:
+command `uvx mcp-proxy --transport streamablehttp http://localhost:3001/mcp/`, or, you can add this manually to Zed config:
 
 ```json
   "context_servers": {
     "devservers": {
       "command": {
-        "path": "npx",
-        "args": ["-y", "mcp-remote", "http://localhost:3001/sse/", "--transport", "sse"]
+        "path": "uvx",
+        "args": ["mcp-proxy", "--transport", "streamablehttp", "http://localhost:3001/mcp/"]
       }
     }
   },
 ```
 
-Run the TUI in a separate terminal in SSE mode: `devservers --sse`
+Run the TUI in a separate terminal: `devservers`
 
 ## Usage
 
