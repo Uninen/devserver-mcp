@@ -37,9 +37,9 @@ This plan addresses the issue where devserver log colors are modified by the TUI
 
 ### Step 4: Implement ANSI-Aware Log Display
 
-- [ ] Add import: `from rich.text import Text` to LogsWidget
-- [ ] Rewrite `LogsWidget.add_log_line()` to use the code example below
-- [ ] **Verify**: `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5`
+- [x] Add import: `from rich.text import Text` to LogsWidget
+- [x] Rewrite `LogsWidget.add_log_line()` to use the code example below
+- [x] **Verify**: `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5`
   - **Expected**: ANSI codes like `\x1b[37;48;2;0;148;133m` should appear in MCP output
 
 ### Step 5: Final Validation

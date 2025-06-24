@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.events import Click
@@ -59,7 +60,6 @@ class ServerBox(Static):
                 break
 
     def _refresh_labels(self) -> None:
-        # Check if the widget has been composed and labels exist
         if not hasattr(self, "_nodes") or not self._nodes:
             return
 
@@ -165,19 +165,24 @@ class LogsWidget(Widget):
 
     async def add_log_line(self, server: str, timestamp: str, message: str):
         log = self.query_one(RichLog)
-        formatted_message: str
+
         if server and timestamp:
+            timestamp_text = Text(f"[{timestamp}]", style="dim")
+
             process = self.manager.processes.get(server.lower())
             if server == "MCP Server":
-                color = "bright_white"
+                server_style = "bright_white"
             elif server == f"{get_tool_emoji()} Playwright":
-                color = "magenta"
+                server_style = "magenta"
             else:
-                color = process.color if process else "white"
-            formatted_message = f"[dim]{timestamp}[/dim] [{color}]{server}[/{color}] | {message}"
+                server_style = process.color if process else "white"
+
+            server_text = Text(f" {server} | ", style=server_style)
+            message_text = Text.from_ansi(message)
+            final_text = timestamp_text + server_text + message_text
+            log.write(final_text)
         else:
-            formatted_message = message
-        log.write(formatted_message)
+            log.write(Text.from_ansi(message))
 
 
 class DevServerTUI(App):

@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-24: Implemented ANSI color passthrough in TUI by enabling ansi_color=True, removing forced green CSS color, and rewriting log display to use Text.from_ansi() for preserving terminal colors. (claude-sonnet-4-20250514)
 - 2025-06-24: Streamlined color passthrough refactoring plan with test configs for autostarting servers. (claude-opus-4-20250514)
 - 2025-06-24: Created test_ansi_comparison.py tool to verify ANSI color passthrough between direct commands and MCP server output. (claude-opus-4-20250514)
 - 2025-06-24: Replaced get_server_status MCP tool with get_devserver_statuses that returns all server statuses without arguments, using typed Pydantic models for better type safety and FastMCP compatibility. Updated documentation. (claude-opus-4-20250514)
