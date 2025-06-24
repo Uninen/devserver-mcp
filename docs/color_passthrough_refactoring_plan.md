@@ -6,20 +6,6 @@ This plan addresses the issue where devserver log colors are modified by the TUI
 
 **Testing Approach**: Use `test_ansi_comparison.py` after each step to verify ANSI codes are being preserved correctly.
 
-## Test Setup
-
-Create test configurations that autostart servers:
-- [ ] Create `devservers-vite-test.yml` with Vite frontend set to `autostart: true`
-- [ ] Create `devservers-fastapi-test.yml` with FastAPI backend set to `autostart: true`
-- [ ] Create `devservers-both-test.yml` with both servers set to `autostart: true`
-
-## Baseline Testing
-
-Before making any changes, capture the current behavior:
-- [ ] Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 5 > baseline_vite.txt`
-- [ ] Run `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5 > baseline_fastapi.txt`
-- [ ] Note: Current TUI output should show NO ANSI codes, just the forced green color
-
 ## Current Issues
 
 1. The UI applies its own colors (green by default) to all log content
@@ -29,22 +15,34 @@ Before making any changes, capture the current behavior:
 
 ## Implementation Steps
 
-### Step 1: Enable ANSI Preservation & Remove Forced Colors
+### Step 1: Create Test Configurations
+
+- [ ] Create `devservers-vite-test.yml` with Vite frontend set to `autostart: true`
+- [ ] Create `devservers-fastapi-test.yml` with FastAPI backend set to `autostart: true`
+- [ ] Create `devservers-both-test.yml` with both servers set to `autostart: true`
+
+### Step 2: Capture Baseline Behavior
+
+- [ ] Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 5 > baseline_vite.txt`
+- [ ] Run `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5 > baseline_fastapi.txt`
+- [ ] Verify baseline: Current TUI output should show NO ANSI codes, just the forced green color
+
+### Step 3: Enable ANSI Preservation & Remove Forced Colors
 
 - [ ] Enable `ansi_color=True` in `DevServerTUI.__init__()` (line ~290)
 - [ ] Remove `color: #00ff80;` from CSS (line ~250)
 - [ ] Update `LogsWidget.compose()` to use `RichLog(highlight=False, markup=False, ...)` (line ~162)
-- **Verify**: `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 3`
-- **Expected**: No more forced green color, but ANSI codes may not appear yet
+- [ ] **Verify**: `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 3`
+  - **Expected**: No more forced green color, but ANSI codes may not appear yet
 
-### Step 2: Implement ANSI-Aware Log Display
+### Step 4: Implement ANSI-Aware Log Display
 
 - [ ] Add import: `from rich.text import Text` to LogsWidget
 - [ ] Rewrite `LogsWidget.add_log_line()` to use the code example below
-- **Verify**: `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5`
-- **Expected**: ANSI codes like `\x1b[37;48;2;0;148;133m` should appear in MCP output
+- [ ] **Verify**: `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5`
+  - **Expected**: ANSI codes like `\x1b[37;48;2;0;148;133m` should appear in MCP output
 
-### Step 3: Final Validation
+### Step 5: Final Validation
 
 - [ ] FastAPI test: `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 10`
   - Must see ANSI codes like `\x1b[37;48;2;0;148;133m` in MCP output
@@ -62,11 +60,11 @@ Updated `add_log_line()` method:
 ```python
 async def add_log_line(self, server: str, timestamp: str, message: str):
     log = self.query_one(RichLog)
-    
+
     if server and timestamp:
         # Create separate Text objects for metadata
         timestamp_text = Text(f"[{timestamp}]", style="dim")
-        
+
         # Determine server color
         process = self.manager.processes.get(server.lower())
         if server == "MCP Server":
@@ -75,12 +73,12 @@ async def add_log_line(self, server: str, timestamp: str, message: str):
             server_style = "magenta"
         else:
             server_style = process.color if process else "white"
-        
+
         server_text = Text(f" {server} | ", style=server_style)
-        
+
         # Preserve ANSI in the actual message
         message_text = Text.from_ansi(message)
-        
+
         # Compose without concatenation
         final_text = timestamp_text + server_text + message_text
         log.write(final_text)
