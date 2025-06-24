@@ -4,7 +4,21 @@
 
 This plan addresses the issue where devserver log colors are modified by the TUI, making certain outputs (like green text) harder to read. The goal is to achieve full ANSI color passthrough while preventing color bleeding between different devservers.
 
-**Key Testing Approach**: After each implementation step, use the `test_ansi_comparison.py` tool to verify the change is working before proceeding to the next step. This ensures tight feedback loops and early detection of issues.
+**Testing Approach**: Use `test_ansi_comparison.py` after each step to verify ANSI codes are being preserved correctly.
+
+## Test Setup
+
+Create test configurations that autostart servers:
+- [ ] Create `devservers-vite-test.yml` with Vite frontend set to `autostart: true`
+- [ ] Create `devservers-fastapi-test.yml` with FastAPI backend set to `autostart: true`
+- [ ] Create `devservers-both-test.yml` with both servers set to `autostart: true`
+
+## Baseline Testing
+
+Before making any changes, capture the current behavior:
+- [ ] Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 5 > baseline_vite.txt`
+- [ ] Run `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5 > baseline_fastapi.txt`
+- [ ] Note: Current TUI output should show NO ANSI codes, just the forced green color
 
 ## Current Issues
 
@@ -15,90 +29,38 @@ This plan addresses the issue where devserver log colors are modified by the TUI
 
 ## Implementation Steps
 
-### Phase 1: Enable ANSI Color Preservation
+### Step 1: Enable ANSI Preservation & Remove Forced Colors
 
-- [ ] 1. Modify `DevServerTUI.__init__()` to pass `ansi_color=True` to `super().__init__()`
-  - Location: `src/devserver_mcp/ui.py:290`
-  - This preserves the terminal's original ANSI color scheme
-  - **Verify**: Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers' 3`
-  - Expected: Should see TUI render differently, may start seeing some ANSI preservation
+- [ ] Enable `ansi_color=True` in `DevServerTUI.__init__()` (line ~290)
+- [ ] Remove `color: #00ff80;` from CSS (line ~250)
+- [ ] Update `LogsWidget.compose()` to use `RichLog(highlight=False, markup=False, ...)` (line ~162)
+- **Verify**: `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 3`
+- **Expected**: No more forced green color, but ANSI codes may not appear yet
 
-- [ ] 2. Remove the default color from RichLog in CSS
-  - Location: `src/devserver_mcp/ui.py:250`
-  - Remove `color: #00ff80;` line
-  - Allow content colors to come through naturally
-  - **Verify**: Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers' 3`
-  - Expected: Log text should no longer be forced to green color
+### Step 2: Implement ANSI-Aware Log Display
 
-### Phase 2: Modify Log Handling
+- [ ] Add import: `from rich.text import Text` to LogsWidget
+- [ ] Rewrite `LogsWidget.add_log_line()` to use the code example below
+- **Verify**: `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5`
+- **Expected**: ANSI codes like `\x1b[37;48;2;0;148;133m` should appear in MCP output
 
-- [ ] 3. Update `LogsWidget.compose()` to disable markup
-  - Location: `src/devserver_mcp/ui.py:162`
-  - Change to: `RichLog(highlight=False, markup=False, id="server-logs", auto_scroll=True, wrap=True)`
-  - Prevents Rich from interpreting log content as markup
-  - **Verify**: Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers' 3`
-  - Expected: Log output should no longer interpret Rich markup syntax
+### Step 3: Final Validation
 
-- [ ] 4. Import Rich's Text class in LogsWidget
-  - Location: `src/devserver_mcp/ui.py` (add to imports)
-  - Add: `from rich.text import Text`
-  - **Verify**: Code should compile without import errors
+- [ ] FastAPI test: `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 10`
+  - Must see ANSI codes like `\x1b[37;48;2;0;148;133m` in MCP output
+- [ ] Vite test: `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 10`
+  - Must see ANSI codes like `\x1b[32m` (green) and `\x1b[36m` (cyan) in MCP output
+- [ ] Both servers test: `uv run devservers --config devservers-both-test.yml`
+  - Verify server names have their assigned colors while messages preserve original ANSI
+  - Verify no color bleeding between different server outputs
+- [ ] Update CHANGES_AI.md
 
-### Phase 3: Refactor Log Display
+## Code Implementation
 
-- [ ] 5. Rewrite `LogsWidget.add_log_line()` to use Rich Text objects
-  - Location: `src/devserver_mcp/ui.py:166-181`
-  - Create separate Text objects for timestamp, server name, and message
-  - Use `Text.from_ansi()` to preserve ANSI sequences in log messages
-  - Compose final output without string concatenation
-  - **Verify**: Run `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers' 5`
-  - Expected: Should start seeing ANSI codes from FastAPI in MCP output (e.g., `\x1b[37;48;2;0;148;133m`)
-
-### Phase 4: Update Color Assignment Logic
-
-- [ ] 6. Modify the color assignment logic in `add_log_line()`
-  - Keep existing server color logic but apply only to server name
-  - Ensure message content uses its own ANSI colors
-  - Handle both prefixed and non-prefixed logs
-  - **Verify**: Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers' 5`
-  - Expected: Server names should have their assigned colors, but log messages should show original ANSI (e.g., Vite's `\x1b[32m` for green)
-
-### Phase 5: Testing and Validation
-
-- [ ] 7. Test with FastAPI backend (should show colored output like in terminal)
-  - Use: `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers' 5`
-  - Verify ANSI codes from FastAPI appear in MCP output
-- [ ] 8. Test with Vite frontend (should show colored output)
-  - Use: `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers' 5`
-  - Verify ANSI codes from Vite appear in MCP output
-- [ ] 9. Verify no color bleeding between different server logs
-  - Check that server colors don't affect subsequent log lines
-- [ ] 10. Test with servers that output partial ANSI sequences
-- [ ] 11. Ensure server name colors remain distinct and don't affect log content
-  - Verify server name has its color while message content has original ANSI
-
-### Phase 6: Edge Case Handling
-
-- [ ] 12. Add error handling for malformed ANSI sequences
-- [ ] 13. Test with very long colored output lines
-- [ ] 14. Verify scrolling behavior with colored content
-- [ ] 15. Test on both light and dark terminal themes
-
-### Phase 7: Documentation and Cleanup
-
-- [ ] 16. Update any relevant documentation about color handling
-- [ ] 17. Add comments explaining the ANSI preservation approach
-- [ ] 18. Remove any unused color-related code
-- [ ] 19. Update CHANGES_AI.md with the implemented changes
-
-## Code Example
-
-Here's the key change for `add_log_line()`:
+Updated `add_log_line()` method:
 
 ```python
 async def add_log_line(self, server: str, timestamp: str, message: str):
-    from rich.text import Text
-    
     log = self.query_one(RichLog)
     
     if server and timestamp:
@@ -126,15 +88,6 @@ async def add_log_line(self, server: str, timestamp: str, message: str):
         # Direct ANSI preservation for unprefixed logs
         log.write(Text.from_ansi(message))
 ```
-
-## Rollback Plan
-
-If issues arise during implementation:
-
-1. Revert `ansi_color` to `False` in DevServerTUI
-2. Re-enable `markup=True` in RichLog if needed
-3. Restore default CSS colors as fallback
-4. Keep original string concatenation approach
 
 ## Success Criteria
 
