@@ -62,12 +62,19 @@ class ManagedProcess:
             work_dir = os.path.expanduser(self.config.working_dir)
             work_dir = os.path.abspath(work_dir)
 
+            # Set up environment to preserve ANSI colors
+            env = os.environ.copy()
+            env['TERM'] = 'xterm-256color'
+            env['FORCE_COLOR'] = '1'
+            env['COLORTERM'] = 'truecolor'
+            
             self.process = await asyncio.create_subprocess_shell(
                 self.config.command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 stdin=asyncio.subprocess.DEVNULL,  # Prevent child from reading terminal input
                 cwd=work_dir,
+                env=env,
                 start_new_session=sys.platform != "win32",
             )
 
