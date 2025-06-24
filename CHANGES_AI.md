@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-24: Fixed ANSI color passthrough in TUI by enabling ansi_color=True, removing forced CSS colors, using Text.from_ansi() for log display, and setting subprocess environment variables (TERM, FORCE_COLOR, COLORTERM) to preserve development server colors. (claude-opus-4-20250514, claude-sonnet-4-20250514)
 - 2025-06-24: Replaced get_server_status MCP tool with get_devserver_statuses that returns all server statuses without arguments, using typed Pydantic models for better type safety and FastMCP compatibility. Updated documentation. (claude-opus-4-20250514)
 - 2025-06-21: Removed SSE transport functionality and all related code, tests, and UI mentions. Simplified to use only HTTP transport. (claude-opus-4-20250514)
 - 2025-06-20: Added browser_type tool to experimental Playwright features with support for typing text, optional submit and slow typing modes. (claude-opus-4-20250514)
