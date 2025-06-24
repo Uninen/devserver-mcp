@@ -8,39 +8,40 @@ from textual.widget import Widget
 from textual.widgets import Label, RichLog, Static
 
 from .manager import DevServerManager
+from .types import ServerStatus, ServerStatusEnum
 from .utils import get_tool_emoji
 
 
 class ServerBox(Static):
-    def __init__(self, server: dict, manager: DevServerManager):
+    def __init__(self, server: ServerStatus, manager: DevServerManager):
         super().__init__(classes="server-box")
         self.server = server
         self.manager = manager
 
     def compose(self) -> ComposeResult:
-        name = self.server["name"]
+        name = self.server.name
         status = self._format_status(self.server)
         yield Label(f"[b]{name}[/b]", id="server-name")
         yield Label(status, id="server-status")
 
-    def _format_status(self, server: dict) -> str:
-        if server["status"] == "running":
+    def _format_status(self, server: ServerStatus) -> str:
+        if server.status == ServerStatusEnum.RUNNING:
             return "[#00ff80]● Running[/#00ff80]"
-        elif server["status"] == "external":
+        elif server.status == ServerStatusEnum.EXTERNAL:
             return "[#00ffff]● External[/#00ffff]"
-        elif server["status"] == "error":
+        elif server.status == ServerStatusEnum.ERROR:
             return "[#ff0040]● Error[/#ff0040]"
         else:
             return "[#8000ff]● Stopped[/#8000ff]"
 
     async def on_click(self, event: Click) -> None:
-        server_name = self.server["name"]
+        server_name = self.server.name
         action_taken = False
 
-        if self.server["status"] == "stopped":
+        if self.server.status == ServerStatusEnum.STOPPED:
             await self.manager.start_server(server_name)
             action_taken = True
-        elif self.server["status"] == "running":
+        elif self.server.status == ServerStatusEnum.RUNNING:
             await self.manager.stop_server(server_name)
             # Add small delay to allow port to be released
             await asyncio.sleep(0.1)
@@ -51,9 +52,9 @@ class ServerBox(Static):
             self._refresh_labels()
 
     def _update_server_data(self) -> None:
-        servers = self.manager.get_all_servers()
+        servers = self.manager.get_devserver_statuses()
         for server in servers:
-            if server["name"] == self.server["name"]:
+            if server.name == self.server.name:
                 self.server = server
                 break
 
@@ -66,7 +67,7 @@ class ServerBox(Static):
             name_label = self.query_one("#server-name", Label)
             status_label = self.query_one("#server-status", Label)
 
-            name_label.update(f"[b]{self.server['name']}[/b]")
+            name_label.update(f"[b]{self.server.name}[/b]")
             status_label.update(self._format_status(self.server))
         except Exception:
             # Labels don't exist (e.g., in tests or not yet composed)
@@ -115,7 +116,7 @@ class ServerStatusWidget(Widget):
         self.manager.add_status_callback(self.refresh_boxes)
 
     def compose(self) -> ComposeResult:
-        servers = self.manager.get_all_servers()
+        servers = self.manager.get_devserver_statuses()
         for server in servers:
             yield ServerBox(server, self.manager)
 
@@ -129,11 +130,11 @@ class ServerStatusWidget(Widget):
             yield ToolBox("Playwright", status, self.manager)
 
     def refresh_boxes(self):
-        updated_servers_data = self.manager.get_all_servers()
-        server_data_map = {s_data["name"]: s_data for s_data in updated_servers_data}
+        updated_servers_data = self.manager.get_devserver_statuses()
+        server_data_map = {s_data.name: s_data for s_data in updated_servers_data}
 
         for server_box in self.query(ServerBox):
-            current_server_name = server_box.server["name"]
+            current_server_name = server_box.server.name
             if current_server_name in server_data_map:
                 server_box.server = server_data_map[current_server_name]
                 server_box._refresh_labels()

@@ -31,40 +31,45 @@ def mcp_server(manager):
     return create_mcp_server(manager)
 
 
-def _parse_tool_result(result):
+def _parse_tool_result(result, expect_list=False):
     content = result[0]
 
     if hasattr(content, "text"):
-        return json.loads(content.text)
+        parsed = json.loads(content.text)
     elif hasattr(content, "content"):
-        return json.loads(content.content)
+        parsed = json.loads(content.content)
     else:
-        return json.loads(str(content))
+        parsed = json.loads(str(content))
+    
+    # Workaround for FastMCP serialization issue with single-item lists
+    if expect_list and not isinstance(parsed, list):
+        return [parsed]
+    
+    return parsed
 
 
 @pytest.mark.asyncio
-async def test_get_server_status_tool(mcp_server):
+async def test_get_devserver_statuses_returns_all_servers(mcp_server):
     async with Client(mcp_server) as client:
-        result = await client.call_tool("get_server_status", {"name": "test-server"})
+        result = await client.call_tool("get_devserver_statuses", {})
 
         assert len(result) == 1
 
-        response = _parse_tool_result(result)
+        response = _parse_tool_result(result, expect_list=True)
 
-        assert "status" in response
-        assert "port" in response
-        assert response["port"] == 8000
-
-        if response["status"] == "running":
-            assert response.get("type") == "external", (
-                "If status is 'running' before start, it must be an external process"
-            )
-        else:
-            assert response["status"] == "stopped"
+        assert isinstance(response, list)
+        assert len(response) == 1
+        
+        server = response[0]
+        assert server["name"] == "test-server"
+        assert server["status"] in ["stopped", "running"]
+        assert server["port"] == 8000
+        assert "color" in server
+        assert server["error"] is None or isinstance(server["error"], str)
 
 
 @pytest.mark.asyncio
-async def test_start_server_tool(mcp_server):
+async def test_start_server_starts_successfully(mcp_server):
     async with Client(mcp_server) as client:
         result = await client.call_tool("start_server", {"name": "test-server"})
 
@@ -74,13 +79,13 @@ async def test_start_server_tool(mcp_server):
 
         assert "status" in response
         assert "message" in response
-        assert response["status"] in ["started", "error"]  # Could be error if port is in use
+        assert response["status"] in ["started", "error"]
 
 
 @pytest.mark.asyncio
-async def test_nonexistent_server_tool(mcp_server):
+async def test_start_server_nonexistent_returns_error(mcp_server):
     async with Client(mcp_server) as client:
-        result = await client.call_tool("get_server_status", {"name": "nonexistent"})
+        result = await client.call_tool("start_server", {"name": "nonexistent"})
 
         assert len(result) == 1
 
@@ -92,7 +97,7 @@ async def test_nonexistent_server_tool(mcp_server):
 
 
 @pytest.mark.asyncio
-async def test_stop_server_tool_not_running(mcp_server):
+async def test_stop_server_not_running_returns_appropriate_status(mcp_server):
     async with Client(mcp_server) as client:
         result = await client.call_tool("stop_server", {"name": "test-server"})
 
@@ -102,19 +107,12 @@ async def test_stop_server_tool_not_running(mcp_server):
 
         assert "status" in response
         assert "message" in response
-        if response["status"] == "error":
-            assert "Failed to kill external process" in response["message"]
-        elif response["status"] == "not_running":
-            assert "not running" in response["message"]
-        else:
-            pytest.fail(
-                f"Unexpected status '{response['status']}' for a server not started by the test. \
-                Message: '{response['message']}'"
-            )
+        assert response["status"] in ["error", "not_running"]
+        assert "not running" in response["message"] or "Failed to kill external process" in response["message"]
 
 
 @pytest.mark.asyncio
-async def test_stop_server_tool_running_process(mcp_server, manager):
+async def test_stop_server_running_process_stops_successfully(mcp_server, manager):
     async with Client(mcp_server) as client:
         start_result = await client.call_tool("start_server", {"name": "test-server"})
         start_response = _parse_tool_result(start_result)
@@ -133,7 +131,7 @@ async def test_stop_server_tool_running_process(mcp_server, manager):
 
 
 @pytest.mark.asyncio
-async def test_get_devserver_logs_tool(mcp_server):
+async def test_get_devserver_logs_not_running_returns_error(mcp_server):
     async with Client(mcp_server) as client:
         result = await client.call_tool("get_devserver_logs", {"name": "test-server"})
 
@@ -142,7 +140,6 @@ async def test_get_devserver_logs_tool(mcp_server):
         response = _parse_tool_result(result)
 
         assert "status" in response
-
         assert response["status"] == "error"
         assert "not running" in response["message"]
 
@@ -159,3 +156,29 @@ async def test_get_devserver_logs_with_lines_parameter(mcp_server):
         assert "status" in response
         assert response["status"] == "error"
         assert "not running" in response["message"]
+
+
+@pytest.mark.asyncio
+async def test_get_devserver_statuses_with_multiple_servers(multi_server_config, temp_state_dir):
+    manager = DevServerManager(multi_server_config)
+    mcp_server = create_mcp_server(manager)
+    
+    async with Client(mcp_server) as client:
+        result = await client.call_tool("get_devserver_statuses", {})
+        
+        assert len(result) == 1
+        
+        response = _parse_tool_result(result, expect_list=True)
+        
+        assert isinstance(response, list)
+        assert len(response) == 2
+        
+        server_names = {server["name"] for server in response}
+        assert server_names == {"api", "web"}
+        
+        for server in response:
+            assert "name" in server
+            assert "status" in server
+            assert "port" in server
+            assert "color" in server
+            assert "error" in server

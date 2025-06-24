@@ -4,6 +4,11 @@ from typing import Any, Literal
 from fastmcp import FastMCP
 
 from devserver_mcp.manager import DevServerManager
+from devserver_mcp.types import (
+    LogsResult,
+    ServerOperationResult,
+    ServerStatus,
+)
 from devserver_mcp.utils import get_tool_emoji, log_error_to_file
 
 
@@ -11,7 +16,7 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
     mcp = FastMCP("devserver")
 
     @mcp.tool
-    async def start_server(name: str) -> dict:
+    async def start_server(name: str) -> ServerOperationResult:
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
@@ -20,7 +25,7 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
         return await manager.start_server(name)
 
     @mcp.tool
-    async def stop_server(name: str) -> dict:
+    async def stop_server(name: str) -> ServerOperationResult:
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
@@ -29,22 +34,22 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
         return await manager.stop_server(name)
 
     @mcp.tool
-    async def get_server_status(name: str) -> dict:
-        await manager._notify_log(
-            "MCP Server",
-            datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'get_server_status' called with: {{'name': {repr(name)}}}",
-        )
-        return manager.get_server_status(name)
-
-    @mcp.tool
-    async def get_devserver_logs(name: str, lines: int = 500) -> dict:
+    async def get_devserver_logs(name: str, lines: int = 500) -> LogsResult:
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
             f"Tool 'get_devserver_logs' called with: {{'name': {repr(name)}, 'lines': {lines}}}",
         )
         return manager.get_devserver_logs(name, lines)
+
+    @mcp.tool
+    async def get_devserver_statuses() -> list[ServerStatus]:
+        await manager._notify_log(
+            "MCP Server",
+            datetime.now().strftime("%H:%M:%S"),
+            "Tool 'get_devserver_statuses' called",
+        )
+        return manager.get_devserver_statuses()
 
     if manager.config.experimental and manager.config.experimental.playwright:
         _add_playwright_commands(mcp, manager)

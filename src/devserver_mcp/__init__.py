@@ -14,7 +14,7 @@ from devserver_mcp.types import Config
 from devserver_mcp.ui import DevServerTUI
 from devserver_mcp.utils import _cleanup_loop, configure_silent_logging, no_op_exception_handler, silence_all_output
 
-__version__ = "0.4"
+__version__ = "0.5"
 
 
 class DevServerMCP:

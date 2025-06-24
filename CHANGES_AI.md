@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-24: Replaced get_server_status MCP tool with get_devserver_statuses that returns all server statuses without arguments, using typed Pydantic models for better type safety and FastMCP compatibility. Updated documentation. (claude-opus-4-20250514)
 - 2025-06-21: Removed SSE transport functionality and all related code, tests, and UI mentions. Simplified to use only HTTP transport. (claude-opus-4-20250514)
 - 2025-06-20: Added browser_type tool to experimental Playwright features with support for typing text, optional submit and slow typing modes. (claude-opus-4-20250514)
 - 2025-06-20: Added browser_click tool to experimental Playwright features. (claude-opus-4-20250514)

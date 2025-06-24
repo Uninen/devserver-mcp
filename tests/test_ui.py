@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from devserver_mcp.manager import DevServerManager
-from devserver_mcp.types import Config, ServerConfig
+from devserver_mcp.types import Config, ServerConfig, ServerStatus, ServerStatusEnum
 from devserver_mcp.ui import DevServerTUI, LogsWidget, ServerBox, ToolBox
 
 
@@ -18,7 +18,7 @@ def running_manager(running_multi_server_config, temp_state_dir):
 
 
 async def test_server_box_click_starts_stopped_server(running_manager):
-    server = {"name": "api", "status": "stopped", "external_running": False, "error": None}
+    server = ServerStatus(name="api", status=ServerStatusEnum.STOPPED, port=12345, error=None, color="cyan")
     box = ServerBox(server, running_manager)
 
     event = type("MockEvent", (), {"stop": lambda: None})()
@@ -33,7 +33,7 @@ async def test_server_box_click_starts_stopped_server(running_manager):
 async def test_server_box_click_stops_running_server(running_manager):
     await running_manager.start_server("web")
 
-    server = {"name": "web", "status": "running", "external_running": False, "error": None}
+    server = ServerStatus(name="web", status=ServerStatusEnum.RUNNING, port=12346, error=None, color="magenta")
     box = ServerBox(server, running_manager)
 
     event = type("MockEvent", (), {"stop": lambda: None})()
@@ -44,7 +44,7 @@ async def test_server_box_click_stops_running_server(running_manager):
 
 
 async def test_server_box_no_action_on_external_server(manager):
-    server = {"name": "external", "status": "running", "external_running": True, "error": None}
+    server = ServerStatus(name="external", status=ServerStatusEnum.EXTERNAL, port=9999, error=None, color="yellow")
     box = ServerBox(server, manager)
 
     event = type("MockEvent", (), {"stop": lambda: None})()
