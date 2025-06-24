@@ -30,15 +30,6 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
         return await manager.stop_server(name)
 
     @mcp.tool
-    async def get_server_status(name: str) -> dict:
-        await manager._notify_log(
-            "MCP Server",
-            datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'get_server_status' called with: {{'name': {repr(name)}}}",
-        )
-        return manager.get_server_status(name)
-
-    @mcp.tool
     async def get_devserver_logs(name: str, lines: int = 500) -> dict:
         await manager._notify_log(
             "MCP Server",

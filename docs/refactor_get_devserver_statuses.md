@@ -16,11 +16,11 @@ Replace the current `get_server_status` MCP tool that requires a server name arg
 - [x] Keep `get_server_status()` method as-is for internal use
 
 ### 3. Remove old MCP tool
-- [ ] Remove the `@mcp.tool` decorator and method for `get_server_status` in `src/devserver_mcp/mcp_server.py`
-- [ ] Keep the manager's `get_server_status()` method for internal use (used in `autostart_configured_servers`)
+- [x] Remove the `@mcp.tool` decorator and method for `get_server_status` in `src/devserver_mcp/mcp_server.py`
+- [x] Keep the manager's `get_server_status()` method for internal use (used in `autostart_configured_servers`)
 
 ### 4. Update UI references
-- [ ] In `src/devserver_mcp/ui.py`, update calls from `get_all_servers()` to `get_devserver_statuses()`
+- [x] In `src/devserver_mcp/ui.py`, update calls from `get_all_servers()` to `get_devserver_statuses()`
 
 ### 5. Update tests
 - [ ] Remove test for `get_server_status` tool in `tests/test_mcp_server.py`
