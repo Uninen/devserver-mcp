@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.1 (2025-06-24)
+
+- refactor: preserver devserver log colors (#18)
+
 ## v0.5.0 (2025-06-24)
 
 - feat: added `browser_click` and `browser_type` tools for Playwright

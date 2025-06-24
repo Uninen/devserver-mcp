@@ -1,7 +1,0 @@
-# test configuration for FastAPI backend only
-servers:
-  backend:
-    command: "uv run fastapi dev backend.py"
-    working_dir: "./testapp"
-    port: 8000
-    autostart: true
