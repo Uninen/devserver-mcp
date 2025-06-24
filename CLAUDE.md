@@ -1,8 +1,8 @@
-# Claude Instructions
+# Project Instructions
 
 ## Project: Devserver MCP
 
-A Model Context Protocol (MCP) server that manages development servers (Django, Vue, Celery, etc.) for LLM-assisted development workflows. Provides programmatic control over multiple development servers through a unified interface with a beautiful TUI.
+This project is a Model Context Protocol (MCP) server that manages development servers (Django, Vue, Celery, etc.) for LLM-assisted development workflows. Provides programmatic control over multiple development servers through a unified interface with a beautiful TUI.
 
 ## Quick Reference
 
@@ -21,11 +21,11 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 
 ## Coding Guidelines
 
-- Do not add any comments or doctsrings unless asked to
 - Python 3.13+, type hints, PEP 8
-- Follow OWASP security practices
 - Handle errors explicitly
-- Make sure to lint and format all the code you write using Ruff
+- Never add any comments or doctsrings unless asked to
+- Always follow security best practices. Never introduce code that exposes or logs secrets and keys
+- Always lint and format all the code you write using Ruff
 
 ### Testing Guidelines
 
@@ -33,13 +33,6 @@ A Model Context Protocol (MCP) server that manages development servers (Django, 
 - Write meaningful tests, not coverage fillers
 - Always use pytest functions, never use classes
 - When creating or fixing tests, always run **the full test suite** to make sure all tests pass
-
-## Documentation
-
-- See `docs/design.md` for technical design specs
-- See latest FastMCP documentation at: https://gofastmcp.com/llms-full.txt
-- Check existing code patterns before implementing new features
-- Textual documentation: https://textual.textualize.io/guide/
 
 ### Test App Structure
 
@@ -49,6 +42,13 @@ testapp/
 └── backend.py      # simple FastAPI app
 devservers.yml       # Test configuration
 ```
+
+## Documentation
+
+- See `docs/design.md` for technical design specs
+- See latest FastMCP documentation at: https://gofastmcp.com/llms-full.txt
+- Check existing code patterns before implementing new features
+- Textual documentation: https://textual.textualize.io/guide/
 
 ## Change Logging
 
