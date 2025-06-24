@@ -1,8 +1,9 @@
 # Changelog
 
-## Next
+## v0.5.0 (2025-06-24)
 
 - feat: added `browser_click` and `browser_type` tools for Playwright
+- refactor: renamed `get_server_status` tool to `get_devserver_statuses`
 - refactor: removed sse-transport (http-only now 🎉)
 - docs: documented configuration using http-transport only
 

@@ -132,7 +132,7 @@ The server exposes the following tools for LLM interaction:
 
 1. **start_server(name)** - Start a configured server
 2. **stop_server(name)** - Stop a server (managed or external)
-3. **get_server_status(name)** - Get server status
+3. **get_devserver_statuses()** - Get all server statuses
 4. **get_devserver_logs(name, lines)** - Get recent logs from managed servers
 
 #### Browser Automation (Experimental)

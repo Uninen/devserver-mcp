@@ -1,9 +1,6 @@
 # AI Generated Changes
 
-- 2025-06-24: Refactored all MCP tools to return typed Pydantic models for better type safety and FastMCP compatibility. (claude-opus-4-20250514)
-- 2025-06-24: Updated tests for get_devserver_statuses tool and fixed FastMCP single-item list serialization issue in tests. (claude-opus-4-20250514)
-- 2025-06-24: Removed get_server_status MCP tool to complete get_devserver_statuses refactoring - steps 3 and 4 of refactor plan. (claude-opus-4-20250514)
-- 2025-06-24: Refactored get_devserver_statuses to use Pydantic ServerStatus model instead of dicts, added proper typing throughout the system. (claude-opus-4-20250514)
+- 2025-06-24: Replaced get_server_status MCP tool with get_devserver_statuses that returns all server statuses without arguments, using typed Pydantic models for better type safety and FastMCP compatibility. Updated documentation. (claude-opus-4-20250514)
 - 2025-06-21: Removed SSE transport functionality and all related code, tests, and UI mentions. Simplified to use only HTTP transport. (claude-opus-4-20250514)
 - 2025-06-20: Added browser_type tool to experimental Playwright features with support for typing text, optional submit and slow typing modes. (claude-opus-4-20250514)
 - 2025-06-20: Added browser_click tool to experimental Playwright features. (claude-opus-4-20250514)
