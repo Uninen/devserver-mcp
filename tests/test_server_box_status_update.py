@@ -2,6 +2,7 @@ from textual.app import App
 from textual.widgets import Label
 
 from devserver_mcp.manager import DevServerManager
+from devserver_mcp.types import ServerStatus, ServerStatusEnum
 from devserver_mcp.ui import ServerBox
 
 
@@ -18,7 +19,7 @@ class AppForTesting(App):
 async def test_server_box_status_updates_after_click_start(running_config, temp_state_dir):
     manager = DevServerManager(running_config)
 
-    app = AppForTesting({"name": "api", "status": "stopped", "external_running": False, "error": None}, manager)
+    app = AppForTesting(ServerStatus(name="api", status=ServerStatusEnum.STOPPED, port=8000, error=None, color="cyan"), manager)
 
     async with app.run_test() as pilot:
         box = app.query_one(ServerBox)

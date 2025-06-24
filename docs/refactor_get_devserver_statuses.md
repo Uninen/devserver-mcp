@@ -23,10 +23,10 @@ Replace the current `get_server_status` MCP tool that requires a server name arg
 - [x] In `src/devserver_mcp/ui.py`, update calls from `get_all_servers()` to `get_devserver_statuses()`
 
 ### 5. Update tests
-- [ ] Remove test for `get_server_status` tool in `tests/test_mcp_server.py`
-- [ ] Add new test for `get_devserver_statuses` tool in `tests/test_mcp_server.py`
-- [ ] Update manager tests in `tests/test_manager.py` to use renamed method
-- [ ] Update any other test files that reference `get_all_servers()`
+- [x] Remove test for `get_server_status` tool in `tests/test_mcp_server.py`
+- [x] Add new test for `get_devserver_statuses` tool in `tests/test_mcp_server.py`
+- [x] Update manager tests in `tests/test_manager.py` to use renamed method
+- [x] Update any other test files that reference `get_all_servers()`
 
 ### 6. Documentation updates
 - [ ] Update README.md if it mentions the old tool name

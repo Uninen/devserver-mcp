@@ -7,7 +7,15 @@ from typing import Any, Literal
 
 from devserver_mcp.process import ManagedProcess
 from devserver_mcp.state import StateManager
-from devserver_mcp.types import Config, LogCallback, ServerStatus, ServerStatusEnum
+from devserver_mcp.types import (
+    Config,
+    LogCallback,
+    LogsResult,
+    OperationStatus,
+    ServerOperationResult,
+    ServerStatus,
+    ServerStatusEnum,
+)
 from devserver_mcp.utils import get_tool_emoji, log_error_to_file
 
 SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cyan", "bright_magenta", "bright_yellow"]
@@ -64,39 +72,46 @@ class DevServerManager:
             with contextlib.suppress(Exception):
                 callback()
 
-    async def start_server(self, name: str) -> dict:
+    async def start_server(self, name: str) -> ServerOperationResult:
         process = self.processes.get(name.lower())
         if not process:
-            return {"status": "error", "message": f"Server '{name}' not found"}
+            return ServerOperationResult(status=OperationStatus.ERROR, message=f"Server '{name}' not found")
 
         if process.is_running:
-            return {"status": "already_running", "message": f"Server '{name}' already running"}
+            return ServerOperationResult(
+                status=OperationStatus.ALREADY_RUNNING, message=f"Server '{name}' already running"
+            )
 
         if self._is_port_in_use(process.config.port):
-            return {"status": "error", "message": f"Port {process.config.port} in use"}
+            return ServerOperationResult(status=OperationStatus.ERROR, message=f"Port {process.config.port} in use")
 
         success = await process.start(self._notify_log)
         self._notify_status_change()
 
         if success:
-            return {"status": "started", "message": f"Server '{name}' started"}
+            return ServerOperationResult(status=OperationStatus.STARTED, message=f"Server '{name}' started")
         else:
-            return {"status": "error", "message": f"Failed to start '{name}': {process.error}"}
+            return ServerOperationResult(
+                status=OperationStatus.ERROR, message=f"Failed to start '{name}': {process.error}"
+            )
 
-    async def stop_server(self, name: str) -> dict:
+    async def stop_server(self, name: str) -> ServerOperationResult:
         process = self.processes.get(name.lower())
         if not process:
-            return {"status": "error", "message": f"Server '{name}' not found"}
+            return ServerOperationResult(status=OperationStatus.ERROR, message=f"Server '{name}' not found")
 
         if process.is_running:
             await process.stop()
             self._notify_status_change()
-            return {"status": "stopped", "message": f"Server '{name}' stopped"}
+            return ServerOperationResult(status=OperationStatus.STOPPED, message=f"Server '{name}' stopped")
 
         if self._is_port_in_use(process.config.port):
-            return {"status": "error", "message": f"Failed to kill external process on port {process.config.port}"}
+            return ServerOperationResult(
+                status=OperationStatus.ERROR,
+                message=f"Failed to kill external process on port {process.config.port}",
+            )
 
-        return {"status": "not_running", "message": f"Server '{name}' not running"}
+        return ServerOperationResult(status=OperationStatus.NOT_RUNNING, message=f"Server '{name}' not running")
 
     def get_server_status(self, name: str) -> dict:
         process = self.processes.get(name.lower())
@@ -119,19 +134,19 @@ class DevServerManager:
         else:
             return {"status": "stopped", "port": process.config.port, "error": process.error}
 
-    def get_devserver_logs(self, name: str, lines: int = 500) -> dict:
+    def get_devserver_logs(self, name: str, lines: int = 500) -> LogsResult:
         process = self.processes.get(name.lower())
         if not process:
-            return {"status": "error", "message": f"Server '{name}' not found"}
+            return LogsResult(status="error", message=f"Server '{name}' not found")
 
         if not process.is_running:
             if self._is_port_in_use(process.config.port):
-                return {"status": "error", "message": "Cannot get logs for external process"}
+                return LogsResult(status="error", message="Cannot get logs for external process")
             else:
-                return {"status": "error", "message": "Server not running"}
+                return LogsResult(status="error", message="Server not running")
 
         log_lines = list(process.logs)[-lines:]
-        return {"status": "success", "lines": log_lines, "count": len(log_lines)}
+        return LogsResult(status="success", lines=log_lines, count=len(log_lines))
 
     def get_devserver_statuses(self) -> list[ServerStatus]:
         servers = []
@@ -163,7 +178,6 @@ class DevServerManager:
         if stop_tasks:
             await asyncio.gather(*stop_tasks, return_exceptions=True)
 
-        # Shutdown Playwright if running
         await self._shutdown_playwright()
 
         self._notify_status_change()

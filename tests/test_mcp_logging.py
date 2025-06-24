@@ -39,7 +39,7 @@ async def test_mcp_logging_captured_via_callback(manager):
     mcp_server = create_mcp_server(manager)
 
     async with Client(mcp_server) as client:
-        await client.call_tool("get_server_status", {"name": "test-server"})
+        await client.call_tool("get_devserver_statuses", {})
 
     mcp_logs = [log for log in logged_messages if log["server"] == "MCP Server"]
     assert len(mcp_logs) > 0, "MCP operations should generate log messages"
@@ -54,7 +54,7 @@ async def test_mcp_logging_isolation_from_terminal(manager):
         mcp_server = create_mcp_server(manager)
 
         async with Client(mcp_server) as client:
-            await client.call_tool("get_server_status", {"name": "test-server"})
+            await client.call_tool("get_devserver_statuses", {})
             await client.call_tool("start_server", {"name": "test-server"})
 
     stdout_content = stdout_capture.getvalue()

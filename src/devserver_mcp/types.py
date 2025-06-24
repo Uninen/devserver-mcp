@@ -37,3 +37,23 @@ class ServerStatus(BaseModel):
 
 
 LogCallback = Callable[[str, str, str], None] | Callable[[str, str, str], Awaitable[None]]
+
+
+class OperationStatus(str, Enum):
+    STARTED = "started"
+    STOPPED = "stopped"
+    ALREADY_RUNNING = "already_running"
+    NOT_RUNNING = "not_running"
+    ERROR = "error"
+
+
+class ServerOperationResult(BaseModel):
+    status: OperationStatus
+    message: str
+
+
+class LogsResult(BaseModel):
+    status: str
+    lines: list[str] | None = None
+    count: int | None = None
+    message: str | None = None

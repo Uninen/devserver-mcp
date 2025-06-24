@@ -1,5 +1,7 @@
 # AI Generated Changes
 
+- 2025-06-24: Refactored all MCP tools to return typed Pydantic models for better type safety and FastMCP compatibility. (claude-opus-4-20250514)
+- 2025-06-24: Updated tests for get_devserver_statuses tool and fixed FastMCP single-item list serialization issue in tests. (claude-opus-4-20250514)
 - 2025-06-24: Removed get_server_status MCP tool to complete get_devserver_statuses refactoring - steps 3 and 4 of refactor plan. (claude-opus-4-20250514)
 - 2025-06-24: Refactored get_devserver_statuses to use Pydantic ServerStatus model instead of dicts, added proper typing throughout the system. (claude-opus-4-20250514)
 - 2025-06-21: Removed SSE transport functionality and all related code, tests, and UI mentions. Simplified to use only HTTP transport. (claude-opus-4-20250514)
