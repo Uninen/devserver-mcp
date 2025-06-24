@@ -6,14 +6,14 @@ Replace the current `get_server_status` MCP tool that requires a server name arg
 ## Implementation Steps
 
 ### 1. Add new MCP tool method
-- [ ] In `src/devserver_mcp/mcp_server.py`, add new `@mcp.tool` method `get_devserver_statuses`
-- [ ] Method should call `manager.get_devserver_statuses()` (to be created)
-- [ ] Add appropriate logging for the tool call
+- [x] In `src/devserver_mcp/mcp_server.py`, add new `@mcp.tool` method `get_devserver_statuses`
+- [x] Method should call `manager.get_devserver_statuses()` (to be created)
+- [x] Add appropriate logging for the tool call
 
 ### 2. Create manager method
-- [ ] In `src/devserver_mcp/manager.py`, rename existing `get_all_servers()` to `get_devserver_statuses()`
-- [ ] Update all references to `get_all_servers()` in the codebase
-- [ ] Keep `get_server_status()` method as-is for internal use
+- [x] In `src/devserver_mcp/manager.py`, rename existing `get_all_servers()` to `get_devserver_statuses()`
+- [x] Update all references to `get_all_servers()` in the codebase
+- [x] Keep `get_server_status()` method as-is for internal use
 
 ### 3. Remove old MCP tool
 - [ ] Remove the `@mcp.tool` decorator and method for `get_server_status` in `src/devserver_mcp/mcp_server.py`

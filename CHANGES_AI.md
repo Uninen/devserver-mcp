@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-24: Refactored get_devserver_statuses to use Pydantic ServerStatus model instead of dicts, added proper typing throughout the system. (claude-opus-4-20250514)
 - 2025-06-21: Removed SSE transport functionality and all related code, tests, and UI mentions. Simplified to use only HTTP transport. (claude-opus-4-20250514)
 - 2025-06-20: Added browser_type tool to experimental Playwright features with support for typing text, optional submit and slow typing modes. (claude-opus-4-20250514)
 - 2025-06-20: Added browser_click tool to experimental Playwright features. (claude-opus-4-20250514)

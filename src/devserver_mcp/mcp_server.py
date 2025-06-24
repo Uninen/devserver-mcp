@@ -4,6 +4,7 @@ from typing import Any, Literal
 from fastmcp import FastMCP
 
 from devserver_mcp.manager import DevServerManager
+from devserver_mcp.types import ServerStatus
 from devserver_mcp.utils import get_tool_emoji, log_error_to_file
 
 
@@ -45,6 +46,16 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
             f"Tool 'get_devserver_logs' called with: {{'name': {repr(name)}, 'lines': {lines}}}",
         )
         return manager.get_devserver_logs(name, lines)
+
+    @mcp.tool
+    async def get_devserver_statuses() -> list[dict[str, Any]]:
+        await manager._notify_log(
+            "MCP Server",
+            datetime.now().strftime("%H:%M:%S"),
+            "Tool 'get_devserver_statuses' called",
+        )
+        statuses = manager.get_devserver_statuses()
+        return [status.model_dump() for status in statuses]
 
     if manager.config.experimental and manager.config.experimental.playwright:
         _add_playwright_commands(mcp, manager)

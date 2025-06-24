@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from devserver_mcp.manager import DevServerManager
+from devserver_mcp.types import ServerStatusEnum
 
 
 @pytest.fixture
@@ -112,18 +113,18 @@ async def test_get_devserver_logs_success(running_manager):
     await running_manager.stop_server("api")
 
 
-def test_get_all_servers(manager):
-    servers = manager.get_all_servers()
+def test_get_devserver_statuses(manager):
+    servers = manager.get_devserver_statuses()
 
     assert len(servers) == 2
 
-    api_server = next(s for s in servers if s["name"] == "api")
-    assert api_server["status"] == "stopped"
-    assert api_server["port"] == 12345
+    api_server = next(s for s in servers if s.name == "api")
+    assert api_server.status == ServerStatusEnum.STOPPED
+    assert api_server.port == 12345
 
-    web_server = next(s for s in servers if s["name"] == "web")
-    assert web_server["status"] == "stopped"
-    assert web_server["port"] == 12346
+    web_server = next(s for s in servers if s.name == "web")
+    assert web_server.status == ServerStatusEnum.STOPPED
+    assert web_server.port == 12346
 
 
 @pytest.mark.asyncio

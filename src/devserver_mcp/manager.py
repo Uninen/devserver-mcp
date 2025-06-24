@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from devserver_mcp.process import ManagedProcess
 from devserver_mcp.state import StateManager
-from devserver_mcp.types import Config, LogCallback
+from devserver_mcp.types import Config, LogCallback, ServerStatus, ServerStatusEnum
 from devserver_mcp.utils import get_tool_emoji, log_error_to_file
 
 SERVER_COLORS = ["cyan", "magenta", "yellow", "green", "blue", "red", "bright_cyan", "bright_magenta", "bright_yellow"]
@@ -133,24 +133,24 @@ class DevServerManager:
         log_lines = list(process.logs)[-lines:]
         return {"status": "success", "lines": log_lines, "count": len(log_lines)}
 
-    def get_all_servers(self) -> list[dict]:
+    def get_devserver_statuses(self) -> list[ServerStatus]:
         servers = []
         for _name, process in self.processes.items():
             if process.is_running:
-                status = "running"
+                status = ServerStatusEnum.RUNNING
             elif self._is_port_in_use(process.config.port):
-                status = "external"
+                status = ServerStatusEnum.EXTERNAL
             else:
-                status = "stopped"
+                status = ServerStatusEnum.STOPPED
 
             servers.append(
-                {
-                    "name": process.name,
-                    "status": status,
-                    "port": process.config.port,
-                    "error": process.error,
-                    "color": process.color,
-                }
+                ServerStatus(
+                    name=process.name,
+                    status=status,
+                    port=process.config.port,
+                    error=process.error,
+                    color=process.color,
+                )
             )
         return servers
 
