@@ -38,13 +38,13 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
         return manager.get_server_status(name)
 
     @mcp.tool
-    async def get_server_logs(name: str, lines: int = 500) -> dict:
+    async def get_devserver_logs(name: str, lines: int = 500) -> dict:
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'get_server_logs' called with: {{'name': {repr(name)}, 'lines': {lines}}}",
+            f"Tool 'get_devserver_logs' called with: {{'name': {repr(name)}, 'lines': {lines}}}",
         )
-        return manager.get_server_logs(name, lines)
+        return manager.get_devserver_logs(name, lines)
 
     if manager.config.experimental and manager.config.experimental.playwright:
         _add_playwright_commands(mcp, manager)

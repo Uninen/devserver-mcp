@@ -119,7 +119,7 @@ class DevServerManager:
         else:
             return {"status": "stopped", "port": process.config.port, "error": process.error}
 
-    def get_server_logs(self, name: str, lines: int = 500) -> dict:
+    def get_devserver_logs(self, name: str, lines: int = 500) -> dict:
         process = self.processes.get(name.lower())
         if not process:
             return {"status": "error", "message": f"Server '{name}' not found"}

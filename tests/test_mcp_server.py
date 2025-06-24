@@ -133,9 +133,9 @@ async def test_stop_server_tool_running_process(mcp_server, manager):
 
 
 @pytest.mark.asyncio
-async def test_get_server_logs_tool(mcp_server):
+async def test_get_devserver_logs_tool(mcp_server):
     async with Client(mcp_server) as client:
-        result = await client.call_tool("get_server_logs", {"name": "test-server"})
+        result = await client.call_tool("get_devserver_logs", {"name": "test-server"})
 
         assert len(result) == 1
 
@@ -148,9 +148,9 @@ async def test_get_server_logs_tool(mcp_server):
 
 
 @pytest.mark.asyncio
-async def test_get_server_logs_with_lines_parameter(mcp_server):
+async def test_get_devserver_logs_with_lines_parameter(mcp_server):
     async with Client(mcp_server) as client:
-        result = await client.call_tool("get_server_logs", {"name": "test-server", "lines": 100})
+        result = await client.call_tool("get_devserver_logs", {"name": "test-server", "lines": 100})
 
         assert len(result) == 1
 

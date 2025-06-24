@@ -84,26 +84,26 @@ def test_get_server_status_stopped(manager):
     assert status.get("error") is None
 
 
-def test_get_server_logs_not_found(manager):
-    result = manager.get_server_logs("notfound")
+def test_get_devserver_logs_not_found(manager):
+    result = manager.get_devserver_logs("notfound")
 
     assert result["status"] == "error"
     assert "not found" in result["message"]
 
 
-def test_get_server_logs_not_running(manager):
-    result = manager.get_server_logs("api")
+def test_get_devserver_logs_not_running(manager):
+    result = manager.get_devserver_logs("api")
 
     assert result["status"] == "error"
     assert "not running" in result["message"]
 
 
 @pytest.mark.asyncio
-async def test_get_server_logs_success(running_manager):
+async def test_get_devserver_logs_success(running_manager):
     await running_manager.start_server("api")
     await asyncio.sleep(0.1)
 
-    result = running_manager.get_server_logs("api", lines=10)
+    result = running_manager.get_devserver_logs("api", lines=10)
 
     assert result["status"] == "success"
     assert "lines" in result
