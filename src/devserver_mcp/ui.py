@@ -159,7 +159,7 @@ class LogsWidget(Widget):
         self.manager.add_log_callback(self.add_log_line)
 
     def compose(self) -> ComposeResult:
-        log = RichLog(highlight=True, markup=True, id="server-logs", auto_scroll=True, wrap=True)
+        log = RichLog(highlight=False, markup=False, id="server-logs", auto_scroll=True, wrap=True)
         log.can_focus = True
         yield log
 
@@ -247,7 +247,6 @@ class DevServerTUI(App):
     RichLog {
         height: 1fr;
         background: transparent;
-        color: #00ff80;
         scrollbar-background: #333;
         scrollbar-color: #DF7BFF;
     }
@@ -287,7 +286,7 @@ class DevServerTUI(App):
         self.exit(0)
 
     def __init__(self, manager: DevServerManager, mcp_url: str):
-        super().__init__()
+        super().__init__(ansi_color=True)
         self.manager = manager
         self.mcp_url = mcp_url
 

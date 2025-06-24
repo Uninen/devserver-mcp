@@ -29,10 +29,10 @@ This plan addresses the issue where devserver log colors are modified by the TUI
 
 ### Step 3: Enable ANSI Preservation & Remove Forced Colors
 
-- [ ] Enable `ansi_color=True` in `DevServerTUI.__init__()` (line ~290)
-- [ ] Remove `color: #00ff80;` from CSS (line ~250)
-- [ ] Update `LogsWidget.compose()` to use `RichLog(highlight=False, markup=False, ...)` (line ~162)
-- [ ] **Verify**: `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 3`
+- [x] Enable `ansi_color=True` in `DevServerTUI.__init__()` (line ~290)
+- [x] Remove `color: #00ff80;` from CSS (line ~250)
+- [x] Update `LogsWidget.compose()` to use `RichLog(highlight=False, markup=False, ...)` (line ~162)
+- [x] **Verify**: `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 3`
   - **Expected**: No more forced green color, but ANSI codes may not appear yet
 
 ### Step 4: Implement ANSI-Aware Log Display
