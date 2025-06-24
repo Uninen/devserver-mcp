@@ -17,15 +17,15 @@ This plan addresses the issue where devserver log colors are modified by the TUI
 
 ### Step 1: Create Test Configurations
 
-- [ ] Create `devservers-vite-test.yml` with Vite frontend set to `autostart: true`
-- [ ] Create `devservers-fastapi-test.yml` with FastAPI backend set to `autostart: true`
-- [ ] Create `devservers-both-test.yml` with both servers set to `autostart: true`
+- [x] Create `devservers-vite-test.yml` with Vite frontend set to `autostart: true`
+- [x] Create `devservers-fastapi-test.yml` with FastAPI backend set to `autostart: true`
+- [x] Create `devservers-both-test.yml` with both servers set to `autostart: true`
 
 ### Step 2: Capture Baseline Behavior
 
-- [ ] Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 5 > baseline_vite.txt`
-- [ ] Run `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5 > baseline_fastapi.txt`
-- [ ] Verify baseline: Current TUI output should show NO ANSI codes, just the forced green color
+- [x] Run `uv run python test_ansi_comparison.py 'cd testapp/front && pnpm dev' 'uv run devservers --config devservers-vite-test.yml' 5 > baseline_vite.txt`
+- [x] Run `uv run python test_ansi_comparison.py 'cd testapp && uv run fastapi dev backend.py --port 8002' 'uv run devservers --config devservers-fastapi-test.yml' 5 > baseline_fastapi.txt`
+- [x] Verify baseline: Current TUI output should show NO ANSI codes, just the forced green color
 
 ### Step 3: Enable ANSI Preservation & Remove Forced Colors
 

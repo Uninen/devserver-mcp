@@ -1,0 +1,13 @@
+# test configuration for both servers with autostart
+servers:
+  backend:
+    command: "uv run fastapi dev backend.py"
+    working_dir: "./testapp"
+    port: 8000
+    autostart: true
+
+  frontend:
+    command: "pnpm dev"
+    working_dir: "./testapp/front"
+    port: 5173
+    autostart: true

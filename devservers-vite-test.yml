@@ -1,0 +1,7 @@
+# test configuration for Vite frontend only
+servers:
+  frontend:
+    command: "pnpm dev"
+    working_dir: "./testapp/front"
+    port: 5173
+    autostart: true
