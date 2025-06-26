@@ -104,11 +104,13 @@ async def test_get_devserver_logs_success(running_manager):
     await running_manager.start_server("api")
     await asyncio.sleep(0.1)
 
-    result = running_manager.get_devserver_logs("api", lines=10)
+    result = running_manager.get_devserver_logs("api", limit=10)
 
     assert result.status == "success"
     assert result.lines is not None
     assert isinstance(result.lines, list)
+    assert result.count is not None
+    assert result.total is not None
 
     await running_manager.stop_server("api")
 

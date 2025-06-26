@@ -1,4 +1,7 @@
+import json
 from typing import TYPE_CHECKING, Any, Literal
+
+from devserver_mcp.log_storage import LogStorage
 
 if TYPE_CHECKING:
     from playwright.async_api import Browser, BrowserContext, Page, Playwright
@@ -32,7 +35,7 @@ class PlaywrightOperator:
         self._browser: Browser | None = None
         self._context: BrowserContext | None = None
         self._page: Page | None = None
-        self._console_messages: list[dict[str, Any]] = []
+        self._console_messages: LogStorage = LogStorage(max_lines=10000)
 
         self._initialized = False
 
@@ -69,18 +72,17 @@ class PlaywrightOperator:
             raise RuntimeError(f"Failed to initialize Playwright: {e}") from e
 
     def _handle_console_message(self, msg: Any) -> None:
-        self._console_messages.append(
-            {
-                "type": msg.type,
-                "text": msg.text,
-                "args": [str(arg) for arg in msg.args],
-                "location": {
-                    "url": msg.location.get("url") if msg.location else None,
-                    "line": msg.location.get("lineNumber") if msg.location else None,
-                    "column": msg.location.get("columnNumber") if msg.location else None,
-                },
-            }
-        )
+        message_data = {
+            "type": msg.type,
+            "text": msg.text,
+            "args": [str(arg) for arg in msg.args],
+            "location": {
+                "url": msg.location.get("url") if msg.location else None,
+                "line": msg.location.get("lineNumber") if msg.location else None,
+                "column": msg.location.get("columnNumber") if msg.location else None,
+            },
+        }
+        self._console_messages.append(json.dumps(message_data))
 
     async def navigate(
         self,
@@ -117,13 +119,16 @@ class PlaywrightOperator:
         except Exception as e:
             raise RuntimeError(f"Failed to capture accessibility snapshot: {e}") from e
 
-    async def get_console_messages(self, clear: bool = False) -> list[dict[str, Any]]:
-        messages = self._console_messages.copy()
+    async def get_console_messages(
+        self, clear: bool = False, offset: int = 0, limit: int = 100, reverse: bool = True
+    ) -> tuple[list[dict[str, Any]], int, bool]:
+        raw_messages, total, has_more = self._console_messages.get_range(offset, limit, reverse)
+        messages = [json.loads(msg) for msg in raw_messages]
 
         if clear:
             self._console_messages.clear()
 
-        return messages
+        return messages, total, has_more
 
     async def click(self, ref: str) -> dict[str, Any]:
         if not self._page:

@@ -4,9 +4,9 @@ import os
 import signal
 import sys
 import time
-from collections import deque
 from datetime import datetime
 
+from devserver_mcp.log_storage import LogStorage
 from devserver_mcp.state import StateManager
 from devserver_mcp.types import LogCallback, ServerConfig
 
@@ -23,7 +23,7 @@ class ManagedProcess:
         self.state_manager = state_manager
         self.process: asyncio.subprocess.Process | None = None
         self.pid: int | None = None
-        self.logs: deque = deque(maxlen=500)
+        self.logs: LogStorage = LogStorage(max_lines=10000)
         self.start_time: float | None = None
         self.error: str | None = None
 
@@ -64,10 +64,10 @@ class ManagedProcess:
 
             # Set up environment to preserve ANSI colors
             env = os.environ.copy()
-            env['TERM'] = 'xterm-256color'
-            env['FORCE_COLOR'] = '1'
-            env['COLORTERM'] = 'truecolor'
-            
+            env["TERM"] = "xterm-256color"
+            env["FORCE_COLOR"] = "1"
+            env["COLORTERM"] = "truecolor"
+
             self.process = await asyncio.create_subprocess_shell(
                 self.config.command,
                 stdout=asyncio.subprocess.PIPE,

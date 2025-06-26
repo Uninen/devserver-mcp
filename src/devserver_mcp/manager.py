@@ -134,7 +134,7 @@ class DevServerManager:
         else:
             return {"status": "stopped", "port": process.config.port, "error": process.error}
 
-    def get_devserver_logs(self, name: str, lines: int = 500) -> LogsResult:
+    def get_devserver_logs(self, name: str, offset: int = 0, limit: int = 100, reverse: bool = True) -> LogsResult:
         process = self.processes.get(name.lower())
         if not process:
             return LogsResult(status="error", message=f"Server '{name}' not found")
@@ -145,8 +145,15 @@ class DevServerManager:
             else:
                 return LogsResult(status="error", message="Server not running")
 
-        log_lines = list(process.logs)[-lines:]
-        return LogsResult(status="success", lines=log_lines, count=len(log_lines))
+        log_lines, total, has_more = process.logs.get_range(offset, limit, reverse)
+        return LogsResult(
+            status="success",
+            lines=log_lines,
+            count=len(log_lines),
+            total=total,
+            offset=offset,
+            has_more=has_more,
+        )
 
     def get_devserver_statuses(self) -> list[ServerStatus]:
         servers = []
@@ -278,20 +285,31 @@ class DevServerManager:
             log_error_to_file(e, "playwright_snapshot")
             return {"status": "error", "message": str(e)}
 
-    async def playwright_console_messages(self, clear: bool = False) -> dict[str, Any]:
+    async def playwright_console_messages(
+        self, clear: bool = False, offset: int = 0, limit: int = 100, reverse: bool = True
+    ) -> dict[str, Any]:
         if not self._playwright_operator:
             return {"status": "error", "message": "Playwright not available"}
 
         try:
-            messages = await self._playwright_operator.get_console_messages(clear)
+            messages, total, has_more = await self._playwright_operator.get_console_messages(
+                clear, offset, limit, reverse
+            )
             message_count = len(messages)
             clear_text = " and cleared" if clear else ""
             await self._notify_log(
                 f"{get_tool_emoji()} Playwright",
                 datetime.now().strftime("%H:%M:%S"),
-                f"Retrieved {message_count} console messages{clear_text}",
+                f"Retrieved {message_count} of {total} console messages{clear_text}",
             )
-            return {"status": "success", "messages": messages}
+            return {
+                "status": "success",
+                "messages": messages,
+                "count": message_count,
+                "total": total,
+                "offset": offset,
+                "has_more": has_more,
+            }
         except Exception as e:
             log_error_to_file(e, "playwright_console_messages")
             return {"status": "error", "message": str(e)}

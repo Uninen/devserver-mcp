@@ -56,4 +56,7 @@ class LogsResult(BaseModel):
     status: str
     lines: list[str] | None = None
     count: int | None = None
+    total: int | None = None
+    offset: int | None = None
+    has_more: bool | None = None
     message: str | None = None

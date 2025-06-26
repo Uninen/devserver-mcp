@@ -145,9 +145,9 @@ async def test_get_devserver_logs_not_running_returns_error(mcp_server):
 
 
 @pytest.mark.asyncio
-async def test_get_devserver_logs_with_lines_parameter(mcp_server):
+async def test_get_devserver_logs_with_pagination(mcp_server):
     async with Client(mcp_server) as client:
-        result = await client.call_tool("get_devserver_logs", {"name": "test-server", "lines": 100})
+        result = await client.call_tool("get_devserver_logs", {"name": "test-server", "limit": 50, "offset": 0})
 
         assert len(result) == 1
 
