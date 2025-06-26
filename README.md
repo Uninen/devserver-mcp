@@ -153,7 +153,10 @@ The server exposes the following tools for LLM interaction:
 1. **start_server(name)** - Start a configured server
 2. **stop_server(name)** - Stop a server (managed or external)
 3. **get_devserver_statuses()** - Get all server statuses
-4. **get_devserver_logs(name, lines)** - Get recent logs from managed servers
+4. **get_devserver_logs(name, offset, limit, reverse)** - Get logs with pagination support
+   - `offset`: Starting position (default: 0, negative values count from end)
+   - `limit`: Maximum logs to return (default: 100)
+   - `reverse`: True for newest first, False for oldest first (default: True)
 
 #### Browser Automation (Experimental)
 
@@ -161,7 +164,11 @@ When `experimental.playwright` is set in config:
 
 1. **browser_navigate(url, wait_until)** - Navigate browser to URL with wait conditions
 2. **browser_snapshot()** - Capture accessibility snapshot of current page
-3. **browser_console_messages(clear)** - Get console messages with optional clear
+3. **browser_console_messages(clear, offset, limit, reverse)** - Get console messages with pagination
+   - `clear`: Clear messages after retrieval (default: False)
+   - `offset`: Starting position (default: 0, negative values count from end)
+   - `limit`: Maximum messages to return (default: 100)
+   - `reverse`: True for newest first, False for oldest first (default: True)
 4. **browser_click(ref)** - Click an element on the page using a CSS selector or element reference
 5. **browser_type(ref, text, submit, slowly)** - Type text into an element with optional submit (Enter key) and slow typing mode
 

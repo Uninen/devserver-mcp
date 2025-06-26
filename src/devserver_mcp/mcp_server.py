@@ -34,13 +34,14 @@ def create_mcp_server(manager: DevServerManager) -> FastMCP:
         return await manager.stop_server(name)
 
     @mcp.tool
-    async def get_devserver_logs(name: str, lines: int = 500) -> LogsResult:
+    async def get_devserver_logs(name: str, offset: int = 0, limit: int = 100, reverse: bool = True) -> LogsResult:
         await manager._notify_log(
             "MCP Server",
             datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'get_devserver_logs' called with: {{'name': {repr(name)}, 'lines': {lines}}}",
+            f"Tool 'get_devserver_logs' called with: "
+            f"{{'name': {repr(name)}, 'offset': {offset}, 'limit': {limit}, 'reverse': {reverse}}}",
         )
-        return manager.get_devserver_logs(name, lines)
+        return manager.get_devserver_logs(name, offset, limit, reverse)
 
     @mcp.tool
     async def get_devserver_statuses() -> list[ServerStatus]:
@@ -87,14 +88,17 @@ def _add_playwright_commands(mcp: FastMCP, manager: DevServerManager) -> None:
             return {"status": "error", "message": str(e)}
 
     @mcp.tool
-    async def browser_console_messages(clear: bool = False) -> dict[str, Any]:
+    async def browser_console_messages(
+        clear: bool = False, offset: int = 0, limit: int = 100, reverse: bool = True
+    ) -> dict[str, Any]:
         await manager._notify_log(
             f"{get_tool_emoji()} Playwright",
             datetime.now().strftime("%H:%M:%S"),
-            f"Tool 'browser_console_messages' called with: {{'clear': {clear}}}",
+            f"Tool 'browser_console_messages' called with: "
+            f"{{'clear': {clear}, 'offset': {offset}, 'limit': {limit}, 'reverse': {reverse}}}",
         )
         try:
-            return await manager.playwright_console_messages(clear)
+            return await manager.playwright_console_messages(clear, offset, limit, reverse)
         except Exception as e:
             log_error_to_file(e, "browser_console_messages")
             return {"status": "error", "message": str(e)}
