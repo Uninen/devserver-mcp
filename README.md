@@ -22,7 +22,7 @@ The tests validate some of the functionality and the server is already useful if
 ## Installation
 
 ```bash
-uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.5.1
+uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.6.0
 ```
 
 ### Playwright (Optional)
@@ -171,6 +171,10 @@ When `experimental.playwright` is set in config:
    - `reverse`: True for newest first, False for oldest first (default: True)
 4. **browser_click(ref)** - Click an element on the page using a CSS selector or element reference
 5. **browser_type(ref, text, submit, slowly)** - Type text into an element with optional submit (Enter key) and slow typing mode
+6. **browser_resize(width, height)** - Resize the browser viewport to specified dimensions
+7. **browser_screenshot(full_page, name)** - Take a screenshot of the current page
+   - `full_page`: Capture full page instead of viewport (default: False)
+   - `name`: Optional filename for the screenshot (default: timestamped name)
 
 ## Developing
 

@@ -130,3 +130,29 @@ def _add_playwright_commands(mcp: FastMCP, manager: DevServerManager) -> None:
         except Exception as e:
             log_error_to_file(e, "browser_type")
             return {"status": "error", "message": str(e)}
+
+    @mcp.tool
+    async def browser_resize(width: int, height: int) -> dict[str, Any]:
+        await manager._notify_log(
+            f"{get_tool_emoji()} Playwright",
+            datetime.now().strftime("%H:%M:%S"),
+            f"Tool 'browser_resize' called with: {{'width': {width}, 'height': {height}}}",
+        )
+        try:
+            return await manager.playwright_resize(width, height)
+        except Exception as e:
+            log_error_to_file(e, "browser_resize")
+            return {"status": "error", "message": str(e)}
+
+    @mcp.tool
+    async def browser_screenshot(full_page: bool = False, name: str | None = None) -> dict[str, Any]:
+        await manager._notify_log(
+            f"{get_tool_emoji()} Playwright",
+            datetime.now().strftime("%H:%M:%S"),
+            f"Tool 'browser_screenshot' called with: {{'full_page': {full_page}, 'name': {repr(name)}}}",
+        )
+        try:
+            return await manager.playwright_screenshot(full_page, name)
+        except Exception as e:
+            log_error_to_file(e, "browser_screenshot")
+            return {"status": "error", "message": str(e)}

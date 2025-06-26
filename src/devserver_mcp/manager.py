@@ -347,3 +347,38 @@ class DevServerManager:
         except Exception as e:
             log_error_to_file(e, "playwright_type")
             return {"status": "error", "message": str(e)}
+
+    async def playwright_resize(self, width: int, height: int) -> dict[str, Any]:
+        if not self._playwright_operator:
+            return {"status": "error", "message": "Playwright not available"}
+
+        try:
+            result = await self._playwright_operator.resize(width, height)
+            await self._notify_log(
+                f"{get_tool_emoji()} Playwright",
+                datetime.now().strftime("%H:%M:%S"),
+                f"Resized viewport to {width}x{height}",
+            )
+            return result
+        except Exception as e:
+            log_error_to_file(e, "playwright_resize")
+            return {"status": "error", "message": str(e)}
+
+    async def playwright_screenshot(self, full_page: bool = False, name: str | None = None) -> dict[str, Any]:
+        if not self._playwright_operator:
+            return {"status": "error", "message": "Playwright not available"}
+
+        try:
+            result = await self._playwright_operator.screenshot(full_page, name)
+            filepath = result.get("path", "unknown")
+            full_page_text = " (full page)" if full_page else ""
+            name_text = f" as '{name}'" if name else ""
+            await self._notify_log(
+                f"{get_tool_emoji()} Playwright",
+                datetime.now().strftime("%H:%M:%S"),
+                f"Screenshot saved to {filepath}{full_page_text}{name_text}",
+            )
+            return result
+        except Exception as e:
+            log_error_to_file(e, "playwright_screenshot")
+            return {"status": "error", "message": str(e)}

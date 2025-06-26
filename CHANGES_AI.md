@@ -1,5 +1,8 @@
 # AI Generated Changes
 
+- 2025-06-26: Added browser_screenshot command with full_page and optional name parameters to save browser screenshots to screenshots/ directory with filename sanitization. (claude-opus-4-20250514)
+- 2025-06-26: Created architectural analysis document for Playwright testing challenges, removed meaningless tests keeping only meaningful ones (error handling, disabled state, logging). (claude-opus-4-20250514)
+- 2025-06-26: Added browser_resize(width, height) command to experimental Playwright features for resizing browser viewport. (claude-opus-4-20250514)
 - 2025-06-26: Implemented log pagination for get_devserver_logs and browser_console_messages with offset/limit parameters to fix token overflow issue #19. Added LogStorage class with configurable size and thread-safe operations. (claude-opus-4-20250514)
 - 2025-06-24: Fixed ANSI color passthrough in TUI by enabling ansi_color=True, removing forced CSS colors, using Text.from_ansi() for log display, and setting subprocess environment variables (TERM, FORCE_COLOR, COLORTERM) to preserve development server colors. (claude-opus-4-20250514, claude-sonnet-4-20250514)
 - 2025-06-24: Replaced get_server_status MCP tool with get_devserver_statuses that returns all server statuses without arguments, using typed Pydantic models for better type safety and FastMCP compatibility. Updated documentation. (claude-opus-4-20250514)
