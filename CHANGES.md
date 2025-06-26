@@ -1,5 +1,10 @@
 # Changelog
 
+## Next
+
+- refactor: `browser_console_messages(clear, offset, limit, reverse)` and `get_devserver_logs(name, offset, limit, reverse)` can now be controlled better to limit number of returned logs and to get what you actually need (first or last logs).
+- docs: document `autostart` and `prefix_logs` at least with one example in README
+
 ## v0.5.1 (2025-06-24)
 
 - refactor: preserver devserver log colors (#18)
