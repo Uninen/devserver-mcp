@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server that manages development servers for LLM-a
 
 You can also turn the servers on and off by clicking via the TUI.
 
-![Screenshot](./docs/screenshots/devservers_v0.3.png)
+![Screenshot](./docs/screenshots/devservers_v0.5.png)
 
 ## Project Status
 
