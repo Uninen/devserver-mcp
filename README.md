@@ -171,6 +171,7 @@ When `experimental.playwright` is set in config:
    - `reverse`: True for newest first, False for oldest first (default: True)
 4. **browser_click(ref)** - Click an element on the page using a CSS selector or element reference
 5. **browser_type(ref, text, submit, slowly)** - Type text into an element with optional submit (Enter key) and slow typing mode
+6. **browser_resize(width, height)** - Resize the browser viewport to specified dimensions
 
 ## Developing
 

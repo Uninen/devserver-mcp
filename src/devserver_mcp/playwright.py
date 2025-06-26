@@ -167,6 +167,23 @@ class PlaywrightOperator:
         except Exception as e:
             raise RuntimeError(f"Failed to type into element {ref}: {e}") from e
 
+    async def resize(self, width: int, height: int) -> dict[str, Any]:
+        if not self._page:
+            raise RuntimeError("Playwright not properly initialized")
+
+        try:
+            await self._page.set_viewport_size({"width": width, "height": height})
+
+            return {
+                "status": "success",
+                "message": f"Resized viewport to {width}x{height}",
+                "width": width,
+                "height": height,
+                "url": self._page.url,
+            }
+        except Exception as e:
+            raise RuntimeError(f"Failed to resize viewport: {e}") from e
+
     async def close(self) -> None:
         try:
             if self._page:

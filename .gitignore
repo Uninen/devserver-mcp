@@ -88,3 +88,4 @@ backups/*
 front/test-results/**
 **/.claude/settings.local.json
 mcp-errors.log
+screenshots/

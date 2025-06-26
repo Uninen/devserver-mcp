@@ -347,3 +347,19 @@ class DevServerManager:
         except Exception as e:
             log_error_to_file(e, "playwright_type")
             return {"status": "error", "message": str(e)}
+
+    async def playwright_resize(self, width: int, height: int) -> dict[str, Any]:
+        if not self._playwright_operator:
+            return {"status": "error", "message": "Playwright not available"}
+
+        try:
+            result = await self._playwright_operator.resize(width, height)
+            await self._notify_log(
+                f"{get_tool_emoji()} Playwright",
+                datetime.now().strftime("%H:%M:%S"),
+                f"Resized viewport to {width}x{height}",
+            )
+            return result
+        except Exception as e:
+            log_error_to_file(e, "playwright_resize")
+            return {"status": "error", "message": str(e)}

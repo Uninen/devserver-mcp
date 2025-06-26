@@ -7,6 +7,7 @@ import yaml
 from devserver_mcp.config import load_config
 from devserver_mcp.manager import DevServerManager
 from devserver_mcp.mcp_server import create_mcp_server
+from devserver_mcp.utils import get_tool_emoji
 
 
 def test_playwright_disabled_by_default():
@@ -111,6 +112,7 @@ async def test_mcp_commands_added_when_playwright_enabled():
             assert "browser_console_messages" in tool_names
             assert "browser_click" in tool_names
             assert "browser_type" in tool_names
+            assert "browser_resize" in tool_names
 
 
 @pytest.mark.asyncio
@@ -257,6 +259,7 @@ async def test_playwright_autostart_integration():
             assert "browser_console_messages" in tool_names
             assert "browser_click" in tool_names
             assert "browser_type" in tool_names
+            assert "browser_resize" in tool_names
 
             await mcp_server.manager.shutdown_all()
 
@@ -352,5 +355,215 @@ async def test_playwright_ui_status_synchronization():
                 "UI status change not triggered after Playwright startup - "
                 "TUI will show STOPPED despite successful start"
             )
+
+            await manager.shutdown_all()
+
+
+@pytest.mark.asyncio
+async def test_playwright_resize_success():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
+            mock_instance = MagicMock()
+            mock_instance.resize = AsyncMock(
+                return_value={
+                    "status": "success",
+                    "message": "Resized viewport to 1920x1080",
+                    "width": 1920,
+                    "height": 1080,
+                    "url": "https://example.com",
+                }
+            )
+            mock_playwright.return_value = mock_instance
+
+            manager = DevServerManager(config)
+
+            result = await manager.playwright_resize(1920, 1080)
+
+            assert result["status"] == "success"
+            assert result["width"] == 1920
+            assert result["height"] == 1080
+            assert "Resized viewport to 1920x1080" in result["message"]
+
+            mock_instance.resize.assert_called_once_with(1920, 1080)
+
+
+@pytest.mark.asyncio
+async def test_playwright_resize_error_handling():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
+            mock_instance = MagicMock()
+            mock_instance.resize = AsyncMock(side_effect=Exception("Viewport resize failed"))
+            mock_playwright.return_value = mock_instance
+
+            manager = DevServerManager(config)
+
+            result = await manager.playwright_resize(1920, 1080)
+
+            assert result["status"] == "error"
+            assert "Viewport resize failed" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_playwright_resize_when_disabled():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+        manager = DevServerManager(config)
+
+        result = await manager.playwright_resize(1920, 1080)
+
+        assert result["status"] == "error"
+        assert result["message"] == "Playwright not available"
+
+
+@pytest.mark.asyncio
+async def test_playwright_resize_logging():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+
+        captured_logs = []
+
+        async def capture_log(server: str, timestamp: str, message: str):
+            captured_logs.append((server, timestamp, message))
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
+            mock_instance = MagicMock()
+            mock_instance.resize = AsyncMock(
+                return_value={
+                    "status": "success",
+                    "message": "Resized viewport to 1280x720",
+                    "width": 1280,
+                    "height": 720,
+                    "url": "https://example.com",
+                }
+            )
+            mock_playwright.return_value = mock_instance
+
+            manager = DevServerManager(config)
+            manager.add_log_callback(capture_log)
+
+            await manager.playwright_resize(1280, 720)
+
+            resize_logs = [
+                (server, timestamp, message)
+                for server, timestamp, message in captured_logs
+                if "resize" in message.lower() or "1280x720" in message
+            ]
+
+            assert len(resize_logs) > 0, f"No resize logs captured. All logs: {captured_logs}"
+
+            resize_log = resize_logs[0]
+            assert f"{get_tool_emoji()} Playwright" in resize_log[0]
+            assert "Resized viewport to 1280x720" in resize_log[2]
+
+
+@pytest.mark.asyncio
+async def test_playwright_resize_edge_cases():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
+            mock_instance = MagicMock()
+
+            # Test minimum viewport size (common browser minimum)
+            mock_instance.resize = AsyncMock(
+                return_value={
+                    "status": "success",
+                    "message": "Resized viewport to 320x240",
+                    "width": 320,
+                    "height": 240,
+                    "url": "https://example.com",
+                }
+            )
+            mock_playwright.return_value = mock_instance
+
+            manager = DevServerManager(config)
+
+            # Test minimum size
+            result = await manager.playwright_resize(320, 240)
+            assert result["status"] == "success"
+            assert result["width"] == 320
+            assert result["height"] == 240
+
+            # Test large viewport (4K resolution)
+            mock_instance.resize.return_value = {
+                "status": "success",
+                "message": "Resized viewport to 3840x2160",
+                "width": 3840,
+                "height": 2160,
+                "url": "https://example.com",
+            }
+
+            result = await manager.playwright_resize(3840, 2160)
+            assert result["status"] == "success"
+            assert result["width"] == 3840
+            assert result["height"] == 2160
 
             await manager.shutdown_all()
