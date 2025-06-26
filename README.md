@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server that manages development servers for LLM-a
 
 You can also turn the servers on and off by clicking via the TUI.
 
-![Screenshot](./docs/screenshots/devservers_v0.2.png)
+![Screenshot](./docs/screenshots/devservers_v0.3.png)
 
 ## Project Status
 
@@ -80,7 +80,7 @@ Add to `.vscode/mcp.json`:
 }
 ```
 
-Run the TUI in a separate terminal: `devservers`
+Then run the TUI in a separate terminal: `devservers`
 
 ### Claude Code
 
@@ -90,7 +90,25 @@ Install the server:
 claude mcp add --transport http devserver http://localhost:3001/mcp/
 ```
 
-Run the TUI in a separate terminal: `devservers`
+Then run the TUI in a separate terminal: `devservers`
+
+### Gemini CLI
+
+Add the server configuration in `settings.json` (`~/.gemini/settings.json` globally or `.gemini/settings.json` per project, [see docs](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)):
+
+```json
+...
+  "mcpServers": {
+    "devservers": {
+      "httpUrl": "http://localhost:3001/mcp",
+      "timeout": 5000,
+      "trust": true
+    }
+  },
+...
+```
+
+Then run the TUI in a separate terminal: `devservers`
 
 ### Zed
 
@@ -110,7 +128,7 @@ command `uvx mcp-proxy --transport streamablehttp http://localhost:3001/mcp/`, o
   },
 ```
 
-Run the TUI in a separate terminal: `devservers`
+Then run the TUI in a separate terminal: `devservers`
 
 ## Usage
 
