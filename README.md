@@ -52,11 +52,13 @@ servers:
     command: 'npm run dev'
     working_dir: './frontend'
     port: 3000
+    autostart: true
 
   worker:
     command: 'celery -A myproject worker -l info'
     working_dir: '.'
     port: 5555
+    prefix_logs: false
 
 # Optional: Enable experimental Playwright browser automation
 experimental:
