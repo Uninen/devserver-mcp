@@ -1,4 +1,7 @@
 import json
+import re
+from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from devserver_mcp.log_storage import LogStorage
@@ -183,6 +186,48 @@ class PlaywrightOperator:
             }
         except Exception as e:
             raise RuntimeError(f"Failed to resize viewport: {e}") from e
+
+    async def screenshot(self, full_page: bool = False, name: str | None = None) -> dict[str, Any]:
+        if not self._page:
+            raise RuntimeError("Playwright not properly initialized")
+
+        try:
+            screenshots_dir = Path("screenshots")
+            screenshots_dir.mkdir(exist_ok=True)
+
+            if name:
+                safe_name = re.sub(r"[^\w\-_.]", "_", name)
+                safe_name = safe_name.strip("._")
+                if not safe_name:
+                    safe_name = "screenshot"
+                if not safe_name.endswith(".png"):
+                    safe_name = f"{safe_name}.png"
+                filename = safe_name
+            else:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"screenshot_{timestamp}.png"
+
+            filepath = screenshots_dir / filename
+            if filepath.exists():
+                base_name = filename[:-4]
+                counter = 1
+                while filepath.exists():
+                    filename = f"{base_name}_{counter}.png"
+                    filepath = screenshots_dir / filename
+                    counter += 1
+
+            await self._page.screenshot(path=str(filepath), full_page=full_page)
+
+            return {
+                "status": "success",
+                "message": f"Screenshot saved to {filepath}",
+                "filename": filename,
+                "path": str(filepath),
+                "url": self._page.url,
+                "full_page": full_page,
+            }
+        except Exception as e:
+            raise RuntimeError(f"Failed to take screenshot: {e}") from e
 
     async def close(self) -> None:
         try:

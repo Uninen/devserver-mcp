@@ -113,6 +113,7 @@ async def test_mcp_commands_added_when_playwright_enabled():
             assert "browser_click" in tool_names
             assert "browser_type" in tool_names
             assert "browser_resize" in tool_names
+            assert "browser_screenshot" in tool_names
 
 
 @pytest.mark.asyncio
@@ -260,6 +261,7 @@ async def test_playwright_autostart_integration():
             assert "browser_click" in tool_names
             assert "browser_type" in tool_names
             assert "browser_resize" in tool_names
+            assert "browser_screenshot" in tool_names
 
             await mcp_server.manager.shutdown_all()
 
@@ -466,3 +468,220 @@ async def test_playwright_resize_logging():
             resize_log = resize_logs[0]
             assert f"{get_tool_emoji()} Playwright" in resize_log[0]
             assert "Resized viewport to 1280x720" in resize_log[2]
+
+
+@pytest.mark.asyncio
+async def test_playwright_screenshot_error_handling():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
+            mock_instance = MagicMock()
+            mock_instance.screenshot = AsyncMock(side_effect=Exception("Screenshot failed"))
+            mock_playwright.return_value = mock_instance
+
+            manager = DevServerManager(config)
+
+            result = await manager.playwright_screenshot()
+
+            assert result["status"] == "error"
+            assert "Screenshot failed" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_playwright_screenshot_when_disabled():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+        manager = DevServerManager(config)
+
+        result = await manager.playwright_screenshot()
+
+        assert result["status"] == "error"
+        assert result["message"] == "Playwright not available"
+
+
+@pytest.mark.asyncio
+async def test_playwright_screenshot_logging():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+
+        captured_logs = []
+
+        async def capture_log(server: str, timestamp: str, message: str):
+            captured_logs.append((server, timestamp, message))
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
+            mock_instance = MagicMock()
+            mock_instance.screenshot = AsyncMock(
+                return_value={
+                    "status": "success",
+                    "message": "Screenshot saved to screenshots/screenshot_20241226_120000.png",
+                    "filename": "screenshot_20241226_120000.png",
+                    "path": "screenshots/screenshot_20241226_120000.png",
+                    "url": "https://example.com",
+                    "full_page": False,
+                }
+            )
+            mock_playwright.return_value = mock_instance
+
+            manager = DevServerManager(config)
+            manager.add_log_callback(capture_log)
+
+            await manager.playwright_screenshot()
+
+            screenshot_logs = [
+                (server, timestamp, message)
+                for server, timestamp, message in captured_logs
+                if "screenshot" in message.lower()
+            ]
+
+            assert len(screenshot_logs) > 0, f"No screenshot logs captured. All logs: {captured_logs}"
+
+            screenshot_log = screenshot_logs[0]
+            assert f"{get_tool_emoji()} Playwright" in screenshot_log[0]
+            assert "Screenshot saved to" in screenshot_log[2]
+
+
+@pytest.mark.asyncio
+async def test_playwright_screenshot_with_name():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+
+        captured_logs = []
+
+        async def capture_log(server: str, timestamp: str, message: str):
+            captured_logs.append((server, timestamp, message))
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
+            mock_instance = MagicMock()
+            mock_instance.screenshot = AsyncMock(
+                return_value={
+                    "status": "success",
+                    "message": "Screenshot saved to screenshots/my_test_screenshot.png",
+                    "filename": "my_test_screenshot.png",
+                    "path": "screenshots/my_test_screenshot.png",
+                    "url": "https://example.com",
+                    "full_page": False,
+                }
+            )
+            mock_playwright.return_value = mock_instance
+
+            manager = DevServerManager(config)
+            manager.add_log_callback(capture_log)
+
+            await manager.playwright_screenshot(name="my_test_screenshot")
+
+            screenshot_logs = [
+                (server, timestamp, message)
+                for server, timestamp, message in captured_logs
+                if "screenshot" in message.lower()
+            ]
+
+            assert len(screenshot_logs) > 0
+            assert "as 'my_test_screenshot'" in screenshot_logs[0][2]
+
+
+@pytest.mark.asyncio
+async def test_playwright_screenshot_full_page():
+    config_data = {
+        "servers": {
+            "test": {
+                "command": "echo test",
+                "port": 8000,
+            }
+        },
+        "experimental": {"playwright": True},
+    }
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_data, f)
+        f.flush()
+
+        config = load_config(f.name)
+
+        captured_logs = []
+
+        async def capture_log(server: str, timestamp: str, message: str):
+            captured_logs.append((server, timestamp, message))
+
+        with patch("devserver_mcp.playwright.PlaywrightOperator") as mock_playwright:
+            mock_instance = MagicMock()
+            mock_instance.screenshot = AsyncMock(
+                return_value={
+                    "status": "success",
+                    "message": "Screenshot saved to screenshots/screenshot_20241226_120000.png",
+                    "filename": "screenshot_20241226_120000.png",
+                    "path": "screenshots/screenshot_20241226_120000.png",
+                    "url": "https://example.com",
+                    "full_page": True,
+                }
+            )
+            mock_playwright.return_value = mock_instance
+
+            manager = DevServerManager(config)
+            manager.add_log_callback(capture_log)
+
+            await manager.playwright_screenshot(full_page=True)
+
+            # Verify the method was called with correct parameters
+            mock_instance.screenshot.assert_called_once_with(True, None)
+
+            screenshot_logs = [
+                (server, timestamp, message)
+                for server, timestamp, message in captured_logs
+                if "screenshot" in message.lower()
+            ]
+
+            assert len(screenshot_logs) > 0
+            assert "(full page)" in screenshot_logs[0][2]
