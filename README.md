@@ -86,10 +86,16 @@ Then run the TUI in a separate terminal: `devservers`
 
 ### Claude Code
 
-Install the server:
+Install the server locally:
 
 ```bash
-claude mcp add --transport http devserver http://localhost:3001/mcp/
+claude mcp add --transport http devservers http://localhost:3001/mcp/
+```
+
+..or for a project (which saves it to a `.mcp.json` in the project):
+
+```bash
+claude mcp add -s project --transport http devservers http://localhost:3001/mcp/
 ```
 
 Then run the TUI in a separate terminal: `devservers`
