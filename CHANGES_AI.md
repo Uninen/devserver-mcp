@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-06-27: Created comprehensive web UI design document for refactoring to loosely coupled architecture with standalone web server and thin MCP client. (claude-opus-4-20250514)
 - 2025-06-26: Added browser_screenshot command with full_page and optional name parameters to save browser screenshots to screenshots/ directory with filename sanitization. (claude-opus-4-20250514)
 - 2025-06-26: Created architectural analysis document for Playwright testing challenges, removed meaningless tests keeping only meaningful ones (error handling, disabled state, logging). (claude-opus-4-20250514)
 - 2025-06-26: Added browser_resize(width, height) command to experimental Playwright features for resizing browser viewport. (claude-opus-4-20250514)
