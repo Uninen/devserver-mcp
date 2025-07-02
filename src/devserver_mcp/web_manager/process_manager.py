@@ -1,11 +1,15 @@
 import asyncio
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from devserver_mcp.log_storage import LogStorage
 from devserver_mcp.process import ManagedProcess
 from devserver_mcp.state import StateManager
 from devserver_mcp.types import ServerConfig
+
+# Import TYPE_CHECKING to avoid circular imports
+if TYPE_CHECKING:
+    from devserver_mcp.web_manager.websocket_manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +24,11 @@ class ProcessManager:
     def __init__(self):
         self.processes: dict[str, dict[str, WebManagedProcess]] = {}
         self._shutdown_event = asyncio.Event()
+        self.websocket_manager: WebSocketManager | None = None
+
+    def set_websocket_manager(self, websocket_manager: "WebSocketManager"):
+        """Set the WebSocket manager for real-time log streaming."""
+        self.websocket_manager = websocket_manager
 
     async def start_process(
         self, project_id: str, server_name: str, config: ServerConfig, color: str = "#FFFFFF"
@@ -38,13 +47,21 @@ class ProcessManager:
         self.processes[project_id][server_name] = process
 
         async def log_callback(server_name: str, timestamp: str, line: str):
-            pass
+            # Send log to WebSocket clients if manager is available
+            if self.websocket_manager:
+                await self.websocket_manager.send_log(project_id, server_name, timestamp, line)
 
         success = await process.start(log_callback)
         if success:
             logger.info(f"Started process {project_id}/{server_name} with PID {process.pid}")
+            # Notify WebSocket clients of status change
+            if self.websocket_manager:
+                await self.websocket_manager.send_server_status(project_id, server_name, "running", process.pid)
         else:
             logger.error(f"Failed to start process {project_id}/{server_name}: {process.error}")
+            # Notify WebSocket clients of error
+            if self.websocket_manager:
+                await self.websocket_manager.send_server_status(project_id, server_name, "error", None)
 
         return success
 
@@ -60,6 +77,9 @@ class ProcessManager:
 
         await process.stop()
         logger.info(f"Stopped process {project_id}/{server_name}")
+        # Notify WebSocket clients of status change
+        if self.websocket_manager:
+            await self.websocket_manager.send_server_status(project_id, server_name, "stopped", None)
         return True
 
     def get_process_status(self, project_id: str, server_name: str) -> dict[str, Any]:

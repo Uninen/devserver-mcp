@@ -1,9 +1,10 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -16,10 +17,16 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 process_manager = ProcessManager()
+websocket_manager = None  # Will be initialized after ProcessManager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global websocket_manager
+    from devserver_mcp.web_manager.websocket_manager import WebSocketManager
+
+    websocket_manager = WebSocketManager()
+    process_manager.set_websocket_manager(websocket_manager)
     logger.info("DevServer Manager starting on port 7912")
     yield
     logger.info("DevServer Manager shutting down")
@@ -177,3 +184,35 @@ else:
     @app.get("/")
     async def root():
         return {"message": "DevServer Manager API"}
+
+
+@app.websocket("/ws/projects/{project_id}")
+async def websocket_endpoint(websocket: WebSocket, project_id: str):
+    """WebSocket endpoint for real-time log streaming."""
+    await websocket.accept()
+    if websocket_manager is None:
+        await websocket.close(code=1011, reason="WebSocket manager not initialized")
+        return
+
+    connection_id = await websocket_manager.connect(websocket, project_id)
+    try:
+        # Send initial connection status
+        await websocket.send_json({"type": "connection", "status": "connected", "project_id": project_id})
+
+        # Keep connection alive and wait for messages
+        while True:
+            try:
+                # Wait for client messages (ping/pong or other commands)
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                # Handle ping messages
+                if data == "ping":
+                    await websocket.send_text("pong")
+            except TimeoutError:
+                # Send periodic ping to keep connection alive
+                await websocket.send_text("ping")
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket client disconnected from project {project_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error for project {project_id}: {e}")
+    finally:
+        websocket_manager.disconnect(connection_id)

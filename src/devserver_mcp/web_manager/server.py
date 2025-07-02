@@ -26,6 +26,11 @@ def start_manager(port: int = 7912):
         raise
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the web manager server."""
     logging.basicConfig(level=logging.INFO)
     start_manager()
+
+
+if __name__ == "__main__":
+    main()

@@ -69,11 +69,11 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 7. Real-time Logs with WebSocket
 
-- [ ] Add WebSocket endpoint `/ws/projects/{id}`
-- [ ] Stream new log lines as they arrive
-- [ ] Update web UI to connect and append logs live
-- [ ] Handle reconnection on disconnect
-- [ ] Show connection status in UI
+- [x] Add WebSocket endpoint `/ws/projects/{id}`
+- [x] Stream new log lines as they arrive
+- [x] Update web UI to connect and append logs live
+- [x] Handle reconnection on disconnect
+- [x] Show connection status in UI
 
 ### 8. MCP Integration
 

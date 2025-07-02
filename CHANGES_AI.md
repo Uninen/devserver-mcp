@@ -1,5 +1,7 @@
 # AI Generated Changes
 
+- 2025-07-02: Fixed logs UI closing immediately by preserving visibility state during refreshes and adding proper IDs for Playwright testing. (claude-opus-4-20250514)
+- 2025-07-02: Implemented real-time WebSocket log streaming step 7: added WebSocket endpoint, WebSocketManager for connection handling, live log broadcasting, reconnection logic, and connection status UI indicator. (claude-opus-4-20250514)
 - 2025-07-02: Implemented minimal CLI step 6: created devservers command with start/stop/ui subcommands, PID file management, background process handling, and auto-project registration. (claude-opus-4-20250514)
 - 2025-07-02: Implemented basic web UI step 5: created comprehensive index.html with project list, server cards, start/stop controls, log viewer, and auto-refresh. (claude-opus-4-20250514)
 - 2025-07-02: Implemented essential REST API endpoints for project/server management: start, stop, logs, status with proper error handling. (claude-opus-4-20250514)

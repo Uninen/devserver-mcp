@@ -76,6 +76,31 @@
             50% { opacity: 0.7; }
         }
 
+        .ws-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #808090;
+        }
+
+        .ws-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff6688;
+            transition: background 0.3s;
+        }
+
+        .ws-status-dot.connected {
+            background: #66ff88;
+        }
+
+        .ws-status-dot.connecting {
+            background: #ffcc66;
+            animation: pulse 1s infinite;
+        }
+
         .project-section {
             background: #1a1a20;
             padding: 20px;
@@ -331,7 +356,13 @@
                 <div class="status-dot"></div>
                 <span>Manager running on port 7912</span>
             </div>
-            <div id="project-count">0 projects registered</div>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <div class="ws-status" id="ws-status">
+                    <div class="ws-status-dot" id="ws-status-dot"></div>
+                    <span id="ws-status-text">WebSocket: Disconnected</span>
+                </div>
+                <div id="project-count">0 projects registered</div>
+            </div>
         </div>
 
         <div id="projects-container">
@@ -345,6 +376,9 @@
     <script>
         let projectData = {};
         let activeLogViews = new Set();
+        let websockets = {}; // Store WebSocket connections per project
+        let reconnectTimeouts = {}; // Store reconnection timeouts
+        let logBuffers = {}; // Store logs per server
 
         async function fetchProjects() {
             try {
@@ -438,11 +472,22 @@
 
         function renderProjects() {
             const container = document.getElementById('projects-container');
+            
+            // Preserve existing log section visibility
+            const visibleLogs = {};
+            for (const [projectId] of Object.entries(projectData)) {
+                const logsSection = document.getElementById(`logs-${projectId}`);
+                if (logsSection && logsSection.classList.contains('visible')) {
+                    visibleLogs[projectId] = true;
+                }
+            }
+            
             container.innerHTML = '';
 
             for (const [projectId, project] of Object.entries(projectData)) {
                 const projectEl = document.createElement('div');
                 projectEl.className = 'project-section';
+                projectEl.setAttribute('data-project-id', projectId);
                 projectEl.innerHTML = `
                     <div class="project-header">
                         <div>
@@ -453,15 +498,28 @@
                     <div class="servers-grid" id="servers-${projectId}">
                         ${renderServers(projectId, project.servers || {})}
                     </div>
-                    <div class="logs-section" id="logs-${projectId}">
+                    <div class="logs-section${visibleLogs[projectId] ? ' visible' : ''}" id="logs-${projectId}">
                         <div class="logs-header">
                             <div class="logs-title">Logs</div>
-                            <button onclick="closeLogs('${projectId}')">Close</button>
+                            <button onclick="closeLogs('${projectId}')" data-action="close-logs" data-project="${projectId}">Close</button>
                         </div>
                         <div class="logs-viewer" id="logs-viewer-${projectId}"></div>
                     </div>
                 `;
                 container.appendChild(projectEl);
+                
+                // Restore log content if it was visible
+                if (visibleLogs[projectId]) {
+                    const activeView = [...activeLogViews].find(view => view.startsWith(projectId));
+                    if (activeView) {
+                        const [, serverName] = activeView.split('-');
+                        const logKey = `${projectId}-${serverName}`;
+                        const logsViewer = document.getElementById(`logs-viewer-${projectId}`);
+                        if (logBuffers[logKey] && logsViewer) {
+                            logsViewer.textContent = logBuffers[logKey].join('\n') || 'No logs available.';
+                        }
+                    }
+                }
             }
         }
 
@@ -476,10 +534,10 @@
                 const statusClass = `status-${status.status}`;
                 
                 return `
-                    <div class="server-card">
+                    <div class="server-card" data-server="${serverName}" data-project="${projectId}">
                         <div class="server-header">
                             <div class="server-name">${serverName}</div>
-                            <div class="server-status ${statusClass}">${status.status}</div>
+                            <div class="server-status ${statusClass}" data-status="${status.status}">${status.status}</div>
                         </div>
                         <div class="server-info">
                             ${server.port ? `Port: ${server.port}` : ''}
@@ -488,13 +546,23 @@
                         ${status.error ? `<div class="server-info" style="color: #dc3545;">${status.error}</div>` : ''}
                         <div class="server-controls">
                             <button 
+                                id="btn-toggle-${projectId}-${serverName}"
                                 class="${isRunning ? 'stop' : ''}" 
                                 onclick="toggleServer('${projectId}', '${serverName}', ${isRunning})"
                                 ${status.status === 'starting' ? 'disabled' : ''}
+                                data-action="${isRunning ? 'stop' : 'start'}"
+                                data-server="${serverName}"
+                                data-project="${projectId}"
                             >
                                 ${isRunning ? 'Stop' : 'Start'}
                             </button>
-                            <button class="logs" onclick="showLogs('${projectId}', '${serverName}')">
+                            <button 
+                                id="btn-logs-${projectId}-${serverName}"
+                                class="logs" 
+                                onclick="showLogs('${projectId}', '${serverName}')" 
+                                data-action="show-logs"
+                                data-server="${serverName}"
+                                data-project="${projectId}">
                                 Logs
                             </button>
                         </div>
@@ -550,11 +618,24 @@
             
             activeLogViews.add(`${projectId}-${serverName}`);
             
+            // Initialize log buffer for this server if needed
+            const logKey = `${projectId}-${serverName}`;
+            if (!logBuffers[logKey]) {
+                logBuffers[logKey] = [];
+            }
+            
+            // First fetch historical logs
             const logs = await fetchServerLogs(projectId, serverName);
+            logBuffers[logKey] = logs;
             logsViewer.textContent = logs.join('\n') || 'No logs available.';
             
             // Scroll to bottom
             logsViewer.scrollTop = logsViewer.scrollHeight;
+            
+            // Ensure WebSocket is connected for this project
+            if (!websockets[projectId] || websockets[projectId].readyState !== WebSocket.OPEN) {
+                connectWebSocket(projectId);
+            }
         }
 
         function closeLogs(projectId) {
@@ -563,6 +644,13 @@
             
             // Remove all log views for this project
             activeLogViews = new Set([...activeLogViews].filter(view => !view.startsWith(projectId)));
+            
+            // Disconnect WebSocket if no active log views for this project
+            const hasActiveViews = [...activeLogViews].some(view => view.startsWith(projectId));
+            if (!hasActiveViews && websockets[projectId]) {
+                websockets[projectId].close();
+                delete websockets[projectId];
+            }
         }
 
         function showError(message) {
@@ -570,30 +658,136 @@
             container.innerHTML = `<div class="error-message">${message}</div>` + container.innerHTML;
         }
 
+        function connectWebSocket(projectId) {
+            if (websockets[projectId] && websockets[projectId].readyState === WebSocket.OPEN) {
+                return; // Already connected
+            }
+            
+            updateWebSocketStatus('connecting');
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws/projects/${projectId}`);
+            
+            ws.onopen = () => {
+                console.log(`WebSocket connected for project ${projectId}`);
+                updateWebSocketStatus('connected');
+                
+                // Clear any reconnection timeout
+                if (reconnectTimeouts[projectId]) {
+                    clearTimeout(reconnectTimeouts[projectId]);
+                    delete reconnectTimeouts[projectId];
+                }
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'log') {
+                        const logKey = `${projectId}-${data.server_name}`;
+                        if (!logBuffers[logKey]) {
+                            logBuffers[logKey] = [];
+                        }
+                        
+                        // Format log line with timestamp if provided
+                        const logLine = data.timestamp ? `[${data.timestamp}] ${data.line}` : data.line;
+                        logBuffers[logKey].push(logLine);
+                        
+                        // Keep only last 1000 lines
+                        if (logBuffers[logKey].length > 1000) {
+                            logBuffers[logKey] = logBuffers[logKey].slice(-1000);
+                        }
+                        
+                        // Update UI if this log view is active
+                        if (activeLogViews.has(logKey)) {
+                            const logsViewer = document.getElementById(`logs-viewer-${projectId}`);
+                            if (logsViewer && logsViewer.parentElement.parentElement.classList.contains('visible')) {
+                                const isAtBottom = logsViewer.scrollHeight - logsViewer.scrollTop <= logsViewer.clientHeight + 5;
+                                logsViewer.textContent = logBuffers[logKey].join('\n');
+                                if (isAtBottom) {
+                                    logsViewer.scrollTop = logsViewer.scrollHeight;
+                                }
+                            }
+                        }
+                    } else if (data.type === 'status') {
+                        // Update server status in real-time
+                        if (projectData[projectId]?.servers?.[data.server_name]) {
+                            projectData[projectId].servers[data.server_name].status = {
+                                status: data.status,
+                                pid: data.pid
+                            };
+                            updateServerCard(projectId, data.server_name);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error processing WebSocket message:', error);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error(`WebSocket error for project ${projectId}:`, error);
+                updateWebSocketStatus('disconnected');
+            };
+            
+            ws.onclose = () => {
+                console.log(`WebSocket disconnected for project ${projectId}`);
+                updateWebSocketStatus('disconnected');
+                delete websockets[projectId];
+                
+                // Attempt to reconnect if there are active log views
+                const hasActiveViews = [...activeLogViews].some(view => view.startsWith(projectId));
+                if (hasActiveViews && !reconnectTimeouts[projectId]) {
+                    reconnectTimeouts[projectId] = setTimeout(() => {
+                        connectWebSocket(projectId);
+                    }, 3000);
+                }
+            };
+            
+            websockets[projectId] = ws;
+        }
+        
+        function updateWebSocketStatus(status) {
+            const statusDot = document.getElementById('ws-status-dot');
+            const statusText = document.getElementById('ws-status-text');
+            
+            statusDot.className = 'ws-status-dot';
+            
+            switch (status) {
+                case 'connected':
+                    statusDot.classList.add('connected');
+                    statusText.textContent = 'WebSocket: Connected';
+                    break;
+                case 'connecting':
+                    statusDot.classList.add('connecting');
+                    statusText.textContent = 'WebSocket: Connecting...';
+                    break;
+                default:
+                    statusText.textContent = 'WebSocket: Disconnected';
+            }
+        }
+        
         async function refreshData() {
             // Update project and server status
             await fetchProjects();
             
-            // Update logs for active log views
-            for (const view of activeLogViews) {
-                const [projectId, serverName] = view.split('-');
-                const logs = await fetchServerLogs(projectId, serverName);
-                const logsViewer = document.getElementById(`logs-viewer-${projectId}`);
-                if (logsViewer && logsViewer.parentElement.parentElement.classList.contains('visible')) {
-                    const isAtBottom = logsViewer.scrollHeight - logsViewer.scrollTop === logsViewer.clientHeight;
-                    logsViewer.textContent = logs.join('\n') || 'No logs available.';
-                    if (isAtBottom) {
-                        logsViewer.scrollTop = logsViewer.scrollHeight;
-                    }
-                }
-            }
+            // Note: Logs are now updated via WebSocket, no need to poll
         }
 
         // Initial load
         fetchProjects();
 
-        // Auto-refresh every 2 seconds
-        setInterval(refreshData, 2000);
+        // Auto-refresh every 2 seconds (for status updates only)
+        // setInterval(refreshData, 2000);
+        
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            // Close all WebSocket connections
+            for (const projectId in websockets) {
+                if (websockets[projectId]) {
+                    websockets[projectId].close();
+                }
+            }
+        });
     </script>
 </body>
 </html>
