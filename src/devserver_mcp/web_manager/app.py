@@ -1,6 +1,9 @@
 import asyncio
+import json
 import logging
+import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +23,26 @@ process_manager = ProcessManager()
 websocket_manager = None  # Will be initialized after ProcessManager
 
 
+def write_status_file(running: bool, port: int = 7912):
+    """Write status file for service discovery."""
+    status_dir = Path.home() / ".devserver-mcp"
+    status_dir.mkdir(exist_ok=True)
+    status_file = status_dir / "status.json"
+
+    if running:
+        status = {
+            "running": True,
+            "pid": os.getpid(),
+            "url": f"http://localhost:{port}",
+            "started_at": datetime.utcnow().isoformat() + "Z",
+        }
+    else:
+        status = {"running": False}
+
+    with open(status_file, "w") as f:
+        json.dump(status, f, indent=2)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global websocket_manager
@@ -28,8 +51,10 @@ async def lifespan(app: FastAPI):
     websocket_manager = WebSocketManager()
     process_manager.set_websocket_manager(websocket_manager)
     logger.info("DevServer Manager starting on port 7912")
+    write_status_file(True, 7912)
     yield
     logger.info("DevServer Manager shutting down")
+    write_status_file(False)
     await process_manager.cleanup_all()
 
 

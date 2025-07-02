@@ -77,12 +77,12 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 8. MCP Integration
 
-- [ ] Create thin MCP server using fastmcp
-- [ ] Auto-discover running manager (check port 7912)
-- [ ] Implement `start_server` tool
-- [ ] Implement `stop_server` tool
-- [ ] Implement `get_server_logs` tool
-- [ ] Use current directory as default project
+- [x] Create thin MCP server using fastmcp
+- [x] Auto-discover running manager (check port 7912)
+- [x] Implement `start_server` tool
+- [x] Implement `stop_server` tool
+- [x] Implement `get_server_logs` tool
+- [x] Use current directory as default project
 
 ### 9. Core Features
 

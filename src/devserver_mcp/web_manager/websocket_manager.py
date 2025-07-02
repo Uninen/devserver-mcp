@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import uuid
-from typing import Dict, Set
 
 from fastapi import WebSocket
 

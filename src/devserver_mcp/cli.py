@@ -108,7 +108,7 @@ def start(project):
     env["PYTHONUNBUFFERED"] = "1"
 
     process = subprocess.Popen(
-        [sys.executable, "-m", "devserver_mcp.web_manager.server"],
+        [sys.executable, "-m", "devserver_mcp.web_manager"],
         env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
