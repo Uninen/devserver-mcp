@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-07-02: Implemented essential REST API endpoints for project/server management: start, stop, logs, status with proper error handling. (claude-opus-4-20250514)
 - 2025-07-02: Implemented basic process management for web manager with subprocess control, state tracking, log buffering, and cleanup handling. (claude-opus-4-20250514)
 - 2025-07-02: Tested /api/projects endpoint and killed devservers process. (claude-opus-4-20250514)
 - 2025-07-02: Implemented minimal FastAPI server step 2: created FastAPI app with health endpoint, basic manager on port 7912, in-memory project registry, static file serving, and new CLI structure. (claude-opus-4-20250514)

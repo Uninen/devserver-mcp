@@ -42,12 +42,12 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 4. Essential REST API
 
-- [ ] GET `/api/projects` - return list of projects from registry
-- [ ] POST `/api/projects/{id}/servers/{name}/start` - start a server
-- [ ] POST `/api/projects/{id}/servers/{name}/stop` - stop a server
-- [ ] GET `/api/projects/{id}/servers/{name}/logs` - get buffered logs
-- [ ] GET `/api/projects/{id}/servers/{name}/status` - get server status
-- [ ] Basic error responses (404, 500)
+- [x] GET `/api/projects` - return list of projects from registry
+- [x] POST `/api/projects/{id}/servers/{name}/start` - start a server
+- [x] POST `/api/projects/{id}/servers/{name}/stop` - stop a server
+- [x] GET `/api/projects/{id}/servers/{name}/logs` - get buffered logs
+- [x] GET `/api/projects/{id}/servers/{name}/status` - get server status
+- [x] Basic error responses (404, 500)
 
 ### 5. Basic Web UI
 
