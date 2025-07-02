@@ -41,6 +41,7 @@ class Project(BaseModel):
     name: str
     path: str
     config_file: str
+    last_accessed: str | None = None
 
 
 class ServerStatusResponse(BaseModel):
@@ -63,6 +64,14 @@ async def health():
 async def get_projects():
     """Get all registered projects."""
     return list(project_registry.values())
+
+
+@app.post("/api/projects", response_model=Project)
+async def register_project(project: Project):
+    """Register a new project."""
+    project_registry[project.id] = project.model_dump()
+    logger.info(f"Registered project: {project.id} at {project.path}")
+    return project
 
 
 @app.post("/api/projects/{project_id}/servers/{server_name}/start", response_model=ServerOperationResult)

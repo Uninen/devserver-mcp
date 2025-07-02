@@ -24,3 +24,8 @@ def start_manager(port: int = 7912):
     except Exception as e:
         logger.error(f"Manager error: {e}")
         raise
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    start_manager()

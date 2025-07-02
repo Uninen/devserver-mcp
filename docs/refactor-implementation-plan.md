@@ -61,11 +61,11 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 6. Minimal CLI
 
-- [ ] Create `devservers` command with Click
-- [ ] `devservers start` - starts the manager server
-- [ ] `devservers ui` - opens http://localhost:7912 in browser
-- [ ] `devservers stop` - kills the manager (via PID file)
-- [ ] Auto-register current directory's project when starting
+- [x] Create `devservers` command with Click
+- [x] `devservers start` - starts the manager server
+- [x] `devservers ui` - opens http://localhost:7912 in browser
+- [x] `devservers stop` - kills the manager (via PID file)
+- [x] Auto-register current directory's project when starting
 
 ### 7. Real-time Logs with WebSocket
 
