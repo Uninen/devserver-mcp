@@ -34,11 +34,11 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 3. Basic Process Management
 
-- [ ] Create subprocess wrapper that can start/stop processes
-- [ ] Track process state (running/stopped) in memory
-- [ ] Capture stdout/stderr to in-memory buffer (last 1000 lines)
-- [ ] Handle process cleanup on manager shutdown
-- [ ] Add basic error handling for failed starts
+- [x] Create subprocess wrapper that can start/stop processes
+- [x] Track process state (running/stopped) in memory
+- [x] Capture stdout/stderr to in-memory buffer (last 1000 lines)
+- [x] Handle process cleanup on manager shutdown
+- [x] Add basic error handling for failed starts
 
 ### 4. Essential REST API
 

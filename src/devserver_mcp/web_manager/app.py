@@ -8,8 +8,12 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from devserver_mcp.web_manager.process_manager import ProcessManager
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+process_manager = ProcessManager()
 
 
 @asynccontextmanager
@@ -17,6 +21,7 @@ async def lifespan(app: FastAPI):
     logger.info("DevServer Manager starting on port 7912")
     yield
     logger.info("DevServer Manager shutting down")
+    await process_manager.cleanup_all()
 
 
 app = FastAPI(title="DevServer Manager", version="0.1.0", lifespan=lifespan)

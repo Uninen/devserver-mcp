@@ -1,5 +1,7 @@
 # AI Generated Changes
 
+- 2025-07-02: Implemented basic process management for web manager with subprocess control, state tracking, log buffering, and cleanup handling. (claude-opus-4-20250514)
+- 2025-07-02: Tested /api/projects endpoint and killed devservers process. (claude-opus-4-20250514)
 - 2025-07-02: Implemented minimal FastAPI server step 2: created FastAPI app with health endpoint, basic manager on port 7912, in-memory project registry, static file serving, and new CLI structure. (claude-opus-4-20250514)
 - 2025-07-02: Completed nuclear cleanup step 1: deleted TUI code (ui.py), removed textual dependency, created manager/web directories, kept MCP server and config models. (claude-opus-4-20250514)
 - 2025-07-02: Reorganized implementation plan to prioritize web UI delivery first, removed migration/backwards compatibility steps, focused on iterative MVP approach. (claude-opus-4-20250514)
