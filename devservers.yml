@@ -1,4 +1,5 @@
 # test configuration
+project: test-devservers
 servers:
   backend:
     command: "uv run fastapi dev backend.py"

@@ -1,5 +1,4 @@
 import contextlib
-import json
 import os
 import signal
 import subprocess
@@ -101,7 +100,6 @@ def start(project):
 
     port = 7912
     pid_file = get_pid_file_path()
-    status_file = get_status_file_path()
 
     # Start the manager in a subprocess
     env = os.environ.copy()
@@ -123,23 +121,13 @@ def start(project):
     if wait_for_manager(port):
         click.echo(f"✅ DevServer Manager started at http://localhost:{port}")
 
-        # Write status file
-        status_data = {
-            "running": True,
-            "pid": process.pid,
-            "url": f"http://localhost:{port}",
-            "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        }
-        with open(status_file, "w") as f:
-            json.dump(status_data, f, indent=2)
-
         # Auto-register current directory's project
         config_path = resolve_config_path("devservers.yml")
         if config_path and Path(config_path).exists():
             try:
                 config = load_config(config_path)
-                project_id = getattr(config, "project", Path.cwd().name)
-                project_name = getattr(config, "name", project_id)
+                project_id = config.project or Path.cwd().name
+                project_name = project_id
 
                 # Register via API
                 project_data = {
@@ -161,7 +149,39 @@ def start(project):
 
         if project:
             click.echo(f"🚀 Starting servers for project: {project}")
-            click.echo("   (autostart functionality coming soon)")
+            # Find the project in the registry
+            try:
+                response = requests.get(f"http://localhost:{port}/api/projects")
+                if response.status_code == 200:
+                    projects = response.json()
+                    matching_project = None
+                    for p in projects:
+                        if p["id"] == project or p["name"] == project:
+                            matching_project = p
+                            break
+
+                    if matching_project:
+                        # Load the project's config to find autostart servers
+                        config_path = Path(matching_project["path"]) / matching_project["config_file"]
+                        if config_path.exists():
+                            config = load_config(str(config_path))
+                            # Start all autostart servers
+                            for server_name, server_config in config.servers.items():
+                                if server_config.autostart:
+                                    click.echo(f"   - {server_name} (autostart)")
+                                    try:
+                                        response = requests.post(
+                                            f"http://localhost:{port}/api/projects/{matching_project['id']}/servers/{server_name}/start",
+                                            json={"project_id": matching_project["id"]},
+                                        )
+                                        if response.status_code != 200:
+                                            click.echo(f"     ⚠️  Failed to start {server_name}", err=True)
+                                    except Exception as e:
+                                        click.echo(f"     ⚠️  Error starting {server_name}: {e}", err=True)
+                    else:
+                        click.echo(f"⚠️  Project '{project}' not found in registry", err=True)
+            except Exception as e:
+                click.echo(f"⚠️  Error starting project servers: {e}", err=True)
     else:
         click.echo("❌ Failed to start DevServer Manager", err=True)
         # Clean up PID file

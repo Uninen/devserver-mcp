@@ -2,11 +2,13 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import yaml
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,9 +23,57 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 
 process_manager = ProcessManager()
 websocket_manager = None  # Will be initialized after ProcessManager
+bearer_token: str | None = None  # Will be generated on startup
 
 
-def write_status_file(running: bool, port: int = 7912):
+def get_config_file_path():
+    """Get the path to the global config file."""
+    config_dir = Path.home() / ".devserver-mcp"
+    config_dir.mkdir(exist_ok=True)
+    return config_dir / "config.yml"
+
+
+def load_project_registry():
+    """Load project registry from config file."""
+    config_file = get_config_file_path()
+    if not config_file.exists():
+        return {}
+
+    try:
+        with open(config_file) as f:
+            data = yaml.safe_load(f) or {}
+            return data.get("projects", {})
+    except Exception as e:
+        logger.error(f"Failed to load project registry: {e}")
+        return {}
+
+
+def save_project_registry(registry: dict[str, Any]):
+    """Save project registry to config file."""
+    config_file = get_config_file_path()
+
+    # Load existing config or create new one
+    try:
+        if config_file.exists():
+            with open(config_file) as f:
+                data = yaml.safe_load(f) or {}
+        else:
+            data = {}
+    except Exception:
+        data = {}
+
+    # Update projects section
+    data["projects"] = registry
+
+    # Save back to file
+    try:
+        with open(config_file, "w") as f:
+            yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+    except Exception as e:
+        logger.error(f"Failed to save project registry: {e}")
+
+
+def write_status_file(running: bool, port: int = 7912, bearer_token: str | None = None):
     """Write status file for service discovery."""
     status_dir = Path.home() / ".devserver-mcp"
     status_dir.mkdir(exist_ok=True)
@@ -35,23 +85,32 @@ def write_status_file(running: bool, port: int = 7912):
             "pid": os.getpid(),
             "url": f"http://localhost:{port}",
             "started_at": datetime.utcnow().isoformat() + "Z",
+            "bearer_token": bearer_token,
         }
     else:
         status = {"running": False}
 
+    # Ensure file has restricted permissions (user read/write only)
     with open(status_file, "w") as f:
         json.dump(status, f, indent=2)
+
+    # Set permissions to 0600 (user read/write only)
+    os.chmod(status_file, 0o600)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global websocket_manager
+    global websocket_manager, bearer_token
     from devserver_mcp.web_manager.websocket_manager import WebSocketManager
 
     websocket_manager = WebSocketManager()
     process_manager.set_websocket_manager(websocket_manager)
     logger.info("DevServer Manager starting on port 7912")
-    write_status_file(True, 7912)
+
+    # Generate bearer token for authentication
+    bearer_token = secrets.token_urlsafe(32)
+    write_status_file(True, 7912, bearer_token)
+
     yield
     logger.info("DevServer Manager shutting down")
     write_status_file(False)
@@ -60,7 +119,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="DevServer Manager", version="0.1.0", lifespan=lifespan)
 
-project_registry: dict[str, Any] = {}
+project_registry: dict[str, Any] = load_project_registry()
 
 
 class HealthResponse(BaseModel):
@@ -103,6 +162,10 @@ async def register_project(project: Project):
     """Register a new project."""
     project_registry[project.id] = project.model_dump()
     logger.info(f"Registered project: {project.id} at {project.path}")
+
+    # Persist to config file
+    save_project_registry(project_registry)
+
     return project
 
 

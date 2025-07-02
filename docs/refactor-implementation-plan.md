@@ -86,11 +86,11 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 9. Core Features
 
-- [ ] Add project configuration reading from `devservers.yml`
-- [ ] Implement server autostart based on config
-- [ ] Create status file at `~/.devserver-mcp/status.json`
-- [ ] Add bearer token for basic auth (store in status file)
-- [ ] Persist project registry to `~/.devserver-mcp/config.yml`
+- [x] Add project configuration reading from `devservers.yml`
+- [x] Implement server autostart based on config
+- [x] Create status file at `~/.devserver-mcp/status.json`
+- [x] Add bearer token for basic auth (store in status file)
+- [x] Persist project registry to `~/.devserver-mcp/config.yml`
 
 ### 10. Web UI Polish
 
