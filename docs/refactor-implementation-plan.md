@@ -12,7 +12,7 @@ This document tracks the implementation progress of the DevServer MCP refactorin
   - https://gofastmcp.com/servers/tools#structured-output
   - https://gofastmcp.com/servers/tools#output-schemas
   - https://gofastmcp.com/servers/tools#annotations
-- Try to reuse as much code as possible instead of deleting + rewriting from scratch
+- Reuse as much code as possible instead of deleting + rewriting from scratch
 - Do not add any dependencies before you actually use them
 
 ## Implementation Step Suggestions
