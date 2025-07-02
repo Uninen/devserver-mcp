@@ -40,11 +40,11 @@ def _parse_tool_result(result, expect_list=False):
         parsed = json.loads(content.content)
     else:
         parsed = json.loads(str(content))
-    
+
     # Workaround for FastMCP serialization issue with single-item lists
     if expect_list and not isinstance(parsed, list):
         return [parsed]
-    
+
     return parsed
 
 
@@ -59,7 +59,7 @@ async def test_get_devserver_statuses_returns_all_servers(mcp_server):
 
         assert isinstance(response, list)
         assert len(response) == 1
-        
+
         server = response[0]
         assert server["name"] == "test-server"
         assert server["status"] in ["stopped", "running"]
@@ -162,20 +162,20 @@ async def test_get_devserver_logs_with_pagination(mcp_server):
 async def test_get_devserver_statuses_with_multiple_servers(multi_server_config, temp_state_dir):
     manager = DevServerManager(multi_server_config)
     mcp_server = create_mcp_server(manager)
-    
+
     async with Client(mcp_server) as client:
         result = await client.call_tool("get_devserver_statuses", {})
-        
+
         assert len(result) == 1
-        
+
         response = _parse_tool_result(result, expect_list=True)
-        
+
         assert isinstance(response, list)
         assert len(response) == 2
-        
+
         server_names = {server["name"] for server in response}
         assert server_names == {"api", "web"}
-        
+
         for server in response:
             assert "name" in server
             assert "status" in server

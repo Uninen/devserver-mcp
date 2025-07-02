@@ -19,7 +19,9 @@ class AppForTesting(App):
 async def test_server_box_status_updates_after_click_start(running_config, temp_state_dir):
     manager = DevServerManager(running_config)
 
-    app = AppForTesting(ServerStatus(name="api", status=ServerStatusEnum.STOPPED, port=8000, error=None, color="cyan"), manager)
+    app = AppForTesting(
+        ServerStatus(name="api", status=ServerStatusEnum.STOPPED, port=8000, error=None, color="cyan"), manager
+    )
 
     async with app.run_test() as pilot:
         box = app.query_one(ServerBox)

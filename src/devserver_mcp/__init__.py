@@ -11,7 +11,6 @@ from devserver_mcp.config import load_config, resolve_config_path
 from devserver_mcp.manager import DevServerManager
 from devserver_mcp.mcp_server import create_mcp_server
 from devserver_mcp.types import Config
-from devserver_mcp.ui import DevServerTUI
 from devserver_mcp.utils import _cleanup_loop, configure_silent_logging, no_op_exception_handler, silence_all_output
 
 __version__ = "0.6.0"
@@ -80,9 +79,9 @@ class DevServerMCP:
 
     async def run(self):
         configure_silent_logging()
-        await self._run_with_tui()
+        await self._run_mcp_only()
 
-    async def _run_with_tui(self):
+    async def _run_mcp_only(self):
         self._mcp_task = asyncio.create_task(
             self.mcp.run_async(
                 transport="streamable-http",
@@ -91,11 +90,11 @@ class DevServerMCP:
             )
         )
 
-        mcp_url = f"http://localhost:{self.port}/mcp/"
-        app = DevServerTUI(self.manager, mcp_url)
+        click.echo(f"DevServer MCP running at http://localhost:{self.port}/mcp/")
+        click.echo("Press Ctrl+C to stop")
 
         try:
-            await app.run_async()
+            await self._mcp_task
         except (SystemExit, KeyboardInterrupt, asyncio.CancelledError):
             pass
         except Exception:
@@ -119,7 +118,7 @@ class DevServerMCP:
     "--config", "-c", default="devservers.yml", help="Path to configuration file", type=click.Path(exists=False)
 )
 @click.option("--port", "-p", default=3001, type=int, help="Port for server")
-def main(config, port):
+def mcp_main(config, port):
     configure_silent_logging()
     config = resolve_config_path(config)
 
@@ -143,6 +142,16 @@ def main(config, port):
         pass
     finally:
         _cleanup_loop(loop)
+
+
+def main():
+    """Main entry point that routes to either MCP server or new CLI."""
+    if len(sys.argv) > 1 and sys.argv[1] in ["--config", "-c", "--port", "-p"]:
+        mcp_main()
+    else:
+        from .cli import cli
+
+        cli()
 
 
 if __name__ == "__main__":

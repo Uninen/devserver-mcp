@@ -19,18 +19,18 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 1. Nuclear Cleanup
 
-- [ ] Delete ALL TUI-related code (src/devserver_mcp/tui/, src/devserver_mcp/server.py)
-- [ ] Remove TUI dependencies from pyproject.toml (textual, rich, etc.)
-- [ ] Create new directory structure: `src/devserver_mcp/manager/`, `src/devserver_mcp/web/`
-- [ ] Keep only the MCP server stub and config models
+- [x] Delete ALL TUI-related code (src/devserver_mcp/tui/, src/devserver_mcp/server.py)
+- [x] Remove TUI dependencies from pyproject.toml (textual, rich, etc.)
+- [x] Create new directory structure: `src/devserver_mcp/manager/`, `src/devserver_mcp/web/`
+- [x] Keep only the MCP server stub and config models
 
 ### 2. Minimal FastAPI Server
 
-- [ ] Create FastAPI app with health endpoint (`GET /health`)
-- [ ] Implement basic manager that runs on port 7912
-- [ ] Create in-memory project registry (just a dict for now)
-- [ ] Set up static file serving for web UI
-- [ ] Add simple logging to console
+- [x] Create FastAPI app with health endpoint (`GET /health`)
+- [x] Implement basic manager that runs on port 7912
+- [x] Create in-memory project registry (just a dict for now)
+- [x] Set up static file serving for web UI
+- [x] Add simple logging to console
 
 ### 3. Basic Process Management
 
