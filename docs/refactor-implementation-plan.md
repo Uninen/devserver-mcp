@@ -51,13 +51,13 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 5. Basic Web UI
 
-- [ ] Single index.html with embedded CSS/JS
-- [ ] Project list showing all registered projects
-- [ ] Server cards showing name, status, start/stop buttons
-- [ ] Log viewer showing last N lines (pre-formatted text)
-- [ ] Auto-refresh server status every 2 seconds
-- [ ] Simple fetch() calls to REST API
-- [ ] Basic responsive layout
+- [x] Single index.html with embedded CSS/JS
+- [x] Project list showing all registered projects
+- [x] Server cards showing name, status, start/stop buttons
+- [x] Log viewer showing last N lines (pre-formatted text)
+- [x] Auto-refresh server status every 2 seconds
+- [x] Simple fetch() calls to REST API
+- [x] Basic responsive layout
 
 ### 6. Minimal CLI
 
