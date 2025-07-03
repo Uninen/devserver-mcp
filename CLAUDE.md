@@ -17,6 +17,8 @@ This project is a Model Context Protocol (MCP) server that manages development s
 - Use Ruff for linting and formatting:
   - `uv run ruff check --fix path/to/file.py` -- fix all fixable linting errors
   - `uv run ruff format path/to/file.py` -- format
+- Use ty for type checking:
+  - `uv run ty check src`
 - Test the server implementation using the test app (see details below): `uv run devservers`
 
 ## Coding Guidelines

@@ -7,14 +7,16 @@ authors = [{ name = "Ville Säävuori", email = "ville@unessa.net" }]
 requires-python = ">=3.13"
 dependencies = [
     "click>=8.2.1",
-    "fastmcp>=2.9.0",
+    "fastapi[standard]>=0.115.14",
+    "fastmcp>=2.10.1",
+    "httpx>=0.28.1",
     "pydantic>=2.11.7",
     "pyyaml>=6.0.2",
-    "textual>=3.5.0",
 ]
 
 [project.scripts]
 devservers = "devserver_mcp:main"
+devserver-mcp = "devserver_mcp.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -25,14 +27,14 @@ path = "src/devserver_mcp/__init__.py"
 
 [dependency-groups]
 dev = [
-    "fastapi[standard]>=0.115.13",
-    "playwright>=1.52.0",
+    "playwright>=1.53.0",
     "pyright>=1.1.402",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
     "pytest-cov>=6.2.1",
     "pytest-sugar>=1.0.0",
-    "ruff>=0.12.0",
+    "ruff>=0.12.1",
+    "ty>=0.0.1a13",
 ]
 
 [tool.pyright]
@@ -40,3 +42,15 @@ reportUnnecessaryTypeIgnoreComment = true
 extraPaths = ["src"]
 venvPath = "."
 venv = ".venv"
+
+[tool.ty.environment]
+root = ["./src"]
+
+[[tool.ty.overrides]]
+include = ["src"]
+
+[tool.ty.overrides.rules]
+possibly-unresolved-reference = "ignore"
+missing-argument = "ignore"
+unresolved-attribute = "warn"
+unused-ignore-comment = "warn"

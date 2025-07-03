@@ -1,8 +1,6 @@
 # DevServer MCP
 
-A Model Context Protocol (MCP) server that manages development servers for LLM-assisted workflows. Provides programmatic control over multiple development servers through a unified interface with a simple TUI, plus experimental browser automation via Playwright.
-
-You can also turn the servers on and off by clicking via the TUI.
+A Model Context Protocol (MCP) server that manages development servers for LLM-assisted workflows. Provides programmatic control over multiple development servers through a web-based interface with real-time log streaming.
 
 ![Screenshot](./docs/screenshots/devservers_v0.5.png)
 
@@ -15,9 +13,11 @@ The tests validate some of the functionality and the server is already useful if
 ## Features
 
 - 🚀 **Process Management**: Start, stop, and monitor multiple development servers
-- 📊 **Rich TUI**: Interactive terminal interface with real-time log streaming
-- 🌐 **Browser Automation**: Experimental Playwright integration for web testing and automation
+- 🌐 **Web Interface**: Beautiful web UI with real-time log streaming via WebSocket
+- 📊 **Multi-Project Support**: Manage servers across multiple projects simultaneously
 - 🔧 **LLM Integration**: Full MCP protocol support for AI-assisted development workflows
+- 🔒 **Auto-Discovery**: MCP clients automatically find and connect to running manager
+- ⚡ **Auto-Start**: Manager starts automatically when accessed by MCP clients
 
 ## Installation
 
@@ -25,28 +25,19 @@ The tests validate some of the functionality and the server is already useful if
 uv add --dev git+https://github.com/Uninen/devserver-mcp.git --tag v0.6.0
 ```
 
-### Playwright (Optional)
-
-If you want to use the experimental Playwright browser automation features, you must install Playwright manually:
-
-```bash
-# Install Playwright
-uv add playwright
-
-# Install browser drivers
-playwright install
-```
-
 ## Quick Start
 
 Create a `devservers.yml` file in your project root:
 
 ```yaml
+project: my-app  # Required: unique project identifier
+
 servers:
   backend:
     command: 'python manage.py runserver'
     working_dir: '.'
     port: 8000
+    autostart: true
 
   frontend:
     command: 'npm run dev'
@@ -57,15 +48,12 @@ servers:
   worker:
     command: 'celery -A myproject worker -l info'
     working_dir: '.'
-    port: 5555
     prefix_logs: false
-
-# Optional: Enable experimental Playwright browser automation
-experimental:
-  playwright: true
 ```
 
 ## Configuration
+
+The MCP server automatically starts the DevServer Manager when accessed, so no manual startup is required.
 
 ### VS Code
 
@@ -74,125 +62,118 @@ Add to `.vscode/mcp.json`:
 ```json
 {
   "servers": {
-    "devserver": {
-      "url": "http://localhost:3001/mcp/",
-      "type": "http"
+    "devservers": {
+      "command": "uvx",
+      "args": ["devserver-mcp"]
     }
   }
 }
 ```
 
-Then run the TUI in a separate terminal: `devservers`
-
 ### Claude Code
 
-Install the server locally:
+For published package:
 
 ```bash
-claude mcp add --transport http devservers http://localhost:3001/mcp/
+# Global configuration
+claude mcp add devservers "uvx devserver-mcp"
+
+# Project-specific configuration (saves to `.mcp.json`)
+claude mcp add -s project devservers "uvx devserver-mcp"
 ```
 
-..or for a project (which saves it to a `.mcp.json` in the project):
+For local development:
 
 ```bash
-claude mcp add -s project --transport http devservers http://localhost:3001/mcp/
+# Run from the current directory
+claude mcp add -s project devservers "uvx --from . devserver-mcp"
 ```
-
-Then run the TUI in a separate terminal: `devservers`
 
 ### Gemini CLI
 
-Add the server configuration in `settings.json` (`~/.gemini/settings.json` globally or `.gemini/settings.json` per project, [see docs](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)):
+Add the server configuration in `settings.json` (`~/.gemini/settings.json` globally or `.gemini/settings.json` per project):
 
 ```json
-...
+{
   "mcpServers": {
     "devservers": {
-      "httpUrl": "http://localhost:3001/mcp",
-      "timeout": 5000,
-      "trust": true
+      "command": "uvx",
+      "args": ["devserver-mcp"]
     }
-  },
-...
+  }
+}
 ```
-
-Then run the TUI in a separate terminal: `devservers`
 
 ### Zed
 
-Zed doesn't yet support remote MCP servers natively so you need to use a proxy like [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy).
-
-You can either use the UI in Assistant Setting -> Context Server -> Add Custom Server, and add name "Devservers" and
-command `uvx mcp-proxy --transport streamablehttp http://localhost:3001/mcp/`, or, you can add this manually to Zed config:
+Add to your Zed config:
 
 ```json
+{
   "context_servers": {
     "devservers": {
       "command": {
         "path": "uvx",
-        "args": ["mcp-proxy", "--transport", "streamablehttp", "http://localhost:3001/mcp/"]
+        "args": ["devserver-mcp"]
       }
     }
-  },
+  }
+}
 ```
-
-Then run the TUI in a separate terminal: `devservers`
 
 ## Usage
 
-### Running the MCP Server TUI
-
-Start the TUI in terminal:
+### CLI Commands
 
 ```bash
+# Show status and help
 devservers
+
+# Start the manager server
+devservers start
+
+# Start manager + specific project servers
+devservers start my-app
+
+# Open web UI (starts manager if needed)
+devservers ui
+
+# Stop the manager and all servers
+devservers stop
 ```
 
-Now you can watch and control the devservers and see the logs while also giving LLMs full access to the servers and their logs.
+### Web Interface
+
+Access the web UI at http://localhost:7912 when the manager is running. Features include:
+
+- Project dashboard with server status cards
+- Real-time log streaming via WebSocket
+- Start/stop controls for each server
+- Log search and filtering
+- Multiple project support
 
 ### MCP Tools Available
 
 The server exposes the following tools for LLM interaction:
 
-#### Server Management
-
-1. **start_server(name)** - Start a configured server
-2. **stop_server(name)** - Stop a server (managed or external)
-3. **get_devserver_statuses()** - Get all server statuses
-4. **get_devserver_logs(name, offset, limit, reverse)** - Get logs with pagination support
-   - `offset`: Starting position (default: 0, negative values count from end)
-   - `limit`: Maximum logs to return (default: 100)
-   - `reverse`: True for newest first, False for oldest first (default: True)
-
-#### Browser Automation (Experimental)
-
-When `experimental.playwright` is set in config:
-
-1. **browser_navigate(url, wait_until)** - Navigate browser to URL with wait conditions
-2. **browser_snapshot()** - Capture accessibility snapshot of current page
-3. **browser_console_messages(clear, offset, limit, reverse)** - Get console messages with pagination
-   - `clear`: Clear messages after retrieval (default: False)
-   - `offset`: Starting position (default: 0, negative values count from end)
-   - `limit`: Maximum messages to return (default: 100)
-   - `reverse`: True for newest first, False for oldest first (default: True)
-4. **browser_click(ref)** - Click an element on the page using a CSS selector or element reference
-5. **browser_type(ref, text, submit, slowly)** - Type text into an element with optional submit (Enter key) and slow typing mode
-6. **browser_resize(width, height)** - Resize the browser viewport to specified dimensions
-7. **browser_screenshot(full_page, name)** - Take a screenshot of the current page
-   - `full_page`: Capture full page instead of viewport (default: False)
-   - `name`: Optional filename for the screenshot (default: timestamped name)
+1. **list_projects()** - List all registered projects
+2. **start_server(name, project_id)** - Start a server (uses current directory's project if not specified)
+3. **stop_server(name, project_id)** - Stop a running server
+4. **get_server_logs(name, project_id, offset, limit)** - Get recent server logs
+5. **get_devserver_status(project_id)** - Get the current project and status of all servers
 
 ## Developing
 
 ### Using MCP Inspector
 
-1. Start the server: `devservers`
-2. Start MCP Inspector: `npx @modelcontextprotocol/inspector http://localhost:3001`
+1. Start MCP Inspector: `npx @modelcontextprotocol/inspector uvx devserver-mcp`
+2. The MCP server will auto-start the manager if needed
 
-### Scripting MCP Inspector
+### Running Tests
 
-1. Start the server: `devservers`
-2. Use MCP Inspector in CLI mode, for example: `npx @modelcontextprotocol/inspector --cli http://localhost:3001 --method tools/call --tool-name start_server --tool-arg name=frontend`
+```bash
+uv run pytest
+```
 
 ## Elsewhere
 

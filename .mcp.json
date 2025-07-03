@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "devservers": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", ".", "devserver-mcp"],
+      "env": {}
+    }
+  }
+}

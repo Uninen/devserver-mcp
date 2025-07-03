@@ -17,6 +17,7 @@ class ExperimentalConfig(BaseModel):
 
 
 class Config(BaseModel):
+    project: str | None = None
     servers: dict[str, ServerConfig]
     experimental: ExperimentalConfig | None = None
 

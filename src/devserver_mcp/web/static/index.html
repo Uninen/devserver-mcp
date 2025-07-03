@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevServer Manager</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f0f14;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            background: #1a1a20;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #2a2a35;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #e0e0e0;
+            letter-spacing: -0.5px;
+        }
+
+        h1 span {
+            color: #b366ff;
+        }
+
+        .status-bar {
+            background: #1a1a20;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #2a2a35;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #66ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .ws-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #808090;
+        }
+
+        .ws-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff6688;
+            transition: background 0.3s;
+        }
+
+        .ws-status-dot.connected {
+            background: #66ff88;
+        }
+
+        .ws-status-dot.connecting {
+            background: #ffcc66;
+            animation: pulse 1s infinite;
+        }
+
+        .project-section {
+            background: #1a1a20;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #2a2a35;
+            margin-bottom: 20px;
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2a2a35;
+        }
+
+        .project-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #b366ff;
+        }
+
+        .project-path {
+            font-size: 13px;
+            color: #808090;
+            margin-top: 4px;
+        }
+
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .server-card {
+            background: #222228;
+            border: 1px solid #2a2a35;
+            border-radius: 6px;
+            padding: 15px;
+            transition: all 0.2s;
+        }
+
+        .server-card:hover {
+            border-color: #3a3a45;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .server-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #66ccff;
+        }
+
+        .server-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-running {
+            background: rgba(102, 255, 136, 0.15);
+            color: #66ff88;
+            border: 1px solid rgba(102, 255, 136, 0.3);
+        }
+
+        .status-stopped {
+            background: rgba(255, 102, 136, 0.15);
+            color: #ff6688;
+            border: 1px solid rgba(255, 102, 136, 0.3);
+        }
+
+        .status-starting {
+            background: rgba(255, 204, 102, 0.15);
+            color: #ffcc66;
+            border: 1px solid rgba(255, 204, 102, 0.3);
+        }
+
+        .status-error {
+            background: rgba(255, 102, 136, 0.15);
+            color: #ff6688;
+            border: 1px solid rgba(255, 102, 136, 0.3);
+        }
+
+        .server-info {
+            font-size: 13px;
+            color: #808090;
+            margin-bottom: 10px;
+        }
+
+        .server-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background: #b366ff;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #9944ff;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(179, 102, 255, 0.3);
+        }
+
+        button:disabled {
+            background: #3a3a45;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        button.stop {
+            background: #ff6688;
+        }
+
+        button.stop:hover {
+            background: #ff4466;
+            box-shadow: 0 2px 8px rgba(255, 102, 136, 0.3);
+        }
+
+        button.logs {
+            background: #66ccff;
+        }
+
+        button.logs:hover {
+            background: #44bbff;
+            box-shadow: 0 2px 8px rgba(102, 204, 255, 0.3);
+        }
+
+        .logs-section {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .logs-section.visible {
+            display: block;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .logs-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #66ff88;
+        }
+
+        .logs-viewer {
+            background: #0a0a0f;
+            color: #66ff88;
+            border: 1px solid #2a2a35;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .logs-viewer::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .logs-viewer::-webkit-scrollbar-track {
+            background: #1a1a20;
+            border-radius: 4px;
+        }
+
+        .logs-viewer::-webkit-scrollbar-thumb {
+            background: #3a3a45;
+            border-radius: 4px;
+        }
+
+        .logs-viewer::-webkit-scrollbar-thumb:hover {
+            background: #4a4a55;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #808090;
+        }
+
+        .empty-state p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: rgba(255, 102, 136, 0.1);
+            color: #ff6688;
+            border: 1px solid rgba(255, 102, 136, 0.3);
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .servers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Dev<span>Server</span> Manager</h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Manager running on port 7912</span>
+            </div>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <div class="ws-status" id="ws-status">
+                    <div class="ws-status-dot" id="ws-status-dot"></div>
+                    <span id="ws-status-text">WebSocket: Disconnected</span>
+                </div>
+                <div id="project-count">0 projects registered</div>
+            </div>
+        </div>
+
+        <div id="projects-container">
+            <div class="empty-state">
+                <p>No projects registered yet.</p>
+                <p>Use the CLI to register a project.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let projectData = {};
+        let activeLogViews = new Set();
+        let websockets = {}; // Store WebSocket connections per project
+        let reconnectTimeouts = {}; // Store reconnection timeouts
+        let logBuffers = {}; // Store logs per server
+        let authToken = null;
+
+        async function fetchAuthToken() {
+            try {
+                const response = await fetch('/api/auth/token/');
+                if (!response.ok) throw new Error('Failed to fetch auth token');
+                const data = await response.json();
+                authToken = data.token;
+            } catch (error) {
+                console.error('Error fetching auth token:', error);
+                showError('Authentication failed. Please refresh the page.');
+            }
+        }
+
+        async function apiRequest(url, options = {}) {
+            if (!authToken) {
+                await fetchAuthToken();
+            }
+            
+            const headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${authToken}`
+            };
+            
+            const response = await fetch(url, { ...options, headers });
+            
+            // If we get a 401, try refreshing the token once
+            if (response.status === 401 && authToken) {
+                authToken = null;
+                await fetchAuthToken();
+                // Retry with new token
+                return fetch(url, { 
+                    ...options, 
+                    headers: {
+                        ...options.headers,
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+            }
+            
+            return response;
+        }
+
+        async function fetchProjects() {
+            try {
+                const response = await apiRequest('/api/projects/');
+                if (!response.ok) throw new Error('Failed to fetch projects');
+                
+                const projects = await response.json();
+                updateProjectCount(projects.length);
+                
+                if (projects.length === 0) {
+                    document.getElementById('projects-container').innerHTML = `
+                        <div class="empty-state">
+                            <p>No projects registered yet.</p>
+                            <p>Use the CLI to register a project.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Fetch server status for each project
+                for (const project of projects) {
+                    projectData[project.id] = project;
+                    await fetchProjectServers(project.id);
+                }
+
+                renderProjects();
+            } catch (error) {
+                console.error('Error fetching projects:', error);
+                showError('Failed to load projects. Please refresh the page.');
+            }
+        }
+
+        async function fetchProjectServers(projectId) {
+            try {
+                const project = projectData[projectId];
+                if (!project) return;
+
+                // For now, we'll hardcode the servers from the config
+                // In a real implementation, we'd fetch this from the API
+                project.servers = {
+                    backend: { name: 'backend', port: 8000 },
+                    frontend: { name: 'frontend', port: 5173 }
+                };
+
+                // Fetch status for each server
+                for (const serverName of Object.keys(project.servers)) {
+                    await fetchServerStatus(projectId, serverName);
+                }
+            } catch (error) {
+                console.error(`Error fetching servers for project ${projectId}:`, error);
+            }
+        }
+
+        async function fetchServerStatus(projectId, serverName) {
+            try {
+                const response = await apiRequest(`/api/projects/${projectId}/servers/${serverName}/status/`);
+                if (!response.ok) throw new Error('Failed to fetch server status');
+                
+                const status = await response.json();
+                if (!projectData[projectId].servers[serverName]) {
+                    projectData[projectId].servers[serverName] = {};
+                }
+                projectData[projectId].servers[serverName].status = status;
+            } catch (error) {
+                console.error(`Error fetching status for ${projectId}/${serverName}:`, error);
+                if (projectData[projectId]?.servers?.[serverName]) {
+                    projectData[projectId].servers[serverName].status = {
+                        status: 'error',
+                        error: error.message
+                    };
+                }
+            }
+        }
+
+        async function fetchServerLogs(projectId, serverName) {
+            try {
+                const response = await apiRequest(`/api/projects/${projectId}/servers/${serverName}/logs/?limit=100`);
+                if (!response.ok) throw new Error('Failed to fetch logs');
+                
+                const result = await response.json();
+                return result.lines || [];
+            } catch (error) {
+                console.error(`Error fetching logs for ${projectId}/${serverName}:`, error);
+                return [`Error fetching logs: ${error.message}`];
+            }
+        }
+
+        function updateProjectCount(count) {
+            document.getElementById('project-count').textContent = `${count} project${count !== 1 ? 's' : ''} registered`;
+        }
+
+        function renderProjects() {
+            const container = document.getElementById('projects-container');
+            
+            // Preserve existing log section visibility
+            const visibleLogs = {};
+            for (const [projectId] of Object.entries(projectData)) {
+                const logsSection = document.getElementById(`logs-${projectId}`);
+                if (logsSection && logsSection.classList.contains('visible')) {
+                    visibleLogs[projectId] = true;
+                }
+            }
+            
+            container.innerHTML = '';
+
+            for (const [projectId, project] of Object.entries(projectData)) {
+                const projectEl = document.createElement('div');
+                projectEl.className = 'project-section';
+                projectEl.setAttribute('data-project-id', projectId);
+                projectEl.innerHTML = `
+                    <div class="project-header">
+                        <div>
+                            <div class="project-title">${project.name || project.id}</div>
+                            <div class="project-path">${project.path}</div>
+                        </div>
+                    </div>
+                    <div class="servers-grid" id="servers-${projectId}">
+                        ${renderServers(projectId, project.servers || {})}
+                    </div>
+                    <div class="logs-section${visibleLogs[projectId] ? ' visible' : ''}" id="logs-${projectId}">
+                        <div class="logs-header">
+                            <div class="logs-title">Logs</div>
+                            <button onclick="closeLogs('${projectId}')" data-action="close-logs" data-project="${projectId}">Close</button>
+                        </div>
+                        <div class="logs-viewer" id="logs-viewer-${projectId}"></div>
+                    </div>
+                `;
+                container.appendChild(projectEl);
+                
+                // Restore log content if it was visible
+                if (visibleLogs[projectId]) {
+                    const activeView = [...activeLogViews].find(view => view.startsWith(projectId));
+                    if (activeView) {
+                        const [, serverName] = activeView.split('-');
+                        const logKey = `${projectId}-${serverName}`;
+                        const logsViewer = document.getElementById(`logs-viewer-${projectId}`);
+                        if (logBuffers[logKey] && logsViewer) {
+                            logsViewer.textContent = logBuffers[logKey].join('\n') || 'No logs available.';
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderServers(projectId, servers) {
+            if (Object.keys(servers).length === 0) {
+                return '<p>No servers configured for this project.</p>';
+            }
+
+            return Object.entries(servers).map(([serverName, server]) => {
+                const status = server.status || { status: 'unknown' };
+                const isRunning = status.status === 'running';
+                const statusClass = `status-${status.status}`;
+                
+                return `
+                    <div class="server-card" data-server="${serverName}" data-project="${projectId}">
+                        <div class="server-header">
+                            <div class="server-name">${serverName}</div>
+                            <div class="server-status ${statusClass}" data-status="${status.status}">${status.status}</div>
+                        </div>
+                        <div class="server-info">
+                            ${server.port ? `Port: ${server.port}` : ''}
+                            ${status.pid ? ` • PID: ${status.pid}` : ''}
+                        </div>
+                        ${status.error ? `<div class="server-info" style="color: #dc3545;">${status.error}</div>` : ''}
+                        <div class="server-controls">
+                            <button 
+                                id="btn-toggle-${projectId}-${serverName}"
+                                class="${isRunning ? 'stop' : ''}" 
+                                onclick="toggleServer('${projectId}', '${serverName}', ${isRunning})"
+                                ${status.status === 'starting' ? 'disabled' : ''}
+                                data-action="${isRunning ? 'stop' : 'start'}"
+                                data-server="${serverName}"
+                                data-project="${projectId}"
+                            >
+                                ${isRunning ? 'Stop' : 'Start'}
+                            </button>
+                            <button 
+                                id="btn-logs-${projectId}-${serverName}"
+                                class="logs" 
+                                onclick="showLogs('${projectId}', '${serverName}')" 
+                                data-action="show-logs"
+                                data-server="${serverName}"
+                                data-project="${projectId}">
+                                Logs
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function toggleServer(projectId, serverName, isRunning) {
+            const action = isRunning ? 'stop' : 'start';
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = isRunning ? 'Stopping...' : 'Starting...';
+
+            try {
+                const response = await apiRequest(`/api/projects/${projectId}/servers/${serverName}/${action}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `Failed to ${action} server`);
+                }
+
+                // Update status immediately
+                await fetchServerStatus(projectId, serverName);
+                updateServerCard(projectId, serverName);
+            } catch (error) {
+                console.error(`Error ${action}ing server:`, error);
+                alert(`Failed to ${action} server: ${error.message}`);
+                button.disabled = false;
+                button.textContent = isRunning ? 'Stop' : 'Start';
+            }
+        }
+
+        function updateServerCard(projectId, serverName) {
+            const serversContainer = document.getElementById(`servers-${projectId}`);
+            if (serversContainer && projectData[projectId]?.servers) {
+                serversContainer.innerHTML = renderServers(projectId, projectData[projectId].servers);
+            }
+        }
+
+        async function showLogs(projectId, serverName) {
+            const logsSection = document.getElementById(`logs-${projectId}`);
+            const logsViewer = document.getElementById(`logs-viewer-${projectId}`);
+            
+            logsSection.classList.add('visible');
+            logsViewer.textContent = 'Loading logs...';
+            
+            activeLogViews.add(`${projectId}-${serverName}`);
+            
+            // Initialize log buffer for this server if needed
+            const logKey = `${projectId}-${serverName}`;
+            if (!logBuffers[logKey]) {
+                logBuffers[logKey] = [];
+            }
+            
+            // First fetch historical logs
+            const logs = await fetchServerLogs(projectId, serverName);
+            logBuffers[logKey] = logs;
+            logsViewer.textContent = logs.join('\n') || 'No logs available.';
+            
+            // Scroll to bottom
+            logsViewer.scrollTop = logsViewer.scrollHeight;
+            
+            // Ensure WebSocket is connected for this project
+            if (!websockets[projectId] || websockets[projectId].readyState !== WebSocket.OPEN) {
+                connectWebSocket(projectId);
+            }
+        }
+
+        function closeLogs(projectId) {
+            const logsSection = document.getElementById(`logs-${projectId}`);
+            logsSection.classList.remove('visible');
+            
+            // Remove all log views for this project
+            activeLogViews = new Set([...activeLogViews].filter(view => !view.startsWith(projectId)));
+            
+            // Disconnect WebSocket if no active log views for this project
+            const hasActiveViews = [...activeLogViews].some(view => view.startsWith(projectId));
+            if (!hasActiveViews && websockets[projectId]) {
+                websockets[projectId].close();
+                delete websockets[projectId];
+            }
+            
+            // Update WebSocket status
+            updateWebSocketStatus(activeLogViews.size > 0 ? 'connected' : 'ready');
+        }
+
+        function showError(message) {
+            const container = document.getElementById('projects-container');
+            // Remove any existing error messages first
+            const existingErrors = container.querySelectorAll('.error-message');
+            existingErrors.forEach(error => error.remove());
+            // Add new error at the top
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            container.insertBefore(errorDiv, container.firstChild);
+        }
+
+        function connectWebSocket(projectId) {
+            if (websockets[projectId] && websockets[projectId].readyState === WebSocket.OPEN) {
+                return; // Already connected
+            }
+            
+            updateWebSocketStatus('connecting');
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws/projects/${projectId}/`);
+            
+            ws.onopen = () => {
+                console.log(`WebSocket connected for project ${projectId}`);
+                updateWebSocketStatus('connected');
+                
+                // Clear any reconnection timeout
+                if (reconnectTimeouts[projectId]) {
+                    clearTimeout(reconnectTimeouts[projectId]);
+                    delete reconnectTimeouts[projectId];
+                }
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'log') {
+                        const logKey = `${projectId}-${data.server_name}`;
+                        if (!logBuffers[logKey]) {
+                            logBuffers[logKey] = [];
+                        }
+                        
+                        // Format log line with timestamp if provided
+                        const logLine = data.timestamp ? `[${data.timestamp}] ${data.line}` : data.line;
+                        logBuffers[logKey].push(logLine);
+                        
+                        // Keep only last 1000 lines
+                        if (logBuffers[logKey].length > 1000) {
+                            logBuffers[logKey] = logBuffers[logKey].slice(-1000);
+                        }
+                        
+                        // Update UI if this log view is active
+                        if (activeLogViews.has(logKey)) {
+                            const logsViewer = document.getElementById(`logs-viewer-${projectId}`);
+                            if (logsViewer && logsViewer.parentElement.parentElement.classList.contains('visible')) {
+                                const isAtBottom = logsViewer.scrollHeight - logsViewer.scrollTop <= logsViewer.clientHeight + 5;
+                                logsViewer.textContent = logBuffers[logKey].join('\n');
+                                if (isAtBottom) {
+                                    logsViewer.scrollTop = logsViewer.scrollHeight;
+                                }
+                            }
+                        }
+                    } else if (data.type === 'status') {
+                        // Update server status in real-time
+                        if (projectData[projectId]?.servers?.[data.server_name]) {
+                            projectData[projectId].servers[data.server_name].status = {
+                                status: data.status,
+                                pid: data.pid
+                            };
+                            updateServerCard(projectId, data.server_name);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error processing WebSocket message:', error);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error(`WebSocket error for project ${projectId}:`, error);
+                updateWebSocketStatus('disconnected');
+            };
+            
+            ws.onclose = () => {
+                console.log(`WebSocket disconnected for project ${projectId}`);
+                updateWebSocketStatus('disconnected');
+                delete websockets[projectId];
+                
+                // Attempt to reconnect if there are active log views
+                const hasActiveViews = [...activeLogViews].some(view => view.startsWith(projectId));
+                if (hasActiveViews && !reconnectTimeouts[projectId]) {
+                    reconnectTimeouts[projectId] = setTimeout(() => {
+                        connectWebSocket(projectId);
+                    }, 3000);
+                }
+            };
+            
+            websockets[projectId] = ws;
+        }
+        
+        function updateWebSocketStatus(status) {
+            const statusDot = document.getElementById('ws-status-dot');
+            const statusText = document.getElementById('ws-status-text');
+            
+            statusDot.className = 'ws-status-dot';
+            
+            // Check if there are any active log views
+            const hasActiveLogViews = activeLogViews.size > 0;
+            
+            if (!hasActiveLogViews) {
+                // No active log views, show idle state
+                statusDot.classList.add('connected');
+                statusText.textContent = 'WebSocket: Ready';
+                return;
+            }
+            
+            switch (status) {
+                case 'connected':
+                    statusDot.classList.add('connected');
+                    statusText.textContent = 'WebSocket: Connected';
+                    break;
+                case 'connecting':
+                    statusDot.classList.add('connecting');
+                    statusText.textContent = 'WebSocket: Connecting...';
+                    break;
+                default:
+                    statusText.textContent = 'WebSocket: Disconnected';
+            }
+        }
+        
+        async function refreshData() {
+            // Update project and server status
+            await fetchProjects();
+            
+            // Note: Logs are now updated via WebSocket, no need to poll
+        }
+
+        // Initial load
+        async function init() {
+            await fetchAuthToken();
+            await fetchProjects();
+            updateWebSocketStatus('ready');
+        }
+        
+        init();
+
+        // Auto-refresh every 2 seconds (for status updates only)
+        // setInterval(refreshData, 2000);
+        
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            // Close all WebSocket connections
+            for (const projectId in websockets) {
+                if (websockets[projectId]) {
+                    websockets[projectId].close();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
