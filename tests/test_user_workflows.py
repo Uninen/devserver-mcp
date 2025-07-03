@@ -52,9 +52,15 @@ def test_cli_stop_command_stops_manager(temp_home_dir: Path):
     """Test that the CLI 'stop' command successfully stops the running manager."""
     runner = CliRunner()
     
-    status_file = temp_home_dir / ".devserver-mcp" / "status.json"
-    status_file.parent.mkdir(parents=True, exist_ok=True)
+    # Create the PID file that is_manager_running() checks
+    pid_file = temp_home_dir / ".devserver-mcp" / "manager.pid"
+    pid_file.parent.mkdir(parents=True, exist_ok=True)
     
+    with open(pid_file, "w") as f:
+        f.write("12345")
+    
+    # Also create status.json file for consistency
+    status_file = temp_home_dir / ".devserver-mcp" / "status.json"
     status_data = {
         "running": True,
         "pid": 12345,
@@ -65,12 +71,30 @@ def test_cli_stop_command_stops_manager(temp_home_dir: Path):
     with open(status_file, "w") as f:
         json.dump(status_data, f)
     
+    # Mock os.kill to simulate a process that gets terminated
     with patch("os.kill") as mock_kill:
+        # Configure mock to:
+        # 1. Return None for initial check (process exists)
+        # 2. Return None for SIGTERM
+        # 3. Raise ProcessLookupError on subsequent checks (process terminated)
+        call_count = 0
+        def kill_side_effect(pid, sig):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                return None  # Process exists for first two calls
+            else:
+                raise ProcessLookupError()  # Process terminated
+        
+        mock_kill.side_effect = kill_side_effect
+        
         result = runner.invoke(cli, ["stop"])
         
         assert result.exit_code == 0
         assert "Devservers manager stopped" in result.output
-        mock_kill.assert_called_once_with(12345, 15)
+        # Verify that SIGTERM (15) was sent
+        import signal
+        assert mock_kill.call_args_list[1] == ((12345, signal.SIGTERM),)
 
 
 def test_cli_status_command_shows_manager_status(temp_home_dir: Path):
@@ -105,23 +129,30 @@ def test_cli_start_command_auto_registers_project(temp_home_dir: Path):
     with open(config_file, "w") as f:
         yaml.dump(config_data, f)
     
-    with patch("subprocess.Popen") as mock_popen, \
-         patch("pathlib.Path.cwd", return_value=project_dir), \
-         patch("httpx.post") as mock_post:
-        
-        mock_process = type('MockProcess', (), {'pid': 12345})()
-        mock_popen.return_value = mock_process
-        
-        mock_response = type('MockResponse', (), {
-            'status_code': 200,
-            'json': lambda: {"status": "registered"}
-        })()
-        mock_post.return_value = mock_response
-        
-        result = runner.invoke(cli, ["start"])
-        
-        assert result.exit_code == 0
-        assert "Devservers manager started" in result.output
+    # Change to project directory and run the command
+    import os
+    original_cwd = os.getcwd()
+    os.chdir(project_dir)
+    
+    try:
+        with patch("subprocess.Popen") as mock_popen, \
+             patch("httpx.post") as mock_post:
+            
+            mock_process = type('MockProcess', (), {'pid': 12345})()
+            mock_popen.return_value = mock_process
+            
+            mock_response = type('MockResponse', (), {
+                'status_code': 200,
+                'json': lambda: {"status": "registered"}
+            })()
+            mock_post.return_value = mock_response
+            
+            result = runner.invoke(cli, ["start"])
+            
+            assert result.exit_code == 0
+            assert "Devservers manager started" in result.output
+    finally:
+        os.chdir(original_cwd)
 
 
 def test_cli_handles_corrupted_status_file_gracefully(temp_home_dir: Path):
@@ -152,13 +183,20 @@ def test_cli_handles_network_errors_gracefully(temp_home_dir: Path):
     with open(config_file, "w") as f:
         yaml.dump(config_data, f)
     
-    with patch("subprocess.Popen") as mock_popen, \
-         patch("pathlib.Path.cwd", return_value=project_dir), \
-         patch("httpx.post", side_effect=Exception("Connection failed")):
-        
-        mock_process = type('MockProcess', (), {'pid': 12345})()
-        mock_popen.return_value = mock_process
-        
-        result = runner.invoke(cli, ["start"])
-        
-        assert result.exit_code == 0
+    # Change to project directory and run the command
+    import os
+    original_cwd = os.getcwd()
+    os.chdir(project_dir)
+    
+    try:
+        with patch("subprocess.Popen") as mock_popen, \
+             patch("httpx.post", side_effect=Exception("Connection failed")):
+            
+            mock_process = type('MockProcess', (), {'pid': 12345})()
+            mock_popen.return_value = mock_process
+            
+            result = runner.invoke(cli, ["start"])
+            
+            assert result.exit_code == 0
+    finally:
+        os.chdir(original_cwd)

@@ -81,19 +81,19 @@ This plan addresses all failing tests while adhering to the testing guidelines f
 - [x] Verify ALL tests in THIS FILE pass (ignore other files)
 
 ### Step 5: Fix `test_user_workflows.py`
-- [ ] **FIRST: Re-read `docs/writing_tests.md` to ensure full compliance**
+- [x] **FIRST: Re-read `docs/writing_tests.md` to ensure full compliance**
 
 **Current Issues:**
 - `test_cli_stop_command_stops_manager` expects "DevServer Manager stopped" but actual output is "Devservers manager stopped"
 
 **Actions:**
-- [ ] Ensure tests represent real user workflows through CLI
-- [ ] Update expected string from "DevServer Manager stopped" to "Devservers manager stopped"
-- [ ] Check other tests for similar string mismatches
-- [ ] Mock ONLY system boundaries (subprocess.Popen, webbrowser.open, os.kill)
-- [ ] Verify each test has maximum 2 mocks
-- [ ] Run ONLY this file's tests: `uv run pytest tests/test_user_workflows.py -v`
-- [ ] Verify ALL tests in THIS FILE pass (ignore other files)
+- [x] Ensure tests represent real user workflows through CLI
+- [x] Update expected string from "DevServer Manager stopped" to "Devservers manager stopped"
+- [x] Check other tests for similar string mismatches
+- [x] Mock ONLY system boundaries (subprocess.Popen, webbrowser.open, os.kill)
+- [x] Verify each test has maximum 2 mocks
+- [x] Run ONLY this file's tests: `uv run pytest tests/test_user_workflows.py -v`
+- [x] Verify ALL tests in THIS FILE pass (ignore other files)
 
 ### Step 6: Fix `test_error_handling.py`
 - [ ] **FIRST: Re-read `docs/writing_tests.md` to ensure full compliance**
