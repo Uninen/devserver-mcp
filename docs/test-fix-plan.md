@@ -132,16 +132,16 @@ This plan addresses all failing tests while adhering to the testing guidelines f
 
 ### Step 7: Final Verification
 
-- [ ] **FINAL CHECK: Re-read `docs/writing_tests.md` one more time**
-- [ ] Run full test suite: `uv run pytest -v`
-- [ ] Ensure ALL tests pass
-- [ ] Verify no test violates the guidelines:
+- [x] **FINAL CHECK: Re-read `docs/writing_tests.md` one more time**
+- [x] Run full test suite: `uv run pytest -v`
+- [x] Ensure ALL tests pass
+- [x] Verify no test violates the guidelines:
   - No mocking of our own code
   - Maximum 2 mocks per test
   - All mocks at system boundaries
   - Tests named properly
   - One behavior per test
-- [ ] Run with coverage: `uv run pytest`
+- [x] Run with coverage: `uv run pytest`
 
 ## Success Criteria
 
