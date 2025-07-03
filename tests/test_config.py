@@ -8,8 +8,8 @@ from devserver_mcp.config import load_config
 from devserver_mcp.types import Config
 
 
-def test_load_config_success():
-    """Test loading a valid config file."""
+def test_load_config_loads_valid_yaml():
+    """Test that a valid YAML config file is loaded correctly."""
     config_data = {
         "servers": {
             "backend": {
@@ -34,14 +34,14 @@ def test_load_config_success():
             os.unlink(f.name)
 
 
-def test_load_config_file_not_found():
-    """Test loading a non-existent config file."""
+def test_load_config_raises_file_not_found_for_nonexistent_file():
+    """Test that loading a non-existent config file raises FileNotFoundError."""
     with pytest.raises(FileNotFoundError):
         load_config("nonexistent.yml")
 
 
-def test_load_config_with_experimental_section():
-    """Test loading config with experimental features."""
+def test_load_config_parses_experimental_section():
+    """Test that the experimental section is parsed correctly."""
     config_data = {
         "servers": {
             "backend": {

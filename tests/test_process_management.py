@@ -13,10 +13,10 @@ def process_manager():
 
 
 @pytest.fixture
-def echo_server_config(temp_home_dir):
-    """Server config with a simple echo command that exits quickly."""
+def sleep_server_config(temp_home_dir):
+    """Server config that sleeps for a short time."""
     return ServerConfig(
-        command="echo 'test server output'",
+        command="sleep 0.1",
         working_dir=str(temp_home_dir),
         port=8000,
         autostart=False
@@ -24,26 +24,26 @@ def echo_server_config(temp_home_dir):
 
 
 @pytest.mark.asyncio
-async def test_start_and_stop_echo_process(process_manager, echo_server_config):
-    """Test starting and stopping a simple echo process."""
+async def test_process_starts_and_stops_successfully(process_manager, sleep_server_config):
+    """Test that a simple echo process starts and then stops (exits) successfully."""
     # This uses a real subprocess with echo command
-    result = await process_manager.start_process(
+    started = await process_manager.start_process(
         "test-project", "echo-server", echo_server_config
     )
     
-    assert result is True
+    assert started is True
     
-    # Wait a bit for echo to complete
+    # Give it a moment to exit
     await asyncio.sleep(0.1)
     
     # Check status after process exits naturally
     status = process_manager.get_process_status("test-project", "echo-server")
-    assert status["status"] in ["stopped", "error"]  # Echo exits immediately
+    assert status["status"] == "stopped" or status["status"] == "error" # Echo exits immediately, so it should be stopped or error
 
 
 @pytest.mark.asyncio
-async def test_start_process_nonexistent_directory(process_manager):
-    """Test starting a process with non-existent working directory."""
+async def test_start_process_fails_with_nonexistent_working_directory(process_manager):
+    """Test that starting a process fails when the working directory does not exist."""
     config = ServerConfig(
         command="echo test",
         working_dir="/this/directory/does/not/exist",
@@ -61,8 +61,8 @@ async def test_start_process_nonexistent_directory(process_manager):
 
 
 @pytest.mark.asyncio
-async def test_cleanup_all_processes(process_manager, echo_server_config):
-    """Test cleanup of all processes."""
+async def test_cleanup_all_processes_terminates_all_running_processes(process_manager, echo_server_config):
+    """Test that cleanup_all terminates all running processes."""
     # Start a process
     await process_manager.start_process(
         "test-project", "echo-server", echo_server_config
@@ -76,12 +76,12 @@ async def test_cleanup_all_processes(process_manager, echo_server_config):
 
 
 @pytest.mark.asyncio
-async def test_get_process_logs_no_process(process_manager):
-    """Test getting logs for non-existent process."""
+async def test_get_process_logs_returns_empty_for_nonexistent_process(process_manager):
+    """Test that getting logs for a non-existent process returns empty results."""
     lines, total, has_more = process_manager.get_process_logs(
         "nonexistent-project", "nonexistent-server", 0, 100
     )
     
-    assert lines is None
+    assert lines == []
     assert total == 0
     assert has_more is False

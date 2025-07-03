@@ -1,5 +1,5 @@
-def test_api_prevents_path_traversal(test_app, auth_headers):
-    """Test API prevents directory traversal attacks in project paths."""
+def test_api_rejects_project_registration_with_path_traversal_attempts(test_app, auth_headers):
+    """Test that the API prevents directory traversal attacks when registering projects."""
     # Attempt path traversal
     traversal_attempts = [
         "../../../etc/passwd",
@@ -22,8 +22,8 @@ def test_api_prevents_path_traversal(test_app, auth_headers):
         assert response.status_code == 400
 
 
-def test_api_validates_absolute_paths(test_app, auth_headers):
-    """Test API only accepts absolute paths for projects."""
+def test_api_rejects_project_registration_with_relative_paths(test_app, auth_headers):
+    """Test that the API only accepts absolute paths for project registration."""
     # Attempt relative paths
     relative_paths = [
         "relative/path",

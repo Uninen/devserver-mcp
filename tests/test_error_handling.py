@@ -7,8 +7,8 @@ from click.testing import CliRunner
 from devserver_mcp.cli import cli
 
 
-def test_manager_handles_corrupted_config_file_gracefully(temp_home_dir: Path):
-    """Test manager continues to work when config file is corrupted."""
+def test_manager_starts_gracefully_with_corrupted_config_file(temp_home_dir: Path):
+    """Test that the manager starts gracefully even with a corrupted config file."""
     runner = CliRunner()
     
     # Create corrupted config file
@@ -30,8 +30,8 @@ def test_manager_handles_corrupted_config_file_gracefully(temp_home_dir: Path):
         assert "manager started" in result.output
 
 
-def test_project_config_missing_servers_section(temp_home_dir: Path):
-    """Test handling project config without servers section."""
+def test_cli_errors_when_project_config_lacks_servers_section(temp_home_dir: Path):
+    """Test that the CLI reports an error when project config is missing the 'servers' section."""
     runner = CliRunner()
     project_dir = temp_home_dir / "test-project"
     project_dir.mkdir()
@@ -54,8 +54,8 @@ def test_project_config_missing_servers_section(temp_home_dir: Path):
         assert "Error loading config" in result.output
 
 
-def test_server_command_not_found_error(test_app, auth_headers, project_directory):
-    """Test handling when server command doesn't exist."""
+def test_server_start_returns_error_for_nonexistent_command(test_app, auth_headers, project_directory):
+    """Test that starting a server with a nonexistent command returns an error status."""
     # Create a config with invalid command
     config_file = project_directory / "devservers.yml"
     config_data = {

@@ -192,7 +192,8 @@ def start(project):
                 except Exception as e:
                     click.echo(f"⚠️  Could not register project: {e}", err=True)
             except Exception as e:
-                click.echo(f"⚠️  Could not load config: {e}", err=True)
+                click.echo(f"❌ Error loading config: {e}", err=True)
+                sys.exit(1)
 
         if project:
             click.echo(f"🚀 Starting servers for project: {project}")

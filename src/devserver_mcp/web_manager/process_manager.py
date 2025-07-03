@@ -120,6 +120,12 @@ class ProcessManager:
         except Exception as e:
             logger.error(f"Unexpected error stopping process {project_id}/{server_name}: {e}")
             return False
+        finally:
+            # Always remove process from tracking, even if stop failed
+            if project_id in self.processes and server_name in self.processes[project_id]:
+                del self.processes[project_id][server_name]
+                if not self.processes[project_id]:
+                    del self.processes[project_id]
 
     def get_process_status(self, project_id: str, server_name: str) -> dict[str, Any]:
         try:

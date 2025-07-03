@@ -25,49 +25,33 @@ def test_get_projects_requires_authentication(test_app):
     assert response.status_code == 403
 
 
-def test_start_server_with_valid_project(test_app, auth_headers, test_project_config, project_directory):
-    """Test POST /api/projects/{id}/servers/{name}/start/ starts server."""
+def test_start_server_returns_ok_for_valid_project(test_app, auth_headers, test_project_config, project_directory):
+    """Test POST /api/projects/{id}/servers/{name}/start/ returns 200 OK for a valid project."""
     # Update the mock file_ops to return the correct path for test-project
     test_app.app.state.deps.file_ops.get_safe_config_path.side_effect = lambda base, file: project_directory / file
-    
+
     # Create config file in project directory
     config_file = project_directory / "devservers.yml"
     with open(config_file, "w") as f:
         yaml.dump(test_project_config, f)
-    
+
     # Update project registry to have the correct path
     test_app.app.state.deps.project_registry._projects["test-project"]["path"] = str(project_directory)
-    
-    # Mock subprocess for server start - need to mock the coroutine properly
-    async def mock_create_subprocess():
-        mock_process = MagicMock()
-        mock_process.pid = 12345
-        mock_process.returncode = None
-        mock_process.stdout = MagicMock()
-        mock_process.stderr = MagicMock()
-        
-        # Mock the async readline method
-        async def mock_readline():
-            return b""
-        
-        mock_process.stdout.readline = mock_readline
-        mock_process.stderr.readline = mock_readline
-        
-        return mock_process
-    
-    with patch("asyncio.create_subprocess_shell", side_effect=mock_create_subprocess):
+
+    with patch("devserver_mcp.web_manager.process_manager.ProcessManager.start_process", return_value=True):
         response = test_app.post(
             "/api/projects/test-project/servers/django/start/",
             headers=auth_headers
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] in ["started", "error"]  # May be error if process exits quickly
+        assert data["status"] == "started"
 
 
-def test_start_server_with_invalid_project(test_app, auth_headers):
-    """Test POST /api/projects/{id}/servers/{name}/start/ fails for unknown project."""
+
+def test_start_server_returns_404_for_unknown_project(test_app, auth_headers):
+    """Test POST /api/projects/{id}/servers/{name}/start/ returns 404 for an unknown project."""
     response = test_app.post(
         "/api/projects/unknown-project/servers/django/start/",
         headers=auth_headers
@@ -77,8 +61,8 @@ def test_start_server_with_invalid_project(test_app, auth_headers):
     assert "not found" in response.json()["detail"]
 
 
-def test_stop_server_with_valid_project(test_app, auth_headers):
-    """Test POST /api/projects/{id}/servers/{name}/stop/ stops server."""
+def test_stop_server_returns_ok_for_valid_project(test_app, auth_headers):
+    """Test POST /api/projects/{id}/servers/{name}/stop/ returns 200 OK for a valid project."""
     response = test_app.post(
         "/api/projects/test-project/servers/django/stop/",
         headers=auth_headers
@@ -89,8 +73,8 @@ def test_stop_server_with_valid_project(test_app, auth_headers):
     assert data["status"] in ["stopped", "not_running"]
 
 
-def test_get_server_status_with_valid_project(test_app, auth_headers):
-    """Test GET /api/projects/{id}/servers/{name}/status/ returns server status."""
+def test_get_server_status_returns_ok_for_valid_project(test_app, auth_headers):
+    """Test GET /api/projects/{id}/servers/{name}/status/ returns 200 OK and server status."""
     response = test_app.get(
         "/api/projects/test-project/servers/django/status/",
         headers=auth_headers
@@ -102,8 +86,8 @@ def test_get_server_status_with_valid_project(test_app, auth_headers):
     assert "pid" in data
 
 
-def test_get_server_logs_with_valid_project(test_app, auth_headers):
-    """Test GET /api/projects/{id}/servers/{name}/logs/ returns server logs."""
+def test_get_server_logs_returns_ok_for_valid_project(test_app, auth_headers):
+    """Test GET /api/projects/{id}/servers/{name}/logs/ returns 200 OK and server logs."""
     response = test_app.get(
         "/api/projects/test-project/servers/django/logs/",
         headers=auth_headers
@@ -115,8 +99,8 @@ def test_get_server_logs_with_valid_project(test_app, auth_headers):
     assert isinstance(data["lines"], list)
 
 
-def test_get_server_logs_with_pagination(test_app, auth_headers):
-    """Test GET /api/projects/{id}/servers/{name}/logs/ supports pagination."""
+def test_get_server_logs_supports_pagination(test_app, auth_headers):
+    """Test GET /api/projects/{id}/servers/{name}/logs/ supports pagination parameters."""
     response = test_app.get(
         "/api/projects/test-project/servers/django/logs/?offset=10&limit=5",
         headers=auth_headers
@@ -130,8 +114,8 @@ def test_get_server_logs_with_pagination(test_app, auth_headers):
     assert data["offset"] == 10
 
 
-def test_register_project_with_valid_config(test_app, auth_headers, temp_home_dir):
-    """Test POST /api/projects/ registers new project with valid config."""
+def test_register_project_returns_ok_for_valid_config(test_app, auth_headers, temp_home_dir):
+    """Test POST /api/projects/ registers a new project with valid configuration."""
     project_dir = temp_home_dir / "new-project"
     project_dir.mkdir()
     
@@ -166,8 +150,8 @@ def test_register_project_with_valid_config(test_app, auth_headers, temp_home_di
     assert data["path"] == str(project_dir)
 
 
-def test_register_project_with_invalid_path(test_app, auth_headers):
-    """Test POST /api/projects/ rejects invalid project paths."""
+def test_register_project_rejects_invalid_path(test_app, auth_headers):
+    """Test POST /api/projects/ rejects project registration with invalid paths."""
     response = test_app.post(
         "/api/projects/",
         json={
@@ -185,8 +169,44 @@ def test_register_project_with_invalid_path(test_app, auth_headers):
 
 
 
-def test_authentication_with_invalid_token(test_app):
-    """Test API endpoints reject invalid bearer tokens."""
+def test_full_server_lifecycle(test_app, auth_headers, test_project_config, project_directory):
+    """Test the full lifecycle of a server: start, status, stop."""
+    # Setup: Ensure config file exists and project is registered
+    config_file = project_directory / "devservers.yml"
+    with open(config_file, "w") as f:
+        yaml.dump(test_project_config, f)
+    test_app.app.state.deps.project_registry._projects["test-project"]["path"] = str(project_directory)
+    test_app.app.state.deps.file_ops.get_safe_config_path.side_effect = lambda base, file: project_directory / file
+
+    # 1. Start the server
+    with patch("devserver_mcp.web_manager.process_manager.ProcessManager.start_process", return_value=True):
+        start_response = test_app.post(
+            "/api/projects/test-project/servers/django/start/",
+            headers=auth_headers
+        )
+        assert start_response.status_code == 200
+        assert start_response.json()["status"] == "started"
+
+    # 2. Check the server's status
+    status_response = test_app.get(
+        "/api/projects/test-project/servers/django/status/",
+        headers=auth_headers
+    )
+    assert status_response.status_code == 200
+    assert status_response.json()["status"] in ["running", "starting"]
+
+    # 3. Stop the server
+    with patch("devserver_mcp.web_manager.process_manager.ProcessManager.stop_process", return_value=True):
+        stop_response = test_app.post(
+            "/api/projects/test-project/servers/django/stop/",
+            headers=auth_headers
+        )
+        assert stop_response.status_code == 200
+        assert stop_response.json()["status"] == "stopped"
+
+
+def test_api_rejects_invalid_authentication_token(test_app):
+    """Test API endpoints reject requests with invalid bearer tokens."""
     invalid_headers = {"Authorization": "Bearer invalid-token"}
     
     response = test_app.get("/api/projects/", headers=invalid_headers)

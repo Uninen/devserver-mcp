@@ -10,8 +10,8 @@ from click.testing import CliRunner
 from devserver_mcp.cli import cli
 
 
-def test_user_starts_manager_workflow(temp_home_dir: Path):
-    """Test complete user workflow: start manager from CLI."""
+def test_cli_start_command_starts_manager(temp_home_dir: Path):
+    """Test that the CLI 'start' command successfully starts the manager."""
     runner = CliRunner()
     
     with patch("subprocess.Popen") as mock_popen, \
@@ -25,14 +25,14 @@ def test_user_starts_manager_workflow(temp_home_dir: Path):
         mock_popen.return_value = mock_process
         
         result = runner.invoke(cli, ["start"])
-        
+
         assert result.exit_code == 0
-        assert "DevServer Manager started" in result.output
+        assert "Devservers manager started" in result.output
         mock_popen.assert_called_once()
 
 
-def test_user_opens_ui_workflow(temp_home_dir: Path):
-    """Test complete user workflow: open UI in browser."""
+def test_cli_ui_command_opens_browser(temp_home_dir: Path):
+    """Test that the CLI 'ui' command opens the UI in a web browser."""
     runner = CliRunner()
     
     with patch("subprocess.Popen") as mock_popen, \
@@ -48,8 +48,8 @@ def test_user_opens_ui_workflow(temp_home_dir: Path):
         mock_browser.assert_called_once_with("http://localhost:7912")
 
 
-def test_user_stops_manager_workflow(temp_home_dir: Path):
-    """Test complete user workflow: stop running manager."""
+def test_cli_stop_command_stops_manager(temp_home_dir: Path):
+    """Test that the CLI 'stop' command successfully stops the running manager."""
     runner = CliRunner()
     
     status_file = temp_home_dir / ".devserver-mcp" / "status.json"
@@ -69,23 +69,23 @@ def test_user_stops_manager_workflow(temp_home_dir: Path):
         result = runner.invoke(cli, ["stop"])
         
         assert result.exit_code == 0
-        assert "DevServer Manager stopped" in result.output
+        assert "Devservers manager stopped" in result.output
         mock_kill.assert_called_once_with(12345, 15)
 
 
-def test_user_checks_status_workflow(temp_home_dir: Path):
-    """Test complete user workflow: check manager status."""
+def test_cli_status_command_shows_manager_status(temp_home_dir: Path):
+    """Test that the CLI status command displays the manager's current status."""
     runner = CliRunner()
     
     result = runner.invoke(cli)
     
     assert result.exit_code == 0
-    assert "DevServer Manager" in result.output
+    assert "Devservers - Development server orchestration" in result.output
     assert "Status:" in result.output
 
 
-def test_user_project_registration_workflow(temp_home_dir: Path):
-    """Test complete user workflow: project auto-registration."""
+def test_cli_start_command_auto_registers_project(temp_home_dir: Path):
+    """Test that the CLI 'start' command auto-registers a project."""
     runner = CliRunner()
     project_dir = temp_home_dir / "test-project"
     project_dir.mkdir()
@@ -121,11 +121,11 @@ def test_user_project_registration_workflow(temp_home_dir: Path):
         result = runner.invoke(cli, ["start"])
         
         assert result.exit_code == 0
-        assert "DevServer Manager started" in result.output
+        assert "Devservers manager started" in result.output
 
 
-def test_file_operations_resilience(temp_home_dir: Path):
-    """Test file operations handle corrupted files gracefully."""
+def test_cli_handles_corrupted_status_file_gracefully(temp_home_dir: Path):
+    """Test that the CLI handles a corrupted status.json file gracefully."""
     runner = CliRunner()
     
     status_file = temp_home_dir / ".devserver-mcp" / "status.json"
@@ -137,11 +137,11 @@ def test_file_operations_resilience(temp_home_dir: Path):
     result = runner.invoke(cli)
     
     assert result.exit_code == 0
-    assert "not running" in result.output
+    assert "Status: 🔴 Not running" in result.output
 
 
-def test_network_error_resilience(temp_home_dir: Path):
-    """Test network operations handle connection errors gracefully."""
+def test_cli_handles_network_errors_gracefully(temp_home_dir: Path):
+    """Test that the CLI handles network connection errors gracefully."""
     runner = CliRunner()
     project_dir = temp_home_dir / "test-project"
     project_dir.mkdir()

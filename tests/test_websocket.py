@@ -28,8 +28,8 @@ def mock_websocket():
 
 
 @pytest.mark.asyncio
-async def test_connect_websocket_for_project(websocket_manager, mock_websocket):
-    """Test connecting a WebSocket for project log streaming."""
+async def test_websocket_connects_for_project_log_streaming(websocket_manager, mock_websocket):
+    """Test that a WebSocket connection is established for project log streaming."""
     connection_id = await websocket_manager.connect(mock_websocket, "test-project")
     
     assert connection_id is not None
@@ -39,8 +39,8 @@ async def test_connect_websocket_for_project(websocket_manager, mock_websocket):
 
 
 @pytest.mark.asyncio
-async def test_disconnect_websocket_removes_connection(websocket_manager, mock_websocket):
-    """Test disconnecting a WebSocket removes it from tracking."""
+async def test_websocket_disconnect_removes_connection(websocket_manager, mock_websocket):
+    """Test that disconnecting a WebSocket removes it from tracking."""
     connection_id = await websocket_manager.connect(mock_websocket, "test-project")
     
     # Disconnect
@@ -51,8 +51,8 @@ async def test_disconnect_websocket_removes_connection(websocket_manager, mock_w
 
 
 @pytest.mark.asyncio
-async def test_send_log_to_connected_clients(websocket_manager, mock_websocket):
-    """Test sending log messages to connected clients."""
+async def test_websocket_sends_log_messages_to_connected_clients(websocket_manager, mock_websocket):
+    """Test that log messages are sent to connected WebSocket clients."""
     await websocket_manager.connect(mock_websocket, "test-project")
     
     # Send a log message
@@ -72,8 +72,8 @@ async def test_send_log_to_connected_clients(websocket_manager, mock_websocket):
 
 
 @pytest.mark.asyncio
-async def test_send_status_update_to_connected_clients(websocket_manager, mock_websocket):
-    """Test sending status updates to connected clients."""
+async def test_websocket_sends_status_updates_to_connected_clients(websocket_manager, mock_websocket):
+    """Test that status updates are sent to connected WebSocket clients."""
     await websocket_manager.connect(mock_websocket, "test-project")
     
     # Send status update
@@ -94,8 +94,8 @@ async def test_send_status_update_to_connected_clients(websocket_manager, mock_w
 
 
 @pytest.mark.asyncio
-async def test_multiple_clients_receive_broadcasts(websocket_manager):
-    """Test multiple connected clients all receive broadcasts."""
+async def test_websocket_multiple_clients_receive_broadcasts(websocket_manager):
+    """Test that multiple connected clients all receive broadcast messages."""
     # Create multiple mock websockets
     mock_ws1 = MagicMock(spec=WebSocket)
     mock_ws1.send_json = MagicMock(return_value=asyncio.Future())
@@ -123,8 +123,8 @@ async def test_multiple_clients_receive_broadcasts(websocket_manager):
 
 
 @pytest.mark.asyncio
-async def test_disconnected_client_removed_on_send_error(websocket_manager, mock_websocket):
-    """Test client is removed when send fails due to disconnection."""
+async def test_websocket_disconnected_client_removed_on_send_error(websocket_manager, mock_websocket):
+    """Test that a client is removed when sending a message fails due to disconnection."""
     connection_id = await websocket_manager.connect(mock_websocket, "test-project")
     
     # Make send_json raise ConnectionError
@@ -143,8 +143,8 @@ async def test_disconnected_client_removed_on_send_error(websocket_manager, mock
 
 
 @pytest.mark.asyncio
-async def test_broadcast_to_nonexistent_project(websocket_manager):
-    """Test broadcasting to project with no connections works without error."""
+async def test_websocket_broadcast_to_nonexistent_project_does_not_raise_error(websocket_manager):
+    """Test that broadcasting to a project with no connections works without raising an error."""
     # Send to project with no connections
     await websocket_manager.send_log(
         "nonexistent-project",
