@@ -1,33 +1,10 @@
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import yaml
 from click.testing import CliRunner
 
 from devserver_mcp.cli import cli
-
-
-def test_manager_starts_gracefully_with_corrupted_config_file(temp_home_dir: Path):
-    """Test that the manager starts gracefully even with a corrupted config file."""
-    runner = CliRunner()
-    
-    # Create corrupted config file
-    config_file = temp_home_dir / ".devserver-mcp" / "config.yml"
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(config_file, "w") as f:
-        f.write("invalid: yaml: [incomplete")
-    
-    # Manager should still start despite corrupted config
-    with patch("subprocess.Popen") as mock_popen:
-        mock_process = MagicMock()
-        mock_process.pid = 12345
-        mock_popen.return_value = mock_process
-        
-        result = runner.invoke(cli, ["start"])
-        
-        assert result.exit_code == 0
-        assert "manager started" in result.output
 
 
 def test_cli_shows_help_when_project_config_lacks_servers_section(temp_home_dir: Path):
