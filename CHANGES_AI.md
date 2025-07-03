@@ -1,5 +1,8 @@
 # AI Generated Changes
 
+- 2025-07-03: Replaced all requests library usage with httpx in cli.py and removed requests from dependencies. (claude-opus-4-20250514)
+- 2025-07-03: Completed step 10 of cleanup refactor: renamed mcp_client.py to mcp_server.py, verified STDIO transport, enhanced MCP tools with structured output and annotations, added trailing slashes to all API URLs, and ran Ruff formatting. (claude-opus-4-20250514)
+- 2025-07-03: Updated README to match new web-based architecture and MCP registration instructions. (claude-opus-4-20250514)
 - 2025-07-02: Implemented core features step 9: added project field to config, server autostart, bearer token auth in status file, persistent project registry in config.yml. (claude-opus-4-20250514)
 - 2025-07-02: Fixed logs UI closing immediately by preserving visibility state during refreshes and adding proper IDs for Playwright testing. (claude-opus-4-20250514)
 - 2025-07-02: Implemented real-time WebSocket log streaming step 7: added WebSocket endpoint, WebSocketManager for connection handling, live log broadcasting, reconnection logic, and connection status UI indicator. (claude-opus-4-20250514)

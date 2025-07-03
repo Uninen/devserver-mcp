@@ -8,7 +8,7 @@ import webbrowser
 from pathlib import Path
 
 import click
-import requests
+import httpx
 
 from .config import load_config, resolve_config_path
 
@@ -51,10 +51,10 @@ def wait_for_manager(port=7912, timeout=5):
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
-            response = requests.get(f"http://localhost:{port}/health", timeout=0.5)
+            response = httpx.get(f"http://localhost:{port}/health/", timeout=0.5)
             if response.status_code == 200:
                 return True
-        except requests.exceptions.RequestException:
+        except httpx.RequestError:
             pass
         time.sleep(0.1)
     return False
@@ -73,10 +73,10 @@ def cli(ctx):
 
         if is_running:
             try:
-                response = requests.get("http://localhost:7912/api/projects")
+                response = httpx.get("http://localhost:7912/api/projects/")
                 projects = response.json()
                 click.echo(f"Projects: {len(projects)} registered")
-            except requests.exceptions.RequestException:
+            except httpx.RequestError:
                 click.echo("Projects: Unable to fetch")
         else:
             click.echo("Projects: 0 registered")
@@ -139,7 +139,7 @@ def start(project):
                 }
 
                 try:
-                    response = requests.post(f"http://localhost:{port}/api/projects", json=project_data)
+                    response = httpx.post(f"http://localhost:{port}/api/projects/", json=project_data)
                     if response.status_code == 200:
                         click.echo(f"📁 Registered project: {project_name}")
                 except Exception as e:
@@ -151,7 +151,7 @@ def start(project):
             click.echo(f"🚀 Starting servers for project: {project}")
             # Find the project in the registry
             try:
-                response = requests.get(f"http://localhost:{port}/api/projects")
+                response = httpx.get(f"http://localhost:{port}/api/projects/")
                 if response.status_code == 200:
                     projects = response.json()
                     matching_project = None
@@ -170,8 +170,8 @@ def start(project):
                                 if server_config.autostart:
                                     click.echo(f"   - {server_name} (autostart)")
                                     try:
-                                        response = requests.post(
-                                            f"http://localhost:{port}/api/projects/{matching_project['id']}/servers/{server_name}/start",
+                                        response = httpx.post(
+                                            f"http://localhost:{port}/api/projects/{matching_project['id']}/servers/{server_name}/start/",
                                             json={"project_id": matching_project["id"]},
                                         )
                                         if response.status_code != 200:

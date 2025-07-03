@@ -14,6 +14,10 @@ This document tracks the implementation progress of the DevServer MCP refactorin
   - https://gofastmcp.com/servers/tools#annotations
 - Reuse as much code as possible instead of deleting + rewriting from scratch
 - Do not add any dependencies before you actually use them
+- All API urls must end with a slash
+- Typecheck all code: `uv run ty check src`
+  - If you encounter errors, read common known issues: https://github.com/astral-sh/ty/issues/445
+  - Supress known issues using `# ty: ignore[<rule>]`
 
 ## Implementation Step Suggestions
 
@@ -92,27 +96,23 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 - [x] Add bearer token for basic auth (store in status file)
 - [x] Persist project registry to `~/.devserver-mcp/config.yml`
 
-### 10. Web UI Polish
+### 10. Cleanup Refactor
 
-- [ ] Add xterm.js for proper terminal emulation
-- [ ] Implement tabbed interface for multiple logs
-- [ ] Add log search/filter functionality
-- [ ] Create unified log view
-- [ ] Add keyboard shortcuts (start/stop/switch)
-- [ ] Improve visual design and animations
+- [x] Refactor: mcp_client.py should be mcp_server.py
+- [x] Verify that the mcp server is using STDIO transport
+- [x] Read https://gofastmcp.com/deployment/running-server, make sure the README documentation is up to date regarding mcp configuration
+- [x] Refactor: all API urls MUST end with a slash
+- [x] Lint and format `src/`
 
 ### 11. Security Hardening
 
 - [ ] Enforce localhost-only binding
 - [ ] Validate bearer tokens on all requests
-- [ ] Add command whitelisting for subprocesses
 - [ ] Implement path validation (no traversal)
-- [ ] Add rate limiting
 
 ### 12. Resource Management
 
 - [ ] Implement idle timeout for servers
-- [ ] Add memory limit monitoring
 - [ ] Create orphaned process cleanup
 - [ ] Add graceful shutdown handling
 
@@ -120,8 +120,6 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 - [ ] Add try/catch throughout codebase
 - [ ] Create user-friendly error messages
-- [ ] Implement automatic restart for crashed servers
-- [ ] Add connection retry for MCP client
 
 ### 14. Documentation
 
@@ -133,9 +131,16 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 ### 15. Testing & CI
 
 - [ ] Write tests for critical paths
-- [ ] Add GitHub Actions workflow
 - [ ] Create test fixtures
-- [ ] Add pre-commit hooks
+
+### 16. Web UI Polish
+
+- [ ] Add xterm.js for proper terminal emulation
+- [ ] Implement tabbed interface for multiple logs
+- [ ] Add log search/filter functionality
+- [ ] Create unified log view
+- [ ] Add keyboard shortcuts (start/stop/switch)
+- [ ] Improve visual design and animations
 
 ## Completion Criteria
 

@@ -382,7 +382,7 @@
 
         async function fetchProjects() {
             try {
-                const response = await fetch('/api/projects');
+                const response = await fetch('/api/projects/');
                 if (!response.ok) throw new Error('Failed to fetch projects');
                 
                 const projects = await response.json();
@@ -434,7 +434,7 @@
 
         async function fetchServerStatus(projectId, serverName) {
             try {
-                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/status`);
+                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/status/`);
                 if (!response.ok) throw new Error('Failed to fetch server status');
                 
                 const status = await response.json();
@@ -455,7 +455,7 @@
 
         async function fetchServerLogs(projectId, serverName) {
             try {
-                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/logs?limit=100`);
+                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/logs/?limit=100`);
                 if (!response.ok) throw new Error('Failed to fetch logs');
                 
                 const result = await response.json();
@@ -578,7 +578,7 @@
             button.textContent = isRunning ? 'Stopping...' : 'Starting...';
 
             try {
-                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/${action}`, {
+                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/${action}/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -666,7 +666,7 @@
             updateWebSocketStatus('connecting');
             
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const ws = new WebSocket(`${protocol}//${window.location.host}/ws/projects/${projectId}`);
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws/projects/${projectId}/`);
             
             ws.onopen = () => {
                 console.log(`WebSocket connected for project ${projectId}`);

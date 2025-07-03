@@ -56,7 +56,7 @@ async def check_manager_health(url: str) -> bool:
     """Check if manager is healthy at given URL."""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{url}/health", timeout=2.0)
+            response = await client.get(f"{url}/health/", timeout=2.0)
             return response.status_code == 200
     except Exception:
         return False
@@ -68,7 +68,7 @@ async def get_current_project(manager_url: str) -> str | None:
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{manager_url}/api/projects")
+            response = await client.get(f"{manager_url}/api/projects/")
             if response.status_code == 200:
                 projects = [Project(**p) for p in response.json()]
                 for project in projects:
@@ -85,14 +85,20 @@ mcp = FastMCP("devserver-mcp")
 
 @mcp.tool(
     description="Start a development server in the current project",
-    parameters={
-        "name": Field(description="Name of the server to start (e.g., 'django', 'frontend', 'redis')"),
-        "project_id": Field(
-            description="Optional project ID. If not provided, uses the current directory's project", default=None
-        ),
+    annotations={
+        "title": "Start Server",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
     },
 )
-async def start_server(name: str, project_id: str | None = None) -> ServerOperationResult:
+async def start_server(
+    name: str = Field(description="Name of the server to start (e.g., 'django', 'frontend', 'redis')"),
+    project_id: str | None = Field(
+        default=None, description="Optional project ID. If not provided, uses the current directory's project"
+    ),
+) -> ServerOperationResult:
     """
     Start a development server.
 
@@ -116,7 +122,7 @@ async def start_server(name: str, project_id: str | None = None) -> ServerOperat
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                f"{manager_url}/api/projects/{project_id}/servers/{name}/start", json={"project_id": project_id}
+                f"{manager_url}/api/projects/{project_id}/servers/{name}/start/", json={"project_id": project_id}
             )
             return ServerOperationResult(**response.json())
         except httpx.HTTPStatusError as e:
@@ -130,14 +136,20 @@ async def start_server(name: str, project_id: str | None = None) -> ServerOperat
 
 @mcp.tool(
     description="Stop a running development server",
-    parameters={
-        "name": Field(description="Name of the server to stop"),
-        "project_id": Field(
-            description="Optional project ID. If not provided, uses the current directory's project", default=None
-        ),
+    annotations={
+        "title": "Stop Server",
+        "readOnlyHint": False,
+        "destructiveHint": True,
+        "idempotentHint": True,
+        "openWorldHint": True,
     },
 )
-async def stop_server(name: str, project_id: str | None = None) -> ServerOperationResult:
+async def stop_server(
+    name: str = Field(description="Name of the server to stop"),
+    project_id: str | None = Field(
+        default=None, description="Optional project ID. If not provided, uses the current directory's project"
+    ),
+) -> ServerOperationResult:
     """
     Stop a running development server.
 
@@ -154,7 +166,7 @@ async def stop_server(name: str, project_id: str | None = None) -> ServerOperati
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(f"{manager_url}/api/projects/{project_id}/servers/{name}/stop")
+            response = await client.post(f"{manager_url}/api/projects/{project_id}/servers/{name}/stop/")
             return ServerOperationResult(**response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -167,16 +179,22 @@ async def stop_server(name: str, project_id: str | None = None) -> ServerOperati
 
 @mcp.tool(
     description="Get logs from a development server",
-    parameters={
-        "name": Field(description="Name of the server to get logs from"),
-        "project_id": Field(
-            description="Optional project ID. If not provided, uses the current directory's project", default=None
-        ),
-        "offset": Field(description="Number of lines to skip from the beginning", default=0),
-        "limit": Field(description="Maximum number of lines to return", default=100),
+    annotations={
+        "title": "Get Server Logs",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
     },
 )
-async def get_server_logs(name: str, project_id: str | None = None, offset: int = 0, limit: int = 100) -> LogsResult:
+async def get_server_logs(
+    name: str = Field(description="Name of the server to get logs from"),
+    project_id: str | None = Field(
+        default=None, description="Optional project ID. If not provided, uses the current directory's project"
+    ),
+    offset: int = Field(default=0, description="Number of lines to skip from the beginning"),
+    limit: int = Field(default=100, description="Maximum number of lines to return"),
+) -> LogsResult:
     """
     Get logs from a development server.
 
@@ -210,7 +228,7 @@ async def get_server_logs(name: str, project_id: str | None = None, offset: int 
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(
-                f"{manager_url}/api/projects/{project_id}/servers/{name}/logs",
+                f"{manager_url}/api/projects/{project_id}/servers/{name}/logs/",
                 params={"offset": offset, "limit": limit},
             )
             return LogsResult(**response.json())
@@ -231,7 +249,16 @@ async def get_server_logs(name: str, project_id: str | None = None, offset: int 
             )
 
 
-@mcp.tool(description="List all registered projects", parameters={})
+@mcp.tool(
+    description="List all registered projects",
+    annotations={
+        "title": "List Projects",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
 async def list_projects() -> list[Project] | dict[str, str]:
     """
     List all projects registered with the DevServer Manager.
@@ -244,7 +271,7 @@ async def list_projects() -> list[Project] | dict[str, str]:
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{manager_url}/api/projects")
+            response = await client.get(f"{manager_url}/api/projects/")
             return [Project(**p) for p in response.json()]
         except Exception as e:
             return {"error": f"Failed to list projects: {str(e)}"}

@@ -146,18 +146,18 @@ class StartServerRequest(BaseModel):
     project_id: str | None = None
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health/", response_model=HealthResponse)
 async def health():
     return HealthResponse(status="ok", version="0.1.0")
 
 
-@app.get("/api/projects", response_model=list[Project])
+@app.get("/api/projects/", response_model=list[Project])
 async def get_projects():
     """Get all registered projects."""
     return list(project_registry.values())
 
 
-@app.post("/api/projects", response_model=Project)
+@app.post("/api/projects/", response_model=Project)
 async def register_project(project: Project):
     """Register a new project."""
     project_registry[project.id] = project.model_dump()
@@ -169,7 +169,7 @@ async def register_project(project: Project):
     return project
 
 
-@app.post("/api/projects/{project_id}/servers/{server_name}/start", response_model=ServerOperationResult)
+@app.post("/api/projects/{project_id}/servers/{server_name}/start/", response_model=ServerOperationResult)
 async def start_server(project_id: str, server_name: str, request: StartServerRequest | None = None):
     """Start a development server."""
     if project_id not in project_registry:
@@ -207,7 +207,7 @@ async def start_server(project_id: str, server_name: str, request: StartServerRe
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/api/projects/{project_id}/servers/{server_name}/stop", response_model=ServerOperationResult)
+@app.post("/api/projects/{project_id}/servers/{server_name}/stop/", response_model=ServerOperationResult)
 async def stop_server(project_id: str, server_name: str):
     """Stop a development server."""
     if project_id not in project_registry:
@@ -225,7 +225,7 @@ async def stop_server(project_id: str, server_name: str):
         )
 
 
-@app.get("/api/projects/{project_id}/servers/{server_name}/logs")
+@app.get("/api/projects/{project_id}/servers/{server_name}/logs/")
 async def get_server_logs(project_id: str, server_name: str, offset: int = 0, limit: int = 100):
     """Get logs from a development server."""
     if project_id not in project_registry:
@@ -247,7 +247,7 @@ async def get_server_logs(project_id: str, server_name: str, offset: int = 0, li
     return LogsResult(status="success", lines=lines, count=len(lines), total=total, offset=offset, has_more=has_more)
 
 
-@app.get("/api/projects/{project_id}/servers/{server_name}/status", response_model=ServerStatusResponse)
+@app.get("/api/projects/{project_id}/servers/{server_name}/status/", response_model=ServerStatusResponse)
 async def get_server_status(project_id: str, server_name: str):
     """Get the status of a development server."""
     if project_id not in project_registry:
@@ -274,7 +274,7 @@ else:
         return {"message": "DevServer Manager API"}
 
 
-@app.websocket("/ws/projects/{project_id}")
+@app.websocket("/ws/projects/{project_id}/")
 async def websocket_endpoint(websocket: WebSocket, project_id: str):
     """WebSocket endpoint for real-time log streaming."""
     await websocket.accept()
