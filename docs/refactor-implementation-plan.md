@@ -121,12 +121,80 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 - [x] Add try/catch throughout codebase
 - [x] Create user-friendly error messages
 
-### 14. Testing & CI
+### 14. Testing Refactor
+
+- [ ] **Refactoring for Testability** - Make code easier to test without changing behavior
+  - [ ] Extract global state into dependency injection (bearer_token, process_manager, project_registry)
+        • `web_manager/app.py`: globals and lifespan
+  - [ ] Create a ManagerConfig class to hold configuration instead of globals
+        • New file: `web_manager/config.py`
+  - [ ] Add factory functions for creating app instances with injected dependencies
+        • `web_manager/app.py`: app creation, new function `create_app()`
+  - [ ] Extract file I/O operations into separate functions that can be easily mocked
+        • `web_manager/app.py`: config file ops, status file ops
+  - [ ] Create interfaces/protocols for ProcessManager and WebSocketManager
+        • New file: `web_manager/interfaces.py`
+  - [ ] Move status file path resolution to a configurable setting
+        • `web_manager/app.py`, `cli.py`: status file paths
+  - [ ] Extract bearer token generation/validation into a separate auth module
+        • `web_manager/app.py`: verify_token, bearer_token, new file: `web_manager/auth.py`
+  - [ ] Separate path validation logic from HTTP error handling
+        • `web_manager/app.py`: validate_project_path, get_safe_config_path
+  - [ ] Create a ProjectRegistry class instead of using raw dict
+        • `web_manager/app.py`: project_registry, new file: `web_manager/registry.py`
+
+### 15. Testing & CI
 
 - [ ] Write tests for critical paths
 - [ ] Create test fixtures
+  - [ ] Create fixture for test FastAPI app with mocked dependencies
+  - [ ] Create fixture for temporary home directory
+  - [ ] Create fixture for mock subprocess that simulates process behavior
+  - [ ] Create fixture for pre-configured project registry
+- [ ] **API Integration Tests** - Test real user workflows through the REST API
+  - [ ] Test project registration with valid/invalid paths (mock filesystem boundaries only)
+  - [ ] Test server start/stop operations (mock subprocess execution)
+  - [ ] Test authentication flow with valid/invalid tokens
+  - [ ] Test concurrent operations on same project
+- [ ] **Process Management Tests** - Test subprocess handling behavior
+  - [ ] Test process lifecycle: start → running → stop
+  - [ ] Test handling of failed process starts (command not found, port in use)
+  - [ ] Test graceful shutdown and cleanup
+  - [ ] Test orphaned process detection (mock process checks)
+- [ ] **MCP Server Tests** - Test LLM tool usage scenarios
+  - [ ] Test auto-discovery of running manager (mock file reads and HTTP calls)
+  - [ ] Test start_server tool with/without project context
+  - [ ] Test get_server_logs pagination
+  - [ ] Test handling when manager is not running
+- [ ] **CLI Tests** - Test command-line user interactions
+  - [ ] Test `devservers start` with manager lifecycle (mock subprocess spawn)
+  - [ ] Test `devservers ui` browser opening (mock webbrowser)
+  - [ ] Test project auto-registration from current directory
+  - [ ] Test status display and error messages
+- [ ] **WebSocket Tests** - Test real-time features
+  - [ ] Test log streaming during server execution
+  - [ ] Test reconnection handling
+  - [ ] Test multiple concurrent connections
+- [ ] **Security Tests** - Test protection mechanisms
+  - [ ] Test path traversal prevention
+  - [ ] Test bearer token validation on all endpoints
+  - [ ] Test localhost-only binding enforcement
+- [ ] **Error Handling Tests** - Test failure modes
+  - [ ] Test handling of corrupted config files
+  - [ ] Test handling of permission errors
+  - [ ] Test handling of missing dependencies
+  - [ ] Test timeout scenarios
 
-### 15. Web UI Polish
+**Testing Guidelines:**
+
+- Only mock system boundaries: subprocess.Popen, file I/O, network requests
+- Never mock internal functions or business logic
+- Use real FastAPI test client for API tests
+- Test complete user workflows, not individual functions
+- Keep test names descriptive: `test_<feature>_<scenario>`
+- Maximum 2 mocks per test - if more needed, reconsider approach
+
+### 16. Web UI Polish
 
 - [ ] Add xterm.js for proper terminal emulation
 - [ ] Implement tabbed interface for multiple logs
@@ -135,7 +203,7 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 - [ ] Add keyboard shortcuts (start/stop/switch)
 - [ ] Improve visual design and animations
 
-### 16. Documentation
+### 17. Documentation
 
 - [ ] Update README with new usage
 - [ ] Document REST API
