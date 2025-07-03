@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-07-03: Refactored entire test suite to conform to testing guidelines - removed internal function tests, reduced mocking to system boundaries only, fixed API test assertions, cleaned up unused fixtures. (claude-opus-4-20250514)
 - 2025-07-03: Completed step 14 (Testing Refactor) - extracted global state into dependency injection, created ManagerConfig class, added factory functions, extracted file I/O operations, created interfaces/protocols, moved status file path to config, extracted auth module, separated path validation, and created ProjectRegistry class. (claude-sonnet-4-20250514)
 - 2025-07-03: Added file pointers to testing refactor steps in implementation plan step 14. (claude-opus-4-20250514)
 - 2025-07-03: Added comprehensive error handling with user-friendly messages throughout the codebase. (claude-opus-4-20250514)

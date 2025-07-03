@@ -145,45 +145,45 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 15. Testing & CI
 
-- [ ] Write tests for critical paths
-- [ ] Create test fixtures
-  - [ ] Create fixture for test FastAPI app with mocked dependencies
-  - [ ] Create fixture for temporary home directory
-  - [ ] Create fixture for mock subprocess that simulates process behavior
-  - [ ] Create fixture for pre-configured project registry
-- [ ] **API Integration Tests** - Test real user workflows through the REST API
-  - [ ] Test project registration with valid/invalid paths (mock filesystem boundaries only)
-  - [ ] Test server start/stop operations (mock subprocess execution)
-  - [ ] Test authentication flow with valid/invalid tokens
-  - [ ] Test concurrent operations on same project
-- [ ] **Process Management Tests** - Test subprocess handling behavior
-  - [ ] Test process lifecycle: start → running → stop
-  - [ ] Test handling of failed process starts (command not found, port in use)
-  - [ ] Test graceful shutdown and cleanup
-  - [ ] Test orphaned process detection (mock process checks)
-- [ ] **MCP Server Tests** - Test LLM tool usage scenarios
-  - [ ] Test auto-discovery of running manager (mock file reads and HTTP calls)
-  - [ ] Test start_server tool with/without project context
-  - [ ] Test get_server_logs pagination
-  - [ ] Test handling when manager is not running
-- [ ] **CLI Tests** - Test command-line user interactions
-  - [ ] Test `devservers start` with manager lifecycle (mock subprocess spawn)
-  - [ ] Test `devservers ui` browser opening (mock webbrowser)
-  - [ ] Test project auto-registration from current directory
-  - [ ] Test status display and error messages
-- [ ] **WebSocket Tests** - Test real-time features
-  - [ ] Test log streaming during server execution
-  - [ ] Test reconnection handling
-  - [ ] Test multiple concurrent connections
-- [ ] **Security Tests** - Test protection mechanisms
-  - [ ] Test path traversal prevention
-  - [ ] Test bearer token validation on all endpoints
-  - [ ] Test localhost-only binding enforcement
-- [ ] **Error Handling Tests** - Test failure modes
-  - [ ] Test handling of corrupted config files
-  - [ ] Test handling of permission errors
-  - [ ] Test handling of missing dependencies
-  - [ ] Test timeout scenarios
+- [x] Write tests for critical paths
+- [x] Create test fixtures
+  - [x] Create fixture for test FastAPI app with mocked dependencies
+  - [x] Create fixture for temporary home directory
+  - [x] Create fixture for mock subprocess that simulates process behavior
+  - [x] Create fixture for pre-configured project registry
+- [x] **API Integration Tests** - Test real user workflows through the REST API
+  - [x] Test project registration with valid/invalid paths (mock filesystem boundaries only)
+  - [x] Test server start/stop operations (mock subprocess execution)
+  - [x] Test authentication flow with valid/invalid tokens
+  - [x] Test concurrent operations on same project
+- [x] **Process Management Tests** - Test subprocess handling behavior
+  - [x] Test process lifecycle: start → running → stop
+  - [x] Test handling of failed process starts (command not found, port in use)
+  - [x] Test graceful shutdown and cleanup
+  - [x] Test orphaned process detection (mock process checks)
+- [x] **MCP Server Tests** - Test LLM tool usage scenarios
+  - [x] Test auto-discovery of running manager (mock file reads and HTTP calls)
+  - [x] Test start_server tool with/without project context
+  - [x] Test get_server_logs pagination
+  - [x] Test handling when manager is not running
+- [x] **CLI Tests** - Test command-line user interactions
+  - [x] Test `devservers start` with manager lifecycle (mock subprocess spawn)
+  - [x] Test `devservers ui` browser opening (mock webbrowser)
+  - [x] Test project auto-registration from current directory
+  - [x] Test status display and error messages
+- [x] **WebSocket Tests** - Test real-time features
+  - [x] Test log streaming during server execution
+  - [x] Test reconnection handling
+  - [x] Test multiple concurrent connections
+- [x] **Security Tests** - Test protection mechanisms
+  - [x] Test path traversal prevention
+  - [x] Test bearer token validation on all endpoints
+  - [x] Test localhost-only binding enforcement
+- [x] **Error Handling Tests** - Test failure modes
+  - [x] Test handling of corrupted config files
+  - [x] Test handling of permission errors
+  - [x] Test handling of missing dependencies
+  - [x] Test timeout scenarios
 
 **Testing Guidelines:**
 
