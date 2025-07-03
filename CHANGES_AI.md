@@ -1,5 +1,12 @@
 # AI Generated Changes
 
+- 2025-07-03: Fixed confusing WebSocket status indicator to show "Ready" when idle instead of "Disconnected". (claude-opus-4-20250514)
+- 2025-07-03: Updated CLI to show web URL when running, changed title to "Devservers", removed project count display. (claude-opus-4-20250514)
+- 2025-07-03: Updated README configuration examples to use uvx instead of uv run. (claude-opus-4-20250514)
+- 2025-07-03: Added get_devserver_status tool and API endpoint to show current project and all server statuses. (claude-opus-4-20250514)
+- 2025-07-03: Fixed JSON decode error by configuring FastAPI with redirect_slashes=False. (claude-opus-4-20250514)
+- 2025-07-03: Fixed MCP server name in README to consistently use "devservers" across all configurations. (claude-opus-4-20250514)
+- 2025-07-03: Fixed MCP commands in README to use proper invocation and added devserver-mcp console script for simpler commands. (claude-opus-4-20250514)
 - 2025-07-03: Replaced all requests library usage with httpx in cli.py and removed requests from dependencies. (claude-opus-4-20250514)
 - 2025-07-03: Completed step 10 of cleanup refactor: renamed mcp_client.py to mcp_server.py, verified STDIO transport, enhanced MCP tools with structured output and annotations, added trailing slashes to all API URLs, and ran Ruff formatting. (claude-opus-4-20250514)
 - 2025-07-03: Updated README to match new web-based architecture and MCP registration instructions. (claude-opus-4-20250514)

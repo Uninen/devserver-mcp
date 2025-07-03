@@ -63,23 +63,16 @@ def wait_for_manager(port=7912, timeout=5):
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
-    """DevServer Manager - Development server orchestration"""
+    """Devservers - Development server orchestration"""
     if ctx.invoked_subcommand is None:
         is_running = is_manager_running()
         status = "🟢 Running" if is_running else "🔴 Not running"
 
-        click.echo("DevServer Manager - Development server orchestration\n")
+        click.echo("Devservers - Development server orchestration\n")
         click.echo(f"Status: {status}")
 
         if is_running:
-            try:
-                response = httpx.get("http://localhost:7912/api/projects/")
-                projects = response.json()
-                click.echo(f"Projects: {len(projects)} registered")
-            except httpx.RequestError:
-                click.echo("Projects: Unable to fetch")
-        else:
-            click.echo("Projects: 0 registered")
+            click.echo("Web UI: http://localhost:7912")
 
         click.echo("\nCommands:")
         click.echo("  devservers start              Start the manager")
@@ -92,9 +85,9 @@ def cli(ctx):
 @cli.command()
 @click.argument("project", required=False)
 def start(project):
-    """Start the DevServer Manager"""
+    """Start the Devservers manager"""
     if is_manager_running():
-        click.echo("⚠️  DevServer Manager is already running")
+        click.echo("⚠️  Devservers manager is already running")
         click.echo("Use 'devservers ui' to open the web interface")
         return
 
@@ -119,7 +112,7 @@ def start(project):
 
     # Wait for manager to be ready
     if wait_for_manager(port):
-        click.echo(f"✅ DevServer Manager started at http://localhost:{port}")
+        click.echo(f"✅ Devservers manager started at http://localhost:{port}")
 
         # Auto-register current directory's project
         config_path = resolve_config_path("devservers.yml")
@@ -183,7 +176,7 @@ def start(project):
             except Exception as e:
                 click.echo(f"⚠️  Error starting project servers: {e}", err=True)
     else:
-        click.echo("❌ Failed to start DevServer Manager", err=True)
+        click.echo("❌ Failed to start Devservers manager", err=True)
         # Clean up PID file
         pid_file.unlink(missing_ok=True)
         sys.exit(1)
@@ -191,12 +184,12 @@ def start(project):
 
 @cli.command()
 def stop():
-    """Stop the DevServer Manager"""
+    """Stop the Devservers manager"""
     pid_file = get_pid_file_path()
     status_file = get_status_file_path()
 
     if not is_manager_running():
-        click.echo("⚠️  DevServer Manager is not running")
+        click.echo("⚠️  Devservers manager is not running")
         return
 
     try:
@@ -222,7 +215,7 @@ def stop():
         pid_file.unlink(missing_ok=True)
         status_file.unlink(missing_ok=True)
 
-        click.echo("⏹️  DevServer Manager stopped")
+        click.echo("⏹️  Devservers manager stopped")
     except Exception as e:
         click.echo(f"❌ Error stopping manager: {e}", err=True)
         sys.exit(1)

@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
     await process_manager.cleanup_all()
 
 
-app = FastAPI(title="DevServer Manager", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="DevServer Manager", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
 
 project_registry: dict[str, Any] = load_project_registry()
 
@@ -255,6 +255,45 @@ async def get_server_status(project_id: str, server_name: str):
 
     status = process_manager.get_process_status(project_id, server_name)
     return ServerStatusResponse(**status)
+
+
+@app.get("/api/projects/{project_id}/servers/")
+async def get_project_servers(project_id: str):
+    """Get all servers for a project with their status."""
+    if project_id not in project_registry:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
+
+    project = project_registry[project_id]
+
+    # Load project config to get all defined servers
+    try:
+        config_path = Path(project["path"]) / project["config_file"]
+        config = load_config(str(config_path))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load project configuration: {str(e)}") from e
+
+    # Get status for all servers
+    servers = []
+    for server_name, server_config in config.servers.items():
+        status = process_manager.get_process_status(project_id, server_name)
+        servers.append(
+            {
+                "name": server_name,
+                "status": status["status"],
+                "pid": status["pid"],
+                "error": status["error"],
+                "port": server_config.port,
+                "autostart": server_config.autostart,
+                "command": server_config.command,
+            }
+        )
+
+    return {
+        "project_id": project_id,
+        "project_name": project.get("name", project_id),
+        "project_path": project["path"],
+        "servers": servers,
+    }
 
 
 static_dir = Path(__file__).parent.parent / "web" / "static"

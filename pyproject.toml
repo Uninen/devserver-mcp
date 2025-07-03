@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 devservers = "devserver_mcp:main"
+devserver-mcp = "devserver_mcp.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]

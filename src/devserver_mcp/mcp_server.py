@@ -277,5 +277,77 @@ async def list_projects() -> list[Project] | dict[str, str]:
             return {"error": f"Failed to list projects: {str(e)}"}
 
 
-if __name__ == "__main__":
+class ServerInfo(BaseModel):
+    name: str
+    status: str
+    pid: int | None
+    error: str | None
+    port: int
+    autostart: bool
+    command: str
+
+
+class DevServerStatus(BaseModel):
+    project_id: str
+    project_name: str
+    project_path: str
+    servers: list[ServerInfo]
+
+
+@mcp.tool(
+    description="Get the status of all development servers in the current project",
+    annotations={
+        "title": "Get DevServer Status",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def get_devserver_status(
+    project_id: str | None = Field(
+        default=None, description="Optional project ID. If not provided, uses the current directory's project"
+    ),
+) -> DevServerStatus | dict[str, str]:
+    """
+    Get the status of all development servers in a project.
+
+    Returns the project information and status of all configured servers.
+    If project_id is not provided, attempts to use the current directory's project.
+    """
+    manager_url = await discover_manager()
+    if not manager_url or not await check_manager_health(manager_url):
+        return {"error": "DevServer Manager is not running. Start it with 'devservers start'"}
+
+    if not project_id:
+        project_id = await get_current_project(manager_url)
+        if not project_id:
+            return {"error": "No project found for current directory. Run 'devservers' in a project directory first"}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"{manager_url}/api/projects/{project_id}/servers/")
+            if response.status_code == 404:
+                return {"error": f"Project '{project_id}' not found"}
+            response.raise_for_status()
+
+            data = response.json()
+            return DevServerStatus(
+                project_id=data["project_id"],
+                project_name=data["project_name"],
+                project_path=data["project_path"],
+                servers=[ServerInfo(**server) for server in data["servers"]],
+            )
+        except httpx.HTTPStatusError as e:
+            return {"error": f"HTTP error: {str(e)}"}
+        except Exception as e:
+            return {"error": f"Failed to get server status: {str(e)}"}
+
+
+def main():
+    """Entry point for the MCP server."""
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

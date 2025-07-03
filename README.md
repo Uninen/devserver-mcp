@@ -62,7 +62,7 @@ Add to `.vscode/mcp.json`:
 ```json
 {
   "servers": {
-    "devserver": {
+    "devservers": {
       "command": "uvx",
       "args": ["devserver-mcp"]
     }
@@ -72,16 +72,21 @@ Add to `.vscode/mcp.json`:
 
 ### Claude Code
 
-Install the server locally:
+For published package:
 
 ```bash
-claude mcp add devserver-mcp uvx devserver-mcp
+# Global configuration
+claude mcp add devservers "uvx devserver-mcp"
+
+# Project-specific configuration (saves to `.mcp.json`)
+claude mcp add -s project devservers "uvx devserver-mcp"
 ```
 
-Or for a specific project (saves to `.mcp.json` in the project):
+For local development:
 
 ```bash
-claude mcp add -s project devserver-mcp uvx devserver-mcp
+# Run from the current directory
+claude mcp add -s project devservers "uvx --from . devserver-mcp"
 ```
 
 ### Gemini CLI
@@ -92,7 +97,8 @@ Add the server configuration in `settings.json` (`~/.gemini/settings.json` globa
 {
   "mcpServers": {
     "devservers": {
-      "command": "uvx devserver-mcp"
+      "command": "uvx",
+      "args": ["devserver-mcp"]
     }
   }
 }
@@ -153,7 +159,8 @@ The server exposes the following tools for LLM interaction:
 1. **list_projects()** - List all registered projects
 2. **start_server(name, project_id)** - Start a server (uses current directory's project if not specified)
 3. **stop_server(name, project_id)** - Stop a running server
-4. **get_server_logs(name, project_id, lines)** - Get recent server logs
+4. **get_server_logs(name, project_id, offset, limit)** - Get recent server logs
+5. **get_devserver_status(project_id)** - Get the current project and status of all servers
 
 ## Developing
 
