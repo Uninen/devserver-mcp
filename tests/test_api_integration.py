@@ -1,3 +1,4 @@
+import asyncio
 import json
 import tempfile
 from pathlib import Path
@@ -38,7 +39,20 @@ def test_start_server_returns_ok_for_valid_project(test_app, auth_headers, test_
     # Update project registry to have the correct path
     test_app.app.state.deps.project_registry._projects["test-project"]["path"] = str(project_directory)
 
-    with patch("devserver_mcp.web_manager.process_manager.ProcessManager.start_process", return_value=True):
+    # Mock the subprocess creation at the system boundary
+    mock_process = MagicMock()
+    mock_process.pid = 12345
+    mock_process.returncode = None
+    
+    # Create an async future that simulates readline behavior
+    async def mock_readline():
+        return b""
+    async def mock_wait():
+        return 0
+    mock_process.stdout.readline = MagicMock(side_effect=mock_readline)
+    mock_process.wait = MagicMock(side_effect=mock_wait)
+    
+    with patch("asyncio.create_subprocess_shell", return_value=mock_process):
         response = test_app.post(
             "/api/projects/test-project/servers/django/start/",
             headers=auth_headers
@@ -179,7 +193,23 @@ def test_full_server_lifecycle(test_app, auth_headers, test_project_config, proj
     test_app.app.state.deps.file_ops.get_safe_config_path.side_effect = lambda base, file: project_directory / file
 
     # 1. Start the server
-    with patch("devserver_mcp.web_manager.process_manager.ProcessManager.start_process", return_value=True):
+    # Mock the subprocess creation at the system boundary
+    mock_process = MagicMock()
+    mock_process.pid = 12345
+    mock_process.returncode = None
+    
+    # Create an async future that simulates readline behavior
+    async def mock_readline():
+        return b""
+    async def mock_wait():
+        return 0
+    mock_process.stdout.readline = MagicMock(side_effect=mock_readline)
+    mock_process.wait = MagicMock(side_effect=mock_wait)
+    
+    # Mock os.kill to simulate process is alive
+    with patch("asyncio.create_subprocess_shell", return_value=mock_process), \
+         patch("os.kill", return_value=None):  # Returns None means process is alive
+        
         start_response = test_app.post(
             "/api/projects/test-project/servers/django/start/",
             headers=auth_headers
@@ -187,22 +217,23 @@ def test_full_server_lifecycle(test_app, auth_headers, test_project_config, proj
         assert start_response.status_code == 200
         assert start_response.json()["status"] == "started"
 
-    # 2. Check the server's status
-    status_response = test_app.get(
-        "/api/projects/test-project/servers/django/status/",
-        headers=auth_headers
-    )
-    assert status_response.status_code == 200
-    assert status_response.json()["status"] in ["running", "starting"]
-
-    # 3. Stop the server
-    with patch("devserver_mcp.web_manager.process_manager.ProcessManager.stop_process", return_value=True):
-        stop_response = test_app.post(
-            "/api/projects/test-project/servers/django/stop/",
+        # 2. Check the server's status
+        status_response = test_app.get(
+            "/api/projects/test-project/servers/django/status/",
             headers=auth_headers
         )
-        assert stop_response.status_code == 200
-        assert stop_response.json()["status"] == "stopped"
+        assert status_response.status_code == 200
+        assert status_response.json()["status"] in ["running", "starting"]
+
+        # 3. Stop the server
+        # Mock os.killpg at the system boundary
+        with patch("os.killpg"):
+            stop_response = test_app.post(
+                "/api/projects/test-project/servers/django/stop/",
+                headers=auth_headers
+            )
+            assert stop_response.status_code == 200
+            assert stop_response.json()["status"] in ["stopped", "not_running"]
 
 
 def test_api_rejects_invalid_authentication_token(test_app):

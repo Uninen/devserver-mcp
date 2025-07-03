@@ -16,7 +16,7 @@ def process_manager():
 def sleep_server_config(temp_home_dir):
     """Server config that sleeps for a short time."""
     return ServerConfig(
-        command="sleep 0.1",
+        command="sleep 1",
         working_dir=str(temp_home_dir),
         port=8000,
         autostart=False
@@ -25,20 +25,20 @@ def sleep_server_config(temp_home_dir):
 
 @pytest.mark.asyncio
 async def test_process_starts_and_stops_successfully(process_manager, sleep_server_config):
-    """Test that a simple echo process starts and then stops (exits) successfully."""
-    # This uses a real subprocess with echo command
+    """Test that a simple sleep process starts and then stops (exits) successfully."""
+    # This uses a real subprocess with sleep command
     started = await process_manager.start_process(
-        "test-project", "echo-server", echo_server_config
+        "test-project", "sleep-server", sleep_server_config
     )
     
     assert started is True
     
     # Give it a moment to exit
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(1.5)
     
     # Check status after process exits naturally
-    status = process_manager.get_process_status("test-project", "echo-server")
-    assert status["status"] == "stopped" or status["status"] == "error" # Echo exits immediately, so it should be stopped or error
+    status = process_manager.get_process_status("test-project", "sleep-server")
+    assert status["status"] == "stopped" or status["status"] == "error" # Sleep exits after 1s, so it should be stopped or error
 
 
 @pytest.mark.asyncio
@@ -61,18 +61,23 @@ async def test_start_process_fails_with_nonexistent_working_directory(process_ma
 
 
 @pytest.mark.asyncio
-async def test_cleanup_all_processes_terminates_all_running_processes(process_manager, echo_server_config):
+async def test_cleanup_all_processes_terminates_all_running_processes(process_manager, sleep_server_config):
     """Test that cleanup_all terminates all running processes."""
     # Start a process
     await process_manager.start_process(
-        "test-project", "echo-server", echo_server_config
+        "test-project", "sleep-server", sleep_server_config
     )
+    
+    # Verify process is running
+    status = process_manager.get_process_status("test-project", "sleep-server")
+    assert status["status"] == "running"
     
     # Clean up all processes
     await process_manager.cleanup_all()
     
-    # Verify no processes remain
-    assert len(process_manager.processes) == 0
+    # Verify process is stopped
+    status = process_manager.get_process_status("test-project", "sleep-server")
+    assert status["status"] == "stopped"
 
 
 @pytest.mark.asyncio
