@@ -30,8 +30,8 @@ def test_manager_starts_gracefully_with_corrupted_config_file(temp_home_dir: Pat
         assert "manager started" in result.output
 
 
-def test_cli_errors_when_project_config_lacks_servers_section(temp_home_dir: Path):
-    """Test that the CLI reports an error when project config is missing the 'servers' section."""
+def test_cli_shows_help_when_project_config_lacks_servers_section(temp_home_dir: Path):
+    """Test that the CLI shows help when project config is missing the 'servers' section."""
     runner = CliRunner()
     project_dir = temp_home_dir / "test-project"
     project_dir.mkdir()
@@ -49,9 +49,10 @@ def test_cli_errors_when_project_config_lacks_servers_section(temp_home_dir: Pat
     with patch("pathlib.Path.cwd", return_value=project_dir):
         result = runner.invoke(cli)
         
-        # Should show error message
-        assert result.exit_code == 1
-        assert "Error loading config" in result.output
+        # Should show help message, not error
+        assert result.exit_code == 0
+        assert "Devservers - Development server orchestration" in result.output
+        assert "Commands:" in result.output
 
 
 def test_server_start_returns_error_for_nonexistent_command(test_app, auth_headers, project_directory):
