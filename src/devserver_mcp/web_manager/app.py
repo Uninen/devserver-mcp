@@ -175,6 +175,9 @@ async def lifespan(app: FastAPI):
     # Generate bearer token for authentication
     bearer_token = secrets.token_urlsafe(32)
     write_status_file(True, 7912, bearer_token)
+    
+    # Start idle monitoring
+    await process_manager.start_idle_monitoring()
 
     yield
     logger.info("DevServer Manager shutting down")

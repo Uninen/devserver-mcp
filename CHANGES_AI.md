@@ -1,5 +1,6 @@
 # AI Generated Changes
 
+- 2025-07-03: Implemented resource management features: idle timeout for servers, orphaned process cleanup, and graceful shutdown handling. (claude-opus-4-20250514)
 - 2025-07-03: Implemented security hardening with localhost-only binding, bearer token authentication, and path validation. (claude-opus-4-20250514)
 - 2025-07-03: Fixed confusing WebSocket status indicator to show "Ready" when idle instead of "Disconnected". (claude-opus-4-20250514)
 - 2025-07-03: Updated CLI to show web URL when running, changed title to "Devservers", removed project count display. (claude-opus-4-20250514)

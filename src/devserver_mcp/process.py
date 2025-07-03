@@ -27,6 +27,7 @@ class ManagedProcess:
         self.logs: LogStorage = LogStorage(max_lines=10000)
         self.start_time: float | None = None
         self.error: str | None = None
+        self.last_activity_time: float | None = None
 
         self._reclaim_existing_process()
 
@@ -36,6 +37,7 @@ class ManagedProcess:
             logger.debug(f"Reclaiming existing process {self.name} with PID {stored_pid}")
             self.pid = stored_pid
             self.start_time = time.time()
+            self.last_activity_time = time.time()
         else:
             if stored_pid:
                 logger.debug(f"Stored PID {stored_pid} for {self.name} is no longer alive")
@@ -59,6 +61,7 @@ class ManagedProcess:
         try:
             self.error = None
             self.start_time = time.time()
+            self.last_activity_time = time.time()
 
             work_dir = os.path.expanduser(self.config.working_dir)
             work_dir = os.path.abspath(work_dir)
@@ -108,6 +111,9 @@ class ManagedProcess:
 
                 decoded = line.decode("utf-8", errors="replace").rstrip()
                 if decoded:
+                    # Update last activity time when we receive output
+                    self.last_activity_time = time.time()
+
                     if self.config.prefix_logs:
                         server_name_to_log = self.name
                         timestamp_to_log = datetime.now().strftime("%H:%M:%S")
@@ -173,6 +179,7 @@ class ManagedProcess:
                 self.process = None
                 self.pid = None
                 self.start_time = None
+                self.last_activity_time = None
                 self.state_manager.clear_pid(self.name)
                 logger.debug(f"Process {self.name} cleanup completed")
 
@@ -188,3 +195,10 @@ class ManagedProcess:
             return "error"
         else:
             return "stopped"
+
+    @property
+    def idle_time(self) -> float | None:
+        """Get idle time in seconds since last activity."""
+        if not self.is_running or self.last_activity_time is None:
+            return None
+        return time.time() - self.last_activity_time

@@ -112,9 +112,9 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 12. Resource Management
 
-- [ ] Implement idle timeout for servers
-- [ ] Create orphaned process cleanup
-- [ ] Add graceful shutdown handling
+- [x] Implement idle timeout for servers
+- [x] Create orphaned process cleanup
+- [x] Add graceful shutdown handling
 
 ### 13. Error Handling
 

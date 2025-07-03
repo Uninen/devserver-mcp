@@ -1,9 +1,12 @@
 import asyncio
+import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
+from devserver_mcp.cleanup import cleanup_orphaned_processes
 from devserver_mcp.log_storage import LogStorage
 from devserver_mcp.process import ManagedProcess
+from devserver_mcp.settings import load_settings
 from devserver_mcp.state import StateManager
 from devserver_mcp.types import ServerConfig
 
@@ -25,6 +28,20 @@ class ProcessManager:
         self.processes: dict[str, dict[str, WebManagedProcess]] = {}
         self._shutdown_event = asyncio.Event()
         self.websocket_manager: WebSocketManager | None = None
+        self._idle_monitor_task: asyncio.Task | None = None
+        self.settings = load_settings()
+
+        # Clean up orphaned processes on startup
+        self._cleanup_orphaned_on_startup()
+
+    def _cleanup_orphaned_on_startup(self):
+        """Clean up any orphaned processes from previous runs."""
+        try:
+            cleaned = cleanup_orphaned_processes()
+            if cleaned > 0:
+                logger.info(f"Cleaned up {cleaned} orphaned processes from previous runs")
+        except Exception as e:
+            logger.error(f"Error during orphaned process cleanup: {e}")
 
     def set_websocket_manager(self, websocket_manager: "WebSocketManager"):
         """Set the WebSocket manager for real-time log streaming."""
@@ -89,6 +106,7 @@ class ProcessManager:
                 "status": "stopped",
                 "pid": None,
                 "error": None,
+                "idle_time": None,
             }
 
         process = self.processes[project_id][server_name]
@@ -97,6 +115,7 @@ class ProcessManager:
             "status": process.status,
             "pid": process.pid,
             "error": process.error,
+            "idle_time": process.idle_time,
         }
 
     def get_process_logs(
@@ -108,8 +127,69 @@ class ProcessManager:
         process = self.processes[project_id][server_name]
         return process.logs.get_range(offset, limit, reverse=True)
 
+    async def start_idle_monitoring(self):
+        """Start the idle monitoring background task."""
+        if self._idle_monitor_task is None or self._idle_monitor_task.done():
+            self._idle_monitor_task = asyncio.create_task(self._monitor_idle_processes())
+            logger.info("Started idle process monitoring")
+
+    async def stop_idle_monitoring(self):
+        """Stop the idle monitoring background task."""
+        if self._idle_monitor_task and not self._idle_monitor_task.done():
+            self._idle_monitor_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._idle_monitor_task
+            logger.info("Stopped idle process monitoring")
+
+    async def _monitor_idle_processes(self):
+        """Background task to monitor and stop idle processes."""
+        while not self._shutdown_event.is_set():
+            try:
+                # Check every 30 seconds
+                await asyncio.sleep(30)
+
+                # Reload settings in case they changed
+                self.settings = load_settings()
+
+                # Skip if global idle timeout is disabled
+                if self.settings.idle_timeout == 0:
+                    continue
+
+                # Check all processes for idle timeout
+                for project_id, project_processes in list(self.processes.items()):
+                    # Get project-specific timeout if configured
+                    project_timeout = self.settings.idle_timeout  # Default to global
+                    for project_settings in self.settings.projects:
+                        if project_settings.id == project_id and project_settings.idle_timeout > 0:
+                            project_timeout = project_settings.idle_timeout
+                            break
+
+                    # Skip if project has timeout disabled
+                    if project_timeout == 0:
+                        continue
+
+                    timeout_seconds = project_timeout * 60  # Convert minutes to seconds
+
+                    for server_name, process in list(project_processes.items()):
+                        if process.is_running and process.idle_time is not None and process.idle_time > timeout_seconds:
+                            logger.info(
+                                f"Stopping idle server {project_id}/{server_name} "
+                                f"(idle for {process.idle_time:.0f} seconds)"
+                            )
+                            await self.stop_process(project_id, server_name)
+
+            except Exception as e:
+                logger.error(f"Error in idle monitoring task: {e}")
+
     async def cleanup_all(self):
         logger.info("Cleaning up all processes...")
+
+        # Signal shutdown to stop monitoring
+        self._shutdown_event.set()
+
+        # Stop idle monitoring first
+        await self.stop_idle_monitoring()
+
         tasks = []
         for project_id, project_processes in self.processes.items():
             for server_name, process in project_processes.items():
