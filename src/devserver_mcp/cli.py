@@ -1,4 +1,5 @@
 import contextlib
+import json
 import os
 import signal
 import subprocess
@@ -60,6 +61,19 @@ def wait_for_manager(port=7912, timeout=5):
     return False
 
 
+def get_bearer_token():
+    """Get the bearer token from the status file."""
+    status_file = get_status_file_path()
+    if status_file.exists():
+        try:
+            with open(status_file) as f:
+                status = json.load(f)
+                return status.get("bearer_token")
+        except Exception:
+            pass
+    return None
+
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
@@ -114,6 +128,10 @@ def start(project):
     if wait_for_manager(port):
         click.echo(f"✅ Devservers manager started at http://localhost:{port}")
 
+        # Get bearer token for API calls
+        bearer_token = get_bearer_token()
+        headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
+
         # Auto-register current directory's project
         config_path = resolve_config_path("devservers.yml")
         if config_path and Path(config_path).exists():
@@ -132,9 +150,11 @@ def start(project):
                 }
 
                 try:
-                    response = httpx.post(f"http://localhost:{port}/api/projects/", json=project_data)
+                    response = httpx.post(f"http://localhost:{port}/api/projects/", json=project_data, headers=headers)
                     if response.status_code == 200:
                         click.echo(f"📁 Registered project: {project_name}")
+                    elif response.status_code == 401:
+                        click.echo("⚠️  Authentication failed. Try restarting the manager.", err=True)
                 except Exception as e:
                     click.echo(f"⚠️  Could not register project: {e}", err=True)
             except Exception as e:
@@ -144,7 +164,7 @@ def start(project):
             click.echo(f"🚀 Starting servers for project: {project}")
             # Find the project in the registry
             try:
-                response = httpx.get(f"http://localhost:{port}/api/projects/")
+                response = httpx.get(f"http://localhost:{port}/api/projects/", headers=headers)
                 if response.status_code == 200:
                     projects = response.json()
                     matching_project = None
@@ -166,6 +186,7 @@ def start(project):
                                         response = httpx.post(
                                             f"http://localhost:{port}/api/projects/{matching_project['id']}/servers/{server_name}/start/",
                                             json={"project_id": matching_project["id"]},
+                                            headers=headers,
                                         )
                                         if response.status_code != 200:
                                             click.echo(f"     ⚠️  Failed to start {server_name}", err=True)

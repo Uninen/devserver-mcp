@@ -39,17 +39,19 @@ class Project(BaseModel):
     last_accessed: str | None = None
 
 
-async def discover_manager() -> str | None:
-    """Discover running manager by checking status file."""
+async def discover_manager() -> tuple[str | None, str | None]:
+    """Discover running manager by checking status file. Returns (url, bearer_token)."""
     if STATUS_FILE.exists():
         try:
             with open(STATUS_FILE) as f:
                 status = json.load(f)
                 if status.get("running"):
-                    return status.get("url", DEFAULT_MANAGER_URL)
+                    url = status.get("url", DEFAULT_MANAGER_URL)
+                    token = status.get("bearer_token")
+                    return url, token
         except Exception:
             pass
-    return None
+    return None, None
 
 
 async def check_manager_health(url: str) -> bool:
@@ -62,13 +64,20 @@ async def check_manager_health(url: str) -> bool:
         return False
 
 
-async def get_current_project(manager_url: str) -> str | None:
+def get_auth_headers(bearer_token: str | None) -> dict[str, str]:
+    """Get authorization headers with bearer token."""
+    if bearer_token:
+        return {"Authorization": f"Bearer {bearer_token}"}
+    return {}
+
+
+async def get_current_project(manager_url: str, bearer_token: str | None) -> str | None:
     """Get project ID for current directory."""
     current_dir = Path.cwd().resolve()
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{manager_url}/api/projects/")
+            response = await client.get(f"{manager_url}/api/projects/", headers=get_auth_headers(bearer_token))
             if response.status_code == 200:
                 projects = [Project(**p) for p in response.json()]
                 for project in projects:
@@ -105,14 +114,14 @@ async def start_server(
     If project_id is not provided, attempts to use the current directory's project.
     Returns an error if the manager is not running or project cannot be determined.
     """
-    manager_url = await discover_manager()
+    manager_url, bearer_token = await discover_manager()
     if not manager_url or not await check_manager_health(manager_url):
         return ServerOperationResult(
             status="error", message="DevServer Manager is not running. Start it with 'devservers start'"
         )
 
     if not project_id:
-        project_id = await get_current_project(manager_url)
+        project_id = await get_current_project(manager_url, bearer_token)
         if not project_id:
             return ServerOperationResult(
                 status="error",
@@ -122,13 +131,17 @@ async def start_server(
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                f"{manager_url}/api/projects/{project_id}/servers/{name}/start/", json={"project_id": project_id}
+                f"{manager_url}/api/projects/{project_id}/servers/{name}/start/",
+                json={"project_id": project_id},
+                headers=get_auth_headers(bearer_token),
             )
             return ServerOperationResult(**response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 detail = e.response.json().get("detail", "Not found")
                 return ServerOperationResult(status="error", message=detail)
+            elif e.response.status_code == 401:
+                return ServerOperationResult(status="error", message="Authentication failed. Manager may need restart.")
             return ServerOperationResult(status="error", message=str(e))
         except Exception as e:
             return ServerOperationResult(status="error", message=f"Failed to start server: {str(e)}")
@@ -155,23 +168,27 @@ async def stop_server(
 
     If project_id is not provided, attempts to use the current directory's project.
     """
-    manager_url = await discover_manager()
+    manager_url, bearer_token = await discover_manager()
     if not manager_url or not await check_manager_health(manager_url):
         return ServerOperationResult(status="error", message="DevServer Manager is not running")
 
     if not project_id:
-        project_id = await get_current_project(manager_url)
+        project_id = await get_current_project(manager_url, bearer_token)
         if not project_id:
             return ServerOperationResult(status="error", message="No project found for current directory")
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(f"{manager_url}/api/projects/{project_id}/servers/{name}/stop/")
+            response = await client.post(
+                f"{manager_url}/api/projects/{project_id}/servers/{name}/stop/", headers=get_auth_headers(bearer_token)
+            )
             return ServerOperationResult(**response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 detail = e.response.json().get("detail", "Not found")
                 return ServerOperationResult(status="error", message=detail)
+            elif e.response.status_code == 401:
+                return ServerOperationResult(status="error", message="Authentication failed. Manager may need restart.")
             return ServerOperationResult(status="error", message=str(e))
         except Exception as e:
             return ServerOperationResult(status="error", message=f"Failed to stop server: {str(e)}")
@@ -200,7 +217,7 @@ async def get_server_logs(
 
     Returns the most recent log lines from the specified server.
     """
-    manager_url = await discover_manager()
+    manager_url, bearer_token = await discover_manager()
     if not manager_url or not await check_manager_health(manager_url):
         return LogsResult(
             status="error",
@@ -213,7 +230,7 @@ async def get_server_logs(
         )
 
     if not project_id:
-        project_id = await get_current_project(manager_url)
+        project_id = await get_current_project(manager_url, bearer_token)
         if not project_id:
             return LogsResult(
                 status="error",
@@ -230,12 +247,23 @@ async def get_server_logs(
             response = await client.get(
                 f"{manager_url}/api/projects/{project_id}/servers/{name}/logs/",
                 params={"offset": offset, "limit": limit},
+                headers=get_auth_headers(bearer_token),
             )
             return LogsResult(**response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 detail = e.response.json().get("detail", "Not found")
                 return LogsResult(status="error", message=detail, lines=[], count=0, total=0, offset=0, has_more=False)
+            elif e.response.status_code == 401:
+                return LogsResult(
+                    status="error",
+                    message="Authentication failed. Manager may need restart.",
+                    lines=[],
+                    count=0,
+                    total=0,
+                    offset=0,
+                    has_more=False,
+                )
             return LogsResult(status="error", message=str(e), lines=[], count=0, total=0, offset=0, has_more=False)
         except Exception as e:
             return LogsResult(
@@ -265,13 +293,13 @@ async def list_projects() -> list[Project] | dict[str, str]:
 
     Returns a list of projects or an error message.
     """
-    manager_url = await discover_manager()
+    manager_url, bearer_token = await discover_manager()
     if not manager_url or not await check_manager_health(manager_url):
         return {"error": "DevServer Manager is not running. Start it with 'devservers start'"}
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{manager_url}/api/projects/")
+            response = await client.get(f"{manager_url}/api/projects/", headers=get_auth_headers(bearer_token))
             return [Project(**p) for p in response.json()]
         except Exception as e:
             return {"error": f"Failed to list projects: {str(e)}"}

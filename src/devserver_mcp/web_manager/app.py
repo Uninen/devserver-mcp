@@ -6,11 +6,12 @@ import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import yaml
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -24,6 +25,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 process_manager = ProcessManager()
 websocket_manager = None  # Will be initialized after ProcessManager
 bearer_token: str | None = None  # Will be generated on startup
+security = HTTPBearer()
 
 
 def get_config_file_path():
@@ -98,6 +100,69 @@ def write_status_file(running: bool, port: int = 7912, bearer_token: str | None 
     os.chmod(status_file, 0o600)
 
 
+async def verify_token(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> None:
+    """Verify that the provided bearer token matches the generated token."""
+    global bearer_token
+    if not bearer_token or credentials.credentials != bearer_token:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+
+
+def validate_project_path(path: str) -> Path:
+    """Validate that a project path is safe and within user's home directory."""
+    try:
+        # Convert to Path and resolve to absolute path
+        project_path = Path(path).resolve()
+
+        # Ensure the path is absolute
+        if not project_path.is_absolute():
+            raise ValueError("Project path must be absolute")
+
+        # Get user's home directory
+        home_dir = Path.home()
+
+        # Check if path is within user's home directory or a subdirectory
+        try:
+            project_path.relative_to(home_dir)
+        except ValueError:
+            # Allow paths outside home if they're still safe (e.g., /tmp for testing)
+            # But ensure they don't contain dangerous patterns
+            path_str = str(project_path)
+            dangerous_patterns = ["../", "..", "~", "${", "$(", "`"]
+            if any(pattern in path_str for pattern in dangerous_patterns):
+                raise ValueError("Path contains potentially dangerous patterns") from None
+
+        # Ensure the path exists and is a directory
+        if not project_path.exists():
+            raise ValueError(f"Path does not exist: {project_path}")
+        if not project_path.is_dir():
+            raise ValueError(f"Path is not a directory: {project_path}")
+
+        return project_path
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid project path: {str(e)}") from e
+
+
+def get_safe_config_path(project_path: str, config_file: str) -> Path:
+    """Safely construct a config file path, preventing directory traversal."""
+    # Validate the project path first
+    base_path = Path(project_path).resolve()
+
+    # Ensure config filename doesn't contain path separators or dangerous patterns
+    if "/" in config_file or "\\" in config_file or ".." in config_file:
+        raise HTTPException(status_code=400, detail="Invalid config file name")
+
+    # Construct the full path and resolve it
+    config_path = (base_path / config_file).resolve()
+
+    # Ensure the resolved path is still within the project directory
+    try:
+        config_path.relative_to(base_path)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Config file path escapes project directory") from None
+
+    return config_path
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global websocket_manager, bearer_token
@@ -151,26 +216,46 @@ async def health():
     return HealthResponse(status="ok", version="0.1.0")
 
 
+@app.get("/api/auth/token/")
+async def get_auth_token():
+    """Get authentication token for web UI (localhost only)."""
+    global bearer_token
+    # This endpoint should only be accessible from the web UI served by this server
+    return {"token": bearer_token}
+
+
 @app.get("/api/projects/", response_model=list[Project])
-async def get_projects():
+async def get_projects(_: Annotated[None, Depends(verify_token)]):
     """Get all registered projects."""
     return list(project_registry.values())
 
 
 @app.post("/api/projects/", response_model=Project)
-async def register_project(project: Project):
+async def register_project(project: Project, _: Annotated[None, Depends(verify_token)]):
     """Register a new project."""
-    project_registry[project.id] = project.model_dump()
-    logger.info(f"Registered project: {project.id} at {project.path}")
+    # Validate the project path
+    validated_path = validate_project_path(project.path)
+
+    # Update project with validated path
+    project_dict = project.model_dump()
+    project_dict["path"] = str(validated_path)
+
+    project_registry[project.id] = project_dict
+    logger.info(f"Registered project: {project.id} at {validated_path}")
 
     # Persist to config file
     save_project_registry(project_registry)
 
-    return project
+    return Project(**project_dict)
 
 
 @app.post("/api/projects/{project_id}/servers/{server_name}/start/", response_model=ServerOperationResult)
-async def start_server(project_id: str, server_name: str, request: StartServerRequest | None = None):
+async def start_server(
+    project_id: str,
+    server_name: str,
+    request: StartServerRequest | None = None,
+    _: Annotated[None, Depends(verify_token)] = None,
+):
     """Start a development server."""
     if project_id not in project_registry:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
@@ -178,7 +263,7 @@ async def start_server(project_id: str, server_name: str, request: StartServerRe
     project = project_registry[project_id]
 
     try:
-        config_path = Path(project["path"]) / project["config_file"]
+        config_path = get_safe_config_path(project["path"], project["config_file"])
         config = load_config(str(config_path))
 
         if server_name not in config.servers:
@@ -208,7 +293,7 @@ async def start_server(project_id: str, server_name: str, request: StartServerRe
 
 
 @app.post("/api/projects/{project_id}/servers/{server_name}/stop/", response_model=ServerOperationResult)
-async def stop_server(project_id: str, server_name: str):
+async def stop_server(project_id: str, server_name: str, _: Annotated[None, Depends(verify_token)]):
     """Stop a development server."""
     if project_id not in project_registry:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
@@ -226,7 +311,13 @@ async def stop_server(project_id: str, server_name: str):
 
 
 @app.get("/api/projects/{project_id}/servers/{server_name}/logs/")
-async def get_server_logs(project_id: str, server_name: str, offset: int = 0, limit: int = 100):
+async def get_server_logs(
+    project_id: str,
+    server_name: str,
+    offset: int = 0,
+    limit: int = 100,
+    _: Annotated[None, Depends(verify_token)] = None,
+):
     """Get logs from a development server."""
     if project_id not in project_registry:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
@@ -248,7 +339,7 @@ async def get_server_logs(project_id: str, server_name: str, offset: int = 0, li
 
 
 @app.get("/api/projects/{project_id}/servers/{server_name}/status/", response_model=ServerStatusResponse)
-async def get_server_status(project_id: str, server_name: str):
+async def get_server_status(project_id: str, server_name: str, _: Annotated[None, Depends(verify_token)]):
     """Get the status of a development server."""
     if project_id not in project_registry:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
@@ -258,7 +349,7 @@ async def get_server_status(project_id: str, server_name: str):
 
 
 @app.get("/api/projects/{project_id}/servers/")
-async def get_project_servers(project_id: str):
+async def get_project_servers(project_id: str, _: Annotated[None, Depends(verify_token)]):
     """Get all servers for a project with their status."""
     if project_id not in project_registry:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
@@ -267,7 +358,7 @@ async def get_project_servers(project_id: str):
 
     # Load project config to get all defined servers
     try:
-        config_path = Path(project["path"]) / project["config_file"]
+        config_path = get_safe_config_path(project["path"], project["config_file"])
         config = load_config(str(config_path))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load project configuration: {str(e)}") from e

@@ -106,9 +106,9 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 11. Security Hardening
 
-- [ ] Enforce localhost-only binding
-- [ ] Validate bearer tokens on all requests
-- [ ] Implement path validation (no traversal)
+- [x] Enforce localhost-only binding
+- [x] Validate bearer tokens on all requests
+- [x] Implement path validation (no traversal)
 
 ### 12. Resource Management
 

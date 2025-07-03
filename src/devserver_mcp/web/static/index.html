@@ -379,10 +379,52 @@
         let websockets = {}; // Store WebSocket connections per project
         let reconnectTimeouts = {}; // Store reconnection timeouts
         let logBuffers = {}; // Store logs per server
+        let authToken = null;
+
+        async function fetchAuthToken() {
+            try {
+                const response = await fetch('/api/auth/token/');
+                if (!response.ok) throw new Error('Failed to fetch auth token');
+                const data = await response.json();
+                authToken = data.token;
+            } catch (error) {
+                console.error('Error fetching auth token:', error);
+                showError('Authentication failed. Please refresh the page.');
+            }
+        }
+
+        async function apiRequest(url, options = {}) {
+            if (!authToken) {
+                await fetchAuthToken();
+            }
+            
+            const headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${authToken}`
+            };
+            
+            const response = await fetch(url, { ...options, headers });
+            
+            // If we get a 401, try refreshing the token once
+            if (response.status === 401 && authToken) {
+                authToken = null;
+                await fetchAuthToken();
+                // Retry with new token
+                return fetch(url, { 
+                    ...options, 
+                    headers: {
+                        ...options.headers,
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+            }
+            
+            return response;
+        }
 
         async function fetchProjects() {
             try {
-                const response = await fetch('/api/projects/');
+                const response = await apiRequest('/api/projects/');
                 if (!response.ok) throw new Error('Failed to fetch projects');
                 
                 const projects = await response.json();
@@ -434,7 +476,7 @@
 
         async function fetchServerStatus(projectId, serverName) {
             try {
-                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/status/`);
+                const response = await apiRequest(`/api/projects/${projectId}/servers/${serverName}/status/`);
                 if (!response.ok) throw new Error('Failed to fetch server status');
                 
                 const status = await response.json();
@@ -455,7 +497,7 @@
 
         async function fetchServerLogs(projectId, serverName) {
             try {
-                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/logs/?limit=100`);
+                const response = await apiRequest(`/api/projects/${projectId}/servers/${serverName}/logs/?limit=100`);
                 if (!response.ok) throw new Error('Failed to fetch logs');
                 
                 const result = await response.json();
@@ -578,7 +620,7 @@
             button.textContent = isRunning ? 'Stopping...' : 'Starting...';
 
             try {
-                const response = await fetch(`/api/projects/${projectId}/servers/${serverName}/${action}/`, {
+                const response = await apiRequest(`/api/projects/${projectId}/servers/${serverName}/${action}/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -658,7 +700,14 @@
 
         function showError(message) {
             const container = document.getElementById('projects-container');
-            container.innerHTML = `<div class="error-message">${message}</div>` + container.innerHTML;
+            // Remove any existing error messages first
+            const existingErrors = container.querySelectorAll('.error-message');
+            existingErrors.forEach(error => error.remove());
+            // Add new error at the top
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            container.insertBefore(errorDiv, container.firstChild);
         }
 
         function connectWebSocket(projectId) {
@@ -787,10 +836,13 @@
         }
 
         // Initial load
-        fetchProjects();
+        async function init() {
+            await fetchAuthToken();
+            await fetchProjects();
+            updateWebSocketStatus('ready');
+        }
         
-        // Set initial WebSocket status
-        updateWebSocketStatus('ready');
+        init();
 
         // Auto-refresh every 2 seconds (for status updates only)
         // setInterval(refreshData, 2000);
