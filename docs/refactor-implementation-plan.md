@@ -123,24 +123,24 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 14. Testing Refactor
 
-- [ ] **Refactoring for Testability** - Make code easier to test without changing behavior
-  - [ ] Extract global state into dependency injection (bearer_token, process_manager, project_registry)
+- [x] **Refactoring for Testability** - Make code easier to test without changing behavior
+  - [x] Extract global state into dependency injection (bearer_token, process_manager, project_registry)
         • `web_manager/app.py`: globals and lifespan
-  - [ ] Create a ManagerConfig class to hold configuration instead of globals
+  - [x] Create a ManagerConfig class to hold configuration instead of globals
         • New file: `web_manager/config.py`
-  - [ ] Add factory functions for creating app instances with injected dependencies
+  - [x] Add factory functions for creating app instances with injected dependencies
         • `web_manager/app.py`: app creation, new function `create_app()`
-  - [ ] Extract file I/O operations into separate functions that can be easily mocked
+  - [x] Extract file I/O operations into separate functions that can be easily mocked
         • `web_manager/app.py`: config file ops, status file ops
-  - [ ] Create interfaces/protocols for ProcessManager and WebSocketManager
+  - [x] Create interfaces/protocols for ProcessManager and WebSocketManager
         • New file: `web_manager/interfaces.py`
-  - [ ] Move status file path resolution to a configurable setting
+  - [x] Move status file path resolution to a configurable setting
         • `web_manager/app.py`, `cli.py`: status file paths
-  - [ ] Extract bearer token generation/validation into a separate auth module
+  - [x] Extract bearer token generation/validation into a separate auth module
         • `web_manager/app.py`: verify_token, bearer_token, new file: `web_manager/auth.py`
-  - [ ] Separate path validation logic from HTTP error handling
+  - [x] Separate path validation logic from HTTP error handling
         • `web_manager/app.py`: validate_project_path, get_safe_config_path
-  - [ ] Create a ProjectRegistry class instead of using raw dict
+  - [x] Create a ProjectRegistry class instead of using raw dict
         • `web_manager/app.py`: project_registry, new file: `web_manager/registry.py`
 
 ### 15. Testing & CI
