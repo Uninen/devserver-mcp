@@ -50,7 +50,11 @@ class ManagedProcess:
         except ProcessLookupError:
             return False
         except PermissionError:
+            # Process exists but we don't have permission to signal it
             return True
+        except Exception as e:
+            logger.error(f"Unexpected error checking if process {pid} is alive: {e}")
+            return False
 
     async def start(self, log_callback: LogCallback) -> bool:
         # If we already have a running process (from reclaim), don't start a new one
@@ -65,6 +69,17 @@ class ManagedProcess:
 
             work_dir = os.path.expanduser(self.config.working_dir)
             work_dir = os.path.abspath(work_dir)
+
+            # Verify working directory exists
+            if not os.path.exists(work_dir):
+                self.error = f"Working directory does not exist: {work_dir}"
+                logger.error(f"Failed to start {self.name}: {self.error}")
+                return False
+
+            if not os.path.isdir(work_dir):
+                self.error = f"Working directory is not a directory: {work_dir}"
+                logger.error(f"Failed to start {self.name}: {self.error}")
+                return False
 
             # Set up environment to preserve ANSI colors
             env = os.environ.copy()
@@ -92,14 +107,31 @@ class ManagedProcess:
 
             if self.process.returncode is not None:
                 self.error = f"Process exited immediately with code {self.process.returncode}"
+                # Check common exit codes for better error messages
+                if self.process.returncode == 127:
+                    self.error = "Command not found. Please check if the required software is installed."
+                elif self.process.returncode == 126:
+                    self.error = "Permission denied. Please check file permissions."
+                elif self.process.returncode == 1:
+                    self.error = "Process failed to start. Check the command and configuration."
+
                 self.pid = None
                 self.state_manager.clear_pid(self.name)
                 return False
 
             return True
 
+        except PermissionError:
+            self.error = "Permission denied. Please check file and directory permissions."
+            logger.error(f"Failed to start {self.name}: {self.error}")
+            return False
+        except FileNotFoundError:
+            self.error = "Command or executable not found. Please ensure the required software is installed."
+            logger.error(f"Failed to start {self.name}: {self.error}")
+            return False
         except Exception as e:
-            self.error = str(e)
+            self.error = f"Failed to start process: {str(e)}"
+            logger.error(f"Failed to start {self.name}: {self.error}")
             return False
 
     async def _read_output(self, log_callback: LogCallback):
@@ -124,11 +156,19 @@ class ManagedProcess:
                     self.logs.append(decoded)  # We still store the raw log
                     # Handle both sync and async callbacks
                     # The callback will decide how to use server_name_to_log and timestamp_to_log
-                    result = log_callback(server_name_to_log, timestamp_to_log, decoded)
-                    if asyncio.iscoroutine(result):
-                        await result
+                    try:
+                        result = log_callback(server_name_to_log, timestamp_to_log, decoded)
+                        if asyncio.iscoroutine(result):
+                            await result
+                    except Exception as e:
+                        logger.warning(f"Error in log callback for {self.name}: {e}")
 
-            except Exception:
+            except asyncio.CancelledError:
+                # Task was cancelled, exit gracefully
+                logger.debug(f"Output reading cancelled for {self.name}")
+                break
+            except Exception as e:
+                logger.error(f"Error reading output from {self.name}: {e}")
                 break
 
     async def stop(self):

@@ -118,22 +118,15 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 
 ### 13. Error Handling
 
-- [ ] Add try/catch throughout codebase
-- [ ] Create user-friendly error messages
+- [x] Add try/catch throughout codebase
+- [x] Create user-friendly error messages
 
-### 14. Documentation
-
-- [ ] Update README with new usage
-- [ ] Document REST API
-- [ ] Create quick start guide
-- [ ] Update CLAUDE.md
-
-### 15. Testing & CI
+### 14. Testing & CI
 
 - [ ] Write tests for critical paths
 - [ ] Create test fixtures
 
-### 16. Web UI Polish
+### 15. Web UI Polish
 
 - [ ] Add xterm.js for proper terminal emulation
 - [ ] Implement tabbed interface for multiple logs
@@ -141,6 +134,13 @@ This document tracks the implementation progress of the DevServer MCP refactorin
 - [ ] Create unified log view
 - [ ] Add keyboard shortcuts (start/stop/switch)
 - [ ] Improve visual design and animations
+
+### 16. Documentation
+
+- [ ] Update README with new usage
+- [ ] Document REST API
+- [ ] Create quick start guide
+- [ ] Update CLAUDE.md
 
 ## Completion Criteria
 

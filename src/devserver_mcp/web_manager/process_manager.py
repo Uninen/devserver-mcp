@@ -50,82 +50,129 @@ class ProcessManager:
     async def start_process(
         self, project_id: str, server_name: str, config: ServerConfig, color: str = "#FFFFFF"
     ) -> bool:
-        if project_id not in self.processes:
-            self.processes[project_id] = {}
+        try:
+            if project_id not in self.processes:
+                self.processes[project_id] = {}
 
-        if server_name in self.processes[project_id]:
-            process = self.processes[project_id][server_name]
-            if process.is_running:
-                logger.info(f"Process {project_id}/{server_name} is already running")
-                return True
+            if server_name in self.processes[project_id]:
+                process = self.processes[project_id][server_name]
+                if process.is_running:
+                    logger.info(f"Process {project_id}/{server_name} is already running")
+                    return True
 
-        state_manager = StateManager(project_id)
-        process = WebManagedProcess(server_name, config, color, state_manager)
-        self.processes[project_id][server_name] = process
+            state_manager = StateManager(project_id)
+            process = WebManagedProcess(server_name, config, color, state_manager)
+            self.processes[project_id][server_name] = process
 
-        async def log_callback(server_name: str, timestamp: str, line: str):
-            # Send log to WebSocket clients if manager is available
-            if self.websocket_manager:
-                await self.websocket_manager.send_log(project_id, server_name, timestamp, line)
+            async def log_callback(server_name: str, timestamp: str, line: str):
+                # Send log to WebSocket clients if manager is available
+                try:
+                    if self.websocket_manager:
+                        await self.websocket_manager.send_log(project_id, server_name, timestamp, line)
+                except Exception as e:
+                    logger.warning(f"Failed to send log via WebSocket: {e}")
 
-        success = await process.start(log_callback)
-        if success:
-            logger.info(f"Started process {project_id}/{server_name} with PID {process.pid}")
-            # Notify WebSocket clients of status change
-            if self.websocket_manager:
-                await self.websocket_manager.send_server_status(project_id, server_name, "running", process.pid)
-        else:
-            logger.error(f"Failed to start process {project_id}/{server_name}: {process.error}")
-            # Notify WebSocket clients of error
-            if self.websocket_manager:
-                await self.websocket_manager.send_server_status(project_id, server_name, "error", None)
+            success = await process.start(log_callback)
+            if success:
+                logger.info(f"Started process {project_id}/{server_name} with PID {process.pid}")
+                # Notify WebSocket clients of status change
+                try:
+                    if self.websocket_manager:
+                        await self.websocket_manager.send_server_status(project_id, server_name, "running", process.pid)
+                except Exception as e:
+                    logger.warning(f"Failed to send status update via WebSocket: {e}")
+            else:
+                logger.error(f"Failed to start process {project_id}/{server_name}: {process.error}")
+                # Notify WebSocket clients of error
+                try:
+                    if self.websocket_manager:
+                        await self.websocket_manager.send_server_status(project_id, server_name, "error", None)
+                except Exception as e:
+                    logger.warning(f"Failed to send error status via WebSocket: {e}")
 
-        return success
-
-    async def stop_process(self, project_id: str, server_name: str) -> bool:
-        if project_id not in self.processes or server_name not in self.processes[project_id]:
-            logger.warning(f"Process {project_id}/{server_name} not found")
+            return success
+        except Exception as e:
+            logger.error(f"Unexpected error starting process {project_id}/{server_name}: {e}")
             return False
 
-        process = self.processes[project_id][server_name]
-        if not process.is_running:
-            logger.info(f"Process {project_id}/{server_name} is not running")
-            return True
+    async def stop_process(self, project_id: str, server_name: str) -> bool:
+        try:
+            if project_id not in self.processes or server_name not in self.processes[project_id]:
+                logger.warning(f"Process {project_id}/{server_name} not found")
+                return False
 
-        await process.stop()
-        logger.info(f"Stopped process {project_id}/{server_name}")
-        # Notify WebSocket clients of status change
-        if self.websocket_manager:
-            await self.websocket_manager.send_server_status(project_id, server_name, "stopped", None)
-        return True
+            process = self.processes[project_id][server_name]
+            if not process.is_running:
+                logger.info(f"Process {project_id}/{server_name} is not running")
+                return True
+
+            await process.stop()
+            logger.info(f"Stopped process {project_id}/{server_name}")
+
+            # Notify WebSocket clients of status change
+            try:
+                if self.websocket_manager:
+                    await self.websocket_manager.send_server_status(project_id, server_name, "stopped", None)
+            except Exception as e:
+                logger.warning(f"Failed to send stop status via WebSocket: {e}")
+
+            return True
+        except Exception as e:
+            logger.error(f"Unexpected error stopping process {project_id}/{server_name}: {e}")
+            return False
 
     def get_process_status(self, project_id: str, server_name: str) -> dict[str, Any]:
-        if project_id not in self.processes or server_name not in self.processes[project_id]:
+        try:
+            if project_id not in self.processes or server_name not in self.processes[project_id]:
+                return {
+                    "name": server_name,
+                    "status": "stopped",
+                    "pid": None,
+                    "error": None,
+                    "idle_time": None,
+                }
+
+            process = self.processes[project_id][server_name]
             return {
                 "name": server_name,
-                "status": "stopped",
+                "status": process.status,
+                "pid": process.pid,
+                "error": process.error,
+                "idle_time": process.idle_time,
+            }
+        except Exception as e:
+            logger.error(f"Error getting process status for {project_id}/{server_name}: {e}")
+            return {
+                "name": server_name,
+                "status": "unknown",
                 "pid": None,
-                "error": None,
+                "error": f"Failed to retrieve status: {str(e)}",
                 "idle_time": None,
             }
-
-        process = self.processes[project_id][server_name]
-        return {
-            "name": server_name,
-            "status": process.status,
-            "pid": process.pid,
-            "error": process.error,
-            "idle_time": process.idle_time,
-        }
 
     def get_process_logs(
         self, project_id: str, server_name: str, offset: int = 0, limit: int = 100
     ) -> tuple[list[str], int, bool]:
-        if project_id not in self.processes or server_name not in self.processes[project_id]:
-            return [], 0, False
+        try:
+            # Validate input parameters
+            if offset < 0:
+                raise ValueError("Offset must be non-negative")
+            if limit <= 0:
+                raise ValueError("Limit must be positive")
+            if limit > 10000:  # Reasonable upper limit
+                limit = 10000
+                logger.warning(f"Log limit capped at 10000 lines for {project_id}/{server_name}")
 
-        process = self.processes[project_id][server_name]
-        return process.logs.get_range(offset, limit, reverse=True)
+            if project_id not in self.processes or server_name not in self.processes[project_id]:
+                return [], 0, False
+
+            process = self.processes[project_id][server_name]
+            return process.logs.get_range(offset, limit, reverse=True)
+        except ValueError:
+            raise  # Re-raise validation errors
+        except Exception as e:
+            logger.error(f"Error retrieving logs for {project_id}/{server_name}: {e}")
+            return [], 0, False
 
     async def start_idle_monitoring(self):
         """Start the idle monitoring background task."""

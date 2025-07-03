@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -30,74 +31,99 @@ security = HTTPBearer()
 
 def get_config_file_path():
     """Get the path to the global config file."""
-    config_dir = Path.home() / ".devserver-mcp"
-    config_dir.mkdir(exist_ok=True)
-    return config_dir / "config.yml"
+    try:
+        config_dir = Path.home() / ".devserver-mcp"
+        config_dir.mkdir(exist_ok=True)
+        return config_dir / "config.yml"
+    except Exception as e:
+        logger.error(f"Failed to create config directory: {e}")
+        raise RuntimeError("Unable to access configuration directory. Please check permissions.") from e
 
 
 def load_project_registry():
     """Load project registry from config file."""
-    config_file = get_config_file_path()
-    if not config_file.exists():
-        return {}
-
     try:
+        config_file = get_config_file_path()
+        if not config_file.exists():
+            return {}
+
         with open(config_file) as f:
             data = yaml.safe_load(f) or {}
             return data.get("projects", {})
+    except yaml.YAMLError as e:
+        logger.error(f"Failed to parse configuration file: {e}")
+        return {}
+    except PermissionError:
+        logger.error("Permission denied accessing configuration file")
+        return {}
     except Exception as e:
-        logger.error(f"Failed to load project registry: {e}")
+        logger.error(f"Unexpected error loading project registry: {e}")
         return {}
 
 
 def save_project_registry(registry: dict[str, Any]):
     """Save project registry to config file."""
-    config_file = get_config_file_path()
-
-    # Load existing config or create new one
     try:
-        if config_file.exists():
-            with open(config_file) as f:
-                data = yaml.safe_load(f) or {}
-        else:
-            data = {}
-    except Exception:
+        config_file = get_config_file_path()
+
+        # Load existing config or create new one
         data = {}
+        if config_file.exists():
+            try:
+                with open(config_file) as f:
+                    data = yaml.safe_load(f) or {}
+            except yaml.YAMLError as e:
+                logger.warning(f"Failed to parse existing config, creating new one: {e}")
+                data = {}
+            except Exception as e:
+                logger.warning(f"Failed to read existing config, creating new one: {e}")
+                data = {}
 
-    # Update projects section
-    data["projects"] = registry
+        # Update projects section
+        data["projects"] = registry
 
-    # Save back to file
-    try:
+        # Save back to file
         with open(config_file, "w") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+    except PermissionError:
+        logger.error("Permission denied saving configuration. Projects will not persist.")
+        raise HTTPException(
+            status_code=500, detail="Unable to save configuration. Please check file permissions."
+        ) from None
     except Exception as e:
         logger.error(f"Failed to save project registry: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save project configuration. Please try again.") from e
 
 
 def write_status_file(running: bool, port: int = 7912, bearer_token: str | None = None):
     """Write status file for service discovery."""
-    status_dir = Path.home() / ".devserver-mcp"
-    status_dir.mkdir(exist_ok=True)
-    status_file = status_dir / "status.json"
+    try:
+        status_dir = Path.home() / ".devserver-mcp"
+        status_dir.mkdir(exist_ok=True)
+        status_file = status_dir / "status.json"
 
-    if running:
-        status = {
-            "running": True,
-            "pid": os.getpid(),
-            "url": f"http://localhost:{port}",
-            "started_at": datetime.utcnow().isoformat() + "Z",
-            "bearer_token": bearer_token,
-        }
-    else:
-        status = {"running": False}
+        if running:
+            status = {
+                "running": True,
+                "pid": os.getpid(),
+                "url": f"http://localhost:{port}",
+                "started_at": datetime.utcnow().isoformat() + "Z",
+                "bearer_token": bearer_token,
+            }
+        else:
+            status = {"running": False}
 
-    # Ensure file has restricted permissions (user read/write only)
-    with open(status_file, "w") as f:
-        json.dump(status, f, indent=2)
+        # Ensure file has restricted permissions (user read/write only)
+        with open(status_file, "w") as f:
+            json.dump(status, f, indent=2)
 
-    # Set permissions to 0600 (user read/write only)
-    os.chmod(status_file, 0o600)
+        # Set permissions to 0600 (user read/write only)
+        os.chmod(status_file, 0o600)
+    except PermissionError:
+        logger.error("Permission denied writing status file. Service discovery may not work.")
+    except Exception as e:
+        logger.error(f"Failed to write status file: {e}")
 
 
 async def verify_token(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> None:
@@ -166,23 +192,31 @@ def get_safe_config_path(project_path: str, config_file: str) -> Path:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global websocket_manager, bearer_token
-    from devserver_mcp.web_manager.websocket_manager import WebSocketManager
+    try:
+        from devserver_mcp.web_manager.websocket_manager import WebSocketManager
 
-    websocket_manager = WebSocketManager()
-    process_manager.set_websocket_manager(websocket_manager)
-    logger.info("DevServer Manager starting on port 7912")
+        websocket_manager = WebSocketManager()
+        process_manager.set_websocket_manager(websocket_manager)
+        logger.info("DevServer Manager starting on port 7912")
 
-    # Generate bearer token for authentication
-    bearer_token = secrets.token_urlsafe(32)
-    write_status_file(True, 7912, bearer_token)
-    
-    # Start idle monitoring
-    await process_manager.start_idle_monitoring()
+        # Generate bearer token for authentication
+        bearer_token = secrets.token_urlsafe(32)
+        write_status_file(True, 7912, bearer_token)
 
-    yield
-    logger.info("DevServer Manager shutting down")
-    write_status_file(False)
-    await process_manager.cleanup_all()
+        # Start idle monitoring
+        await process_manager.start_idle_monitoring()
+
+        yield
+    except Exception as e:
+        logger.error(f"Failed to start DevServer Manager: {e}")
+        raise
+    finally:
+        logger.info("DevServer Manager shutting down")
+        try:
+            write_status_file(False)
+            await process_manager.cleanup_all()
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
 
 
 app = FastAPI(title="DevServer Manager", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
@@ -230,26 +264,51 @@ async def get_auth_token():
 @app.get("/api/projects/", response_model=list[Project])
 async def get_projects(_: Annotated[None, Depends(verify_token)]):
     """Get all registered projects."""
-    return list(project_registry.values())
+    try:
+        return list(project_registry.values())
+    except Exception as e:
+        logger.error(f"Failed to retrieve projects: {e}")
+        raise HTTPException(status_code=500, detail="Unable to retrieve projects. Please try again.") from e
 
 
 @app.post("/api/projects/", response_model=Project)
 async def register_project(project: Project, _: Annotated[None, Depends(verify_token)]):
     """Register a new project."""
-    # Validate the project path
-    validated_path = validate_project_path(project.path)
+    try:
+        # Check if project already exists
+        if project.id in project_registry:
+            raise HTTPException(
+                status_code=409, detail=f"Project '{project.id}' already exists. Please use a different ID."
+            )
 
-    # Update project with validated path
-    project_dict = project.model_dump()
-    project_dict["path"] = str(validated_path)
+        # Validate the project path
+        validated_path = validate_project_path(project.path)
 
-    project_registry[project.id] = project_dict
-    logger.info(f"Registered project: {project.id} at {validated_path}")
+        # Check if config file exists
+        config_path = get_safe_config_path(str(validated_path), project.config_file)
+        if not config_path.exists():
+            raise HTTPException(
+                status_code=404, detail=f"Configuration file '{project.config_file}' not found in project directory."
+            )
 
-    # Persist to config file
-    save_project_registry(project_registry)
+        # Update project with validated path
+        project_dict = project.model_dump()
+        project_dict["path"] = str(validated_path)
 
-    return Project(**project_dict)
+        project_registry[project.id] = project_dict
+        logger.info(f"Registered project: {project.id} at {validated_path}")
+
+        # Persist to config file
+        save_project_registry(project_registry)
+
+        return Project(**project_dict)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to register project: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to register project. Please check the project path and try again."
+        ) from e
 
 
 @app.post("/api/projects/{project_id}/servers/{server_name}/start/", response_model=ServerOperationResult)
@@ -270,7 +329,10 @@ async def start_server(
         config = load_config(str(config_path))
 
         if server_name not in config.servers:
-            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found in project configuration")
+            available_servers = ", ".join(config.servers.keys())
+            raise HTTPException(
+                status_code=404, detail=f"Server '{server_name}' not found. Available servers: {available_servers}"
+            )
 
         server_config = config.servers[server_name]
 
@@ -282,17 +344,36 @@ async def start_server(
             )
         else:
             process = process_manager.processes.get(project_id, {}).get(server_name)
-            error = process.error if process else "Unknown error"
+            error = process.error if process else "Failed to start server process"
+
+            # Provide more helpful error messages
+            if "command not found" in error.lower():
+                error = "Command not found. Please ensure the required software is installed."
+            elif "permission denied" in error.lower():
+                error = "Permission denied. Please check file permissions."
+            elif "address already in use" in error.lower() or "port" in error.lower():
+                port = getattr(server_config, "port", "unknown")
+                error = f"Port {port} is already in use. Please stop any conflicting services."
+
             return ServerOperationResult(
-                status=OperationStatus.ERROR, message=f"Failed to start server '{server_name}': {error}"
+                status=OperationStatus.ERROR, message=f"Failed to start '{server_name}': {error}"
             )
     except FileNotFoundError:
         raise HTTPException(
-            status_code=404, detail=f"Configuration file not found for project '{project_id}'"
+            status_code=404,
+            detail=f"Configuration file not found for project '{project_id}'. Please check the project setup.",
         ) from None
+    except yaml.YAMLError as e:
+        raise HTTPException(
+            status_code=400, detail="Invalid configuration file format. Please check the YAML syntax."
+        ) from e
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error starting server {project_id}/{server_name}: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(
+            status_code=500, detail="An unexpected error occurred while starting the server. Please try again."
+        ) from e
 
 
 @app.post("/api/projects/{project_id}/servers/{server_name}/stop/", response_model=ServerOperationResult)
@@ -301,16 +382,22 @@ async def stop_server(project_id: str, server_name: str, _: Annotated[None, Depe
     if project_id not in project_registry:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
 
-    success = await process_manager.stop_process(project_id, server_name)
+    try:
+        success = await process_manager.stop_process(project_id, server_name)
 
-    if success:
-        return ServerOperationResult(
-            status=OperationStatus.STOPPED, message=f"Server '{server_name}' stopped successfully"
-        )
-    else:
-        return ServerOperationResult(
-            status=OperationStatus.NOT_RUNNING, message=f"Server '{server_name}' was not running"
-        )
+        if success:
+            return ServerOperationResult(
+                status=OperationStatus.STOPPED, message=f"Server '{server_name}' stopped successfully"
+            )
+        else:
+            return ServerOperationResult(
+                status=OperationStatus.NOT_RUNNING, message=f"Server '{server_name}' is not currently running"
+            )
+    except Exception as e:
+        logger.error(f"Error stopping server {project_id}/{server_name}: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to stop server. The process may have already terminated."
+        ) from e
 
 
 @app.get("/api/projects/{project_id}/servers/{server_name}/logs/")
@@ -325,20 +412,28 @@ async def get_server_logs(
     if project_id not in project_registry:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
 
-    lines, total, has_more = process_manager.get_process_logs(project_id, server_name, offset, limit)
+    try:
+        lines, total, has_more = process_manager.get_process_logs(project_id, server_name, offset, limit)
 
-    if lines is None:
+        if lines is None:
+            return LogsResult(
+                status="error",
+                message=f"Server '{server_name}' has not been started yet or logs are not available",
+                lines=[],
+                count=0,
+                total=0,
+                offset=offset,
+                has_more=False,
+            )
+
         return LogsResult(
-            status="error",
-            message=f"Server '{server_name}' not found",
-            lines=[],
-            count=0,
-            total=0,
-            offset=offset,
-            has_more=False,
+            status="success", lines=lines, count=len(lines), total=total, offset=offset, has_more=has_more
         )
-
-    return LogsResult(status="success", lines=lines, count=len(lines), total=total, offset=offset, has_more=has_more)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid offset or limit parameters") from e
+    except Exception as e:
+        logger.error(f"Error retrieving logs for {project_id}/{server_name}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve server logs. Please try again.") from e
 
 
 @app.get("/api/projects/{project_id}/servers/{server_name}/status/", response_model=ServerStatusResponse)
@@ -347,8 +442,12 @@ async def get_server_status(project_id: str, server_name: str, _: Annotated[None
     if project_id not in project_registry:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
 
-    status = process_manager.get_process_status(project_id, server_name)
-    return ServerStatusResponse(**status)
+    try:
+        status = process_manager.get_process_status(project_id, server_name)
+        return ServerStatusResponse(**status)
+    except Exception as e:
+        logger.error(f"Error retrieving status for {project_id}/{server_name}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve server status. Please try again.") from e
 
 
 @app.get("/api/projects/{project_id}/servers/")
@@ -363,31 +462,45 @@ async def get_project_servers(project_id: str, _: Annotated[None, Depends(verify
     try:
         config_path = get_safe_config_path(project["path"], project["config_file"])
         config = load_config(str(config_path))
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Configuration file not found for project '{project_id}'. Please check the project setup.",
+        ) from None
+    except yaml.YAMLError:
+        raise HTTPException(
+            status_code=400, detail="Invalid configuration file format. Please check the YAML syntax."
+        ) from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load project configuration: {str(e)}") from e
+        logger.error(f"Failed to load project configuration for {project_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load project configuration. Please try again.") from e
 
     # Get status for all servers
-    servers = []
-    for server_name, server_config in config.servers.items():
-        status = process_manager.get_process_status(project_id, server_name)
-        servers.append(
-            {
-                "name": server_name,
-                "status": status["status"],
-                "pid": status["pid"],
-                "error": status["error"],
-                "port": server_config.port,
-                "autostart": server_config.autostart,
-                "command": server_config.command,
-            }
-        )
+    try:
+        servers = []
+        for server_name, server_config in config.servers.items():
+            status = process_manager.get_process_status(project_id, server_name)
+            servers.append(
+                {
+                    "name": server_name,
+                    "status": status["status"],
+                    "pid": status["pid"],
+                    "error": status["error"],
+                    "port": server_config.port,
+                    "autostart": server_config.autostart,
+                    "command": server_config.command,
+                }
+            )
 
-    return {
-        "project_id": project_id,
-        "project_name": project.get("name", project_id),
-        "project_path": project["path"],
-        "servers": servers,
-    }
+        return {
+            "project_id": project_id,
+            "project_name": project.get("name", project_id),
+            "project_path": project["path"],
+            "servers": servers,
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving server information for project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve server information. Please try again.") from e
 
 
 static_dir = Path(__file__).parent.parent / "web" / "static"
@@ -410,30 +523,47 @@ else:
 @app.websocket("/ws/projects/{project_id}/")
 async def websocket_endpoint(websocket: WebSocket, project_id: str):
     """WebSocket endpoint for real-time log streaming."""
-    await websocket.accept()
-    if websocket_manager is None:
-        await websocket.close(code=1011, reason="WebSocket manager not initialized")
-        return
-
-    connection_id = await websocket_manager.connect(websocket, project_id)
     try:
-        # Send initial connection status
-        await websocket.send_json({"type": "connection", "status": "connected", "project_id": project_id})
+        await websocket.accept()
 
-        # Keep connection alive and wait for messages
-        while True:
-            try:
-                # Wait for client messages (ping/pong or other commands)
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-                # Handle ping messages
-                if data == "ping":
-                    await websocket.send_text("pong")
-            except TimeoutError:
-                # Send periodic ping to keep connection alive
-                await websocket.send_text("ping")
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket client disconnected from project {project_id}")
+        if websocket_manager is None:
+            await websocket.close(code=1011, reason="Service temporarily unavailable")
+            return
+
+        # Verify project exists
+        if project_id not in project_registry:
+            await websocket.close(code=1008, reason=f"Project '{project_id}' not found")
+            return
+
+        connection_id = await websocket_manager.connect(websocket, project_id)
+        try:
+            # Send initial connection status
+            await websocket.send_json({"type": "connection", "status": "connected", "project_id": project_id})
+
+            # Keep connection alive and wait for messages
+            while True:
+                try:
+                    # Wait for client messages (ping/pong or other commands)
+                    data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                    # Handle ping messages
+                    if data == "ping":
+                        await websocket.send_text("pong")
+                except TimeoutError:
+                    # Send periodic ping to keep connection alive
+                    try:
+                        await websocket.send_text("ping")
+                    except Exception:
+                        break  # Connection is closed
+        except WebSocketDisconnect:
+            logger.info(f"WebSocket client disconnected from project {project_id}")
+        except ConnectionError:
+            logger.info(f"WebSocket connection lost for project {project_id}")
+        except Exception as e:
+            logger.error(f"WebSocket error for project {project_id}: {e}")
+            with contextlib.suppress(Exception):
+                await websocket.close(code=1011, reason="Internal server error")
+        finally:
+            if websocket_manager:
+                websocket_manager.disconnect(connection_id)
     except Exception as e:
-        logger.error(f"WebSocket error for project {project_id}: {e}")
-    finally:
-        websocket_manager.disconnect(connection_id)
+        logger.error(f"Failed to establish WebSocket connection for project {project_id}: {e}")

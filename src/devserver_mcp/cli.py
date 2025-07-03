@@ -1,4 +1,3 @@
-import contextlib
 import json
 import os
 import signal
@@ -41,8 +40,19 @@ def is_manager_running():
         # Check if process is still running
         os.kill(pid, 0)
         return True
-    except (ValueError, OSError, ProcessLookupError):
-        # PID file exists but process is not running
+    except ValueError:
+        # PID file is corrupted
+        pid_file.unlink(missing_ok=True)
+        return False
+    except ProcessLookupError:
+        # Process is not running
+        pid_file.unlink(missing_ok=True)
+        return False
+    except PermissionError:
+        # Process exists but we don't have permission to signal it
+        return True
+    except OSError:
+        # Other OS-level errors
         pid_file.unlink(missing_ok=True)
         return False
 
@@ -55,7 +65,17 @@ def wait_for_manager(port=7912, timeout=5):
             response = httpx.get(f"http://localhost:{port}/health/", timeout=0.5)
             if response.status_code == 200:
                 return True
+        except httpx.ConnectError:
+            # Server not yet listening
+            pass
+        except httpx.TimeoutException:
+            # Request timed out, server might be overloaded
+            pass
         except httpx.RequestError:
+            # Other request errors
+            pass
+        except Exception:
+            # Unexpected errors
             pass
         time.sleep(0.1)
     return False
@@ -69,8 +89,15 @@ def get_bearer_token():
             with open(status_file) as f:
                 status = json.load(f)
                 return status.get("bearer_token")
+        except json.JSONDecodeError:
+            # Status file is corrupted
+            return None
+        except PermissionError:
+            # Can't read status file
+            return None
         except Exception:
-            pass
+            # Other unexpected errors
+            return None
     return None
 
 
@@ -109,20 +136,27 @@ def start(project):
     pid_file = get_pid_file_path()
 
     # Start the manager in a subprocess
-    env = os.environ.copy()
-    env["PYTHONUNBUFFERED"] = "1"
+    try:
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
 
-    process = subprocess.Popen(
-        [sys.executable, "-m", "devserver_mcp.web_manager"],
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,  # Detach from parent process
-    )
+        process = subprocess.Popen(
+            [sys.executable, "-m", "devserver_mcp.web_manager"],
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,  # Detach from parent process
+        )
 
-    # Write PID file
-    with open(pid_file, "w") as f:
-        f.write(str(process.pid))
+        # Write PID file
+        with open(pid_file, "w") as f:
+            f.write(str(process.pid))
+    except PermissionError:
+        click.echo("❌ Permission denied. Please check your system permissions.", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"❌ Failed to start manager process: {e}", err=True)
+        sys.exit(1)
 
     # Wait for manager to be ready
     if wait_for_manager(port):
@@ -216,7 +250,18 @@ def stop():
     try:
         with open(pid_file) as f:
             pid = int(f.read().strip())
+    except ValueError:
+        click.echo("❌ PID file is corrupted. Please manually check for running processes.", err=True)
+        pid_file.unlink(missing_ok=True)
+        sys.exit(1)
+    except PermissionError:
+        click.echo("❌ Permission denied reading PID file. Please check file permissions.", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"❌ Error reading PID file: {e}", err=True)
+        sys.exit(1)
 
+    try:
         # Send SIGTERM to gracefully stop the process
         os.kill(pid, signal.SIGTERM)
 
@@ -229,16 +274,29 @@ def stop():
                 break
         else:
             # Force kill if still running
-            with contextlib.suppress(ProcessLookupError):
+            try:
                 os.kill(pid, signal.SIGKILL)
+                click.echo("⚠️  Manager did not stop gracefully, forced termination")
+            except ProcessLookupError:
+                pass  # Already dead
+            except PermissionError:
+                click.echo("❌ Permission denied. Cannot stop the manager process.", err=True)
+                sys.exit(1)
 
         # Clean up files
         pid_file.unlink(missing_ok=True)
         status_file.unlink(missing_ok=True)
 
         click.echo("⏹️  Devservers manager stopped")
+    except ProcessLookupError:
+        click.echo("⚠️  Manager process was not running")
+        pid_file.unlink(missing_ok=True)
+        status_file.unlink(missing_ok=True)
+    except PermissionError:
+        click.echo("❌ Permission denied. Cannot stop the manager process.", err=True)
+        sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ Error stopping manager: {e}", err=True)
+        click.echo(f"❌ Unexpected error stopping manager: {e}", err=True)
         sys.exit(1)
 
 
@@ -251,11 +309,19 @@ def ui():
     # Start manager if not running
     if not is_manager_running():
         click.echo("Manager not running. Starting...")
-        ctx = click.get_current_context()
-        ctx.invoke(start)
+        try:
+            ctx = click.get_current_context()
+            ctx.invoke(start)
 
-        # Give it a moment to fully start
-        time.sleep(0.5)
+            # Give it a moment to fully start
+            time.sleep(0.5)
+        except Exception as e:
+            click.echo(f"❌ Failed to start manager: {e}", err=True)
+            sys.exit(1)
 
-    click.echo(f"🔗 Opening {url} in your browser...")
-    webbrowser.open(url)
+    try:
+        click.echo(f"🔗 Opening {url} in your browser...")
+        webbrowser.open(url)
+    except Exception as e:
+        click.echo(f"❌ Failed to open browser: {e}", err=True)
+        click.echo(f"Please manually open {url} in your browser.")

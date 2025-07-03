@@ -49,8 +49,15 @@ async def discover_manager() -> tuple[str | None, str | None]:
                     url = status.get("url", DEFAULT_MANAGER_URL)
                     token = status.get("bearer_token")
                     return url, token
+        except json.JSONDecodeError:
+            # Status file is corrupted
+            return None, None
+        except PermissionError:
+            # Can't read status file
+            return None, None
         except Exception:
-            pass
+            # Other unexpected errors
+            return None, None
     return None, None
 
 
@@ -60,7 +67,14 @@ async def check_manager_health(url: str) -> bool:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{url}/health/", timeout=2.0)
             return response.status_code == 200
+    except httpx.ConnectError:
+        # Manager is not running or not reachable
+        return False
+    except httpx.TimeoutException:
+        # Manager is not responding quickly enough
+        return False
     except Exception:
+        # Other unexpected errors
         return False
 
 
@@ -73,7 +87,11 @@ def get_auth_headers(bearer_token: str | None) -> dict[str, str]:
 
 async def get_current_project(manager_url: str, bearer_token: str | None) -> str | None:
     """Get project ID for current directory."""
-    current_dir = Path.cwd().resolve()
+    try:
+        current_dir = Path.cwd().resolve()
+    except Exception:
+        # Unable to determine current directory
+        return None
 
     async with httpx.AsyncClient() as client:
         try:
@@ -81,9 +99,20 @@ async def get_current_project(manager_url: str, bearer_token: str | None) -> str
             if response.status_code == 200:
                 projects = [Project(**p) for p in response.json()]
                 for project in projects:
-                    if Path(project.path).resolve() == current_dir:
-                        return project.id
+                    try:
+                        if Path(project.path).resolve() == current_dir:
+                            return project.id
+                    except Exception:
+                        # Skip invalid project paths
+                        continue
+        except httpx.ConnectError:
+            # Manager is not reachable
+            pass
+        except httpx.HTTPStatusError:
+            # HTTP error from manager
+            pass
         except Exception:
+            # Other unexpected errors
             pass
 
     return None
