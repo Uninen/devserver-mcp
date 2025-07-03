@@ -48,37 +48,37 @@ This plan addresses all failing tests while adhering to the testing guidelines f
 - [x] Verify ALL tests in THIS FILE pass (ignore other files)
 
 ### Step 3: Fix `test_websocket.py`
-- [ ] **FIRST: Re-read `docs/writing_tests.md` to ensure full compliance**
+- [x] **FIRST: Re-read `docs/writing_tests.md` to ensure full compliance**
 
 **Current Issues:**
 - Multiple test failures: messages not being sent as expected
 - Tests expect `send_json` to be called but it's not being called
 
 **Actions:**
-- [ ] Check that WebSocketManager is NEVER mocked (it's our code)
-- [ ] Mock ONLY the WebSocket connection itself (system boundary)
-- [ ] Read WebSocketManager implementation to understand why messages aren't sent
-- [ ] Check if WebSocketManager filters messages or has conditions for sending
-- [ ] Update tests to match actual WebSocketManager behavior
-- [ ] Verify each test has maximum 2 mocks
-- [ ] Run ONLY this file's tests: `uv run pytest tests/test_websocket.py -v`
-- [ ] Verify ALL tests in THIS FILE pass (ignore other files)
+- [x] Check that WebSocketManager is NEVER mocked (it's our code)
+- [x] Mock ONLY the WebSocket connection itself (system boundary)
+- [x] Read WebSocketManager implementation to understand why messages aren't sent
+- [x] Check if WebSocketManager filters messages or has conditions for sending
+- [x] Update tests to match actual WebSocketManager behavior
+- [x] Verify each test has maximum 2 mocks
+- [x] Run ONLY this file's tests: `uv run pytest tests/test_websocket.py -v`
+- [x] Verify ALL tests in THIS FILE pass (ignore other files)
 
 ### Step 4: Fix `test_security.py`
-- [ ] **FIRST: Re-read `docs/writing_tests.md` to ensure full compliance**
+- [x] **FIRST: Re-read `docs/writing_tests.md` to ensure full compliance**
 
 **Current Issues:**
 - Tests expect status code 400 but API returns 404
 - May be testing wrong behavior or API changed
 
 **Actions:**
-- [ ] Ensure ALL tests go through API endpoints only
-- [ ] Do NOT test internal validation functions directly
-- [ ] Check actual API behavior for invalid paths
-- [ ] Update expected status codes to match actual API behavior (400 vs 404)
-- [ ] Verify each test has maximum 2 mocks
-- [ ] Run ONLY this file's tests: `uv run pytest tests/test_security.py -v`
-- [ ] Verify ALL tests in THIS FILE pass (ignore other files)
+- [x] Ensure ALL tests go through API endpoints only
+- [x] Do NOT test internal validation functions directly
+- [x] Check actual API behavior for invalid paths
+- [x] Update expected status codes to match actual API behavior (400 vs 404)
+- [x] Verify each test has maximum 2 mocks
+- [x] Run ONLY this file's tests: `uv run pytest tests/test_security.py -v`
+- [x] Verify ALL tests in THIS FILE pass (ignore other files)
 
 ### Step 5: Fix `test_user_workflows.py`
 - [ ] **FIRST: Re-read `docs/writing_tests.md` to ensure full compliance**

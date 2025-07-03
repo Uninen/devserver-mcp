@@ -18,12 +18,22 @@ def websocket_manager():
 @pytest.fixture
 def mock_websocket():
     """Mock WebSocket at the system boundary."""
-    ws = MagicMock(spec=WebSocket)
+    # Create a mock without spec to allow setting __bool__
+    ws = MagicMock()
+    
+    # Set attributes that WebSocket would have
     ws.client_state = WebSocketState.CONNECTED
-    ws.send_json = MagicMock(return_value=asyncio.Future())
-    ws.send_json.return_value.set_result(None)
-    ws.close = MagicMock(return_value=asyncio.Future())
-    ws.close.return_value.set_result(None)
+    
+    # Create async mock for send_json
+    async def async_send_json(*args, **kwargs):
+        pass
+    ws.send_json = MagicMock(side_effect=async_send_json)
+    
+    # Create async mock for close
+    async def async_close(*args, **kwargs):
+        pass
+    ws.close = MagicMock(side_effect=async_close)
+    
     return ws
 
 
@@ -45,6 +55,9 @@ async def test_websocket_disconnect_removes_connection(websocket_manager, mock_w
     
     # Disconnect
     websocket_manager.disconnect(connection_id)
+    
+    # Wait a bit for the async disconnect to complete
+    await asyncio.sleep(0.1)
     
     assert connection_id not in websocket_manager.active_connections
     assert "test-project" not in websocket_manager.project_connections
@@ -97,13 +110,15 @@ async def test_websocket_sends_status_updates_to_connected_clients(websocket_man
 async def test_websocket_multiple_clients_receive_broadcasts(websocket_manager):
     """Test that multiple connected clients all receive broadcast messages."""
     # Create multiple mock websockets
-    mock_ws1 = MagicMock(spec=WebSocket)
-    mock_ws1.send_json = MagicMock(return_value=asyncio.Future())
-    mock_ws1.send_json.return_value.set_result(None)
+    mock_ws1 = MagicMock()
+    async def async_send_json1(*args, **kwargs):
+        pass
+    mock_ws1.send_json = MagicMock(side_effect=async_send_json1)
     
-    mock_ws2 = MagicMock(spec=WebSocket)
-    mock_ws2.send_json = MagicMock(return_value=asyncio.Future())
-    mock_ws2.send_json.return_value.set_result(None)
+    mock_ws2 = MagicMock()
+    async def async_send_json2(*args, **kwargs):
+        pass
+    mock_ws2.send_json = MagicMock(side_effect=async_send_json2)
     
     # Connect both to same project
     await websocket_manager.connect(mock_ws1, "test-project")
@@ -128,7 +143,9 @@ async def test_websocket_disconnected_client_removed_on_send_error(websocket_man
     connection_id = await websocket_manager.connect(mock_websocket, "test-project")
     
     # Make send_json raise ConnectionError
-    mock_websocket.send_json.side_effect = ConnectionError("Client disconnected")
+    async def raise_connection_error(*args, **kwargs):
+        raise ConnectionError("Client disconnected")
+    mock_websocket.send_json.side_effect = raise_connection_error
     
     # Try to send a message
     await websocket_manager.send_log(
@@ -137,6 +154,9 @@ async def test_websocket_disconnected_client_removed_on_send_error(websocket_man
         "2024-01-01T10:00:00",
         "Test message"
     )
+    
+    # Wait a bit for the async disconnect to complete
+    await asyncio.sleep(0.1)
     
     # Client should be removed
     assert connection_id not in websocket_manager.active_connections
@@ -161,13 +181,15 @@ async def test_websocket_broadcast_to_nonexistent_project_does_not_raise_error(w
 async def test_clients_isolated_by_project(websocket_manager):
     """Test clients only receive messages for their project."""
     # Create mock websockets for different projects
-    mock_ws_project1 = MagicMock(spec=WebSocket)
-    mock_ws_project1.send_json = MagicMock(return_value=asyncio.Future())
-    mock_ws_project1.send_json.return_value.set_result(None)
+    mock_ws_project1 = MagicMock()
+    async def async_send_json1(*args, **kwargs):
+        pass
+    mock_ws_project1.send_json = MagicMock(side_effect=async_send_json1)
     
-    mock_ws_project2 = MagicMock(spec=WebSocket)
-    mock_ws_project2.send_json = MagicMock(return_value=asyncio.Future())
-    mock_ws_project2.send_json.return_value.set_result(None)
+    mock_ws_project2 = MagicMock()
+    async def async_send_json2(*args, **kwargs):
+        pass
+    mock_ws_project2.send_json = MagicMock(side_effect=async_send_json2)
     
     # Connect to different projects
     await websocket_manager.connect(mock_ws_project1, "project1")

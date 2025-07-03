@@ -91,13 +91,19 @@ class WebSocketManager:
                 # Create a list of connection IDs to avoid modification during iteration
                 connection_ids = list(self.project_connections[project_id])
 
-            # Send messages without holding the lock
-            disconnected = []
-            for connection_id in connection_ids:
-                try:
+            # Get websockets while holding the lock to avoid race conditions
+            websockets_to_send = []
+            async with self._lock:
+                for connection_id in connection_ids:
                     websocket = self.active_connections.get(connection_id)
                     if websocket:
-                        await websocket.send_json(message)
+                        websockets_to_send.append((connection_id, websocket))
+            
+            # Send messages without holding the lock
+            disconnected = []
+            for connection_id, websocket in websockets_to_send:
+                try:
+                    await websocket.send_json(message)
                 except ConnectionError:
                     logger.debug(f"WebSocket {connection_id} disconnected")
                     disconnected.append(connection_id)

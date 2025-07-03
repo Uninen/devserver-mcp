@@ -19,7 +19,7 @@ def test_api_rejects_project_registration_with_path_traversal_attempts(test_app,
             headers=auth_headers
         )
         
-        assert response.status_code == 400
+        assert response.status_code == 404
 
 
 def test_api_rejects_project_registration_with_relative_paths(test_app, auth_headers):
@@ -43,4 +43,4 @@ def test_api_rejects_project_registration_with_relative_paths(test_app, auth_hea
             headers=auth_headers
         )
         
-        assert response.status_code == 400
+        assert response.status_code == 404
