@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Install uv
         uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817 # v2.3.0
@@ -34,7 +34,7 @@ jobs:
         run: uv run pytest
 
       - name: Pytest Coverage
-        uses: MishaKav/pytest-coverage-comment@dda025d84b1dd831193ed9cd5b1d7e33c79efa9b # v1.1.59
+        uses: MishaKav/pytest-coverage-comment@ae0e8a539a3f310aefb3bfb6a2209778a21fa42b # v1.2.0
         if: success()
         with:
           pytest-xml-coverage-path: ./coverage.xml
