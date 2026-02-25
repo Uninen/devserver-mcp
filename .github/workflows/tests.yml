@@ -34,7 +34,7 @@ jobs:
         run: uv run pytest
 
       - name: Pytest Coverage
-        uses: MishaKav/pytest-coverage-comment@ae0e8a539a3f310aefb3bfb6a2209778a21fa42b # v1.2.0
+        uses: MishaKav/pytest-coverage-comment@46a1348587126fb199084ee9024ce511cb3abbdb # v1.4.0
         if: success()
         with:
           pytest-xml-coverage-path: ./coverage.xml
