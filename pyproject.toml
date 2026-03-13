@@ -7,10 +7,10 @@ authors = [{ name = "Ville Säävuori", email = "ville@unessa.net" }]
 requires-python = ">=3.13"
 dependencies = [
     "click>=8.2.1",
-    "fastmcp>=2.9.0",
+    "fastmcp>=3.1.0",
     "pydantic>=2.11.7",
     "pyyaml>=6.0.2",
-    "textual>=5.2.0",
+    "textual>=8.1.1",
 ]
 
 [project.scripts]
@@ -28,9 +28,9 @@ dev = [
     "fastapi[standard]>=0.115.13",
     "playwright>=1.52.0",
     "pyright>=1.1.402",
-    "pytest>=8.4.1",
+    "pytest>=9.0.2",
     "pytest-asyncio>=1.0.0",
-    "pytest-cov>=6.2.1",
+    "pytest-cov>=7.0.0",
     "pytest-sugar>=1.0.0",
     "ruff>=0.12.0",
 ]
