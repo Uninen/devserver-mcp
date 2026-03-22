@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install uv
-        uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817 # v2.3.0
+        uses: hynek/setup-cached-uv@0b9e52652c2d5d4fb6af4598efa3d14e60e934d1 # v2.4.0
 
       - name: Install dependencies
         run: uv sync --dev --locked
